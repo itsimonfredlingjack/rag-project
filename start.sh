@@ -96,4 +96,4 @@ echo ""
 # Fånga Ctrl+C och stoppa allt
 trap "echo ''; echo 'Stoppar...'; kill $FRONTEND_PID 2>/dev/null; exit 0" INT TERM
 
-exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+exec python -m uvicorn app.main:app --host 0.0.0.0 --port 8000

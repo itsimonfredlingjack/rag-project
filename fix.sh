@@ -151,7 +151,7 @@ systemctl --user restart simons-ai-backend.service 2>/dev/null || {
     echo -e "${YELLOW}  Startar backend manuellt...${NC}"
     cd "$SCRIPT_DIR"
     source .venv/bin/activate
-    nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/simons-ai-backend.log 2>&1 &
+    nohup python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/simons-ai-backend.log 2>&1 &
 }
 sleep 3
 
