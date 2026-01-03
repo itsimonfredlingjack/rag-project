@@ -99,6 +99,7 @@ class ConfigSettings(BaseSettings):
         "http://127.0.0.1:5173",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://192.168.86.32:3000",
         "http://localhost:5174",
         "http://127.0.0.1:5174",
         "http://localhost:5175",
@@ -206,10 +207,30 @@ class ConfigService:
     @property
     def embedding_model(self) -> str:
         return self._settings.embedding_model
-    
+
+    @property
+    def expected_embedding_dim(self) -> int:
+        return self._settings.expected_embedding_dim
+
     @property
     def reranking_model(self) -> str:
         return self._settings.reranking_model
+    
+    @property
+    def default_collections(self) -> list[str]:
+        return self._settings.default_collections
+    
+    @property
+    def search_timeout(self) -> float:
+        return self._settings.search_timeout
+    
+    @property
+    def parallel_search_enabled(self) -> bool:
+        return self._settings.parallel_search_enabled
+    
+    @property
+    def max_concurrent_queries(self) -> int:
+        return self._settings.max_concurrent_queries
     
     def get_mode_config(self, mode: str) -> dict:
         """

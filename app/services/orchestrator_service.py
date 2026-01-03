@@ -268,8 +268,15 @@ class OrchestratorService(BaseService):
             # STEP 1: Query classification
             class_start = time.perf_counter()
             classification = self.query_processor.classify_query(question)
-            mode = mode if mode != "auto" else classification.mode
-            
+            # Convert string mode to ResponseMode Enum if needed
+            if isinstance(mode, str):
+                mode = mode if mode != "auto" else classification.mode
+                # Ensure mode is ResponseMode Enum (not just string)
+                if isinstance(mode, str):
+                    mode = ResponseMode(mode)
+            else:
+                mode = mode if mode != ResponseMode.AUTO else classification.mode
+
             query_classification_ms = (time.perf_counter() - class_start) * 1000
             reasoning_steps.append(f"Query classified as {mode.value} ({classification.reason})")
             
@@ -302,9 +309,9 @@ class OrchestratorService(BaseService):
                 strategy=retrieval_strategy,
                 history=history,
             )
-            
+
             retrieval_ms = (time.perf_counter() - retrieval_start) * 1000
-            reasoning_steps.append(f"Retrieved {len(retrieval_result.results)} documents in {retrieval_ms:.1f}ms (strategy: {retrieval.metrics.strategy})")
+            reasoning_steps.append(f"Retrieved {len(retrieval_result.results)} documents in {retrieval_ms:.1f}ms (strategy: {retrieval_result.metrics.strategy})")
             
             if not retrieval_result.success:
                 raise Exception(f"Retrieval failed: {retrieval_result.error}")
@@ -415,7 +422,7 @@ class OrchestratorService(BaseService):
             
             metrics = RAGPipelineMetrics(
                 query_classification_ms=query_classification_ms,
-                decontextualization_ms=embedding_context_ms,
+                decontextualization_ms=decontextualization_ms,
                 retrieval_ms=retrieval_ms,
                 llm_generation_ms=llm_generation_ms,
                 guardrail_ms=guardrail_ms,
@@ -474,7 +481,7 @@ class OrchestratorService(BaseService):
                 reasoning_steps=[f"Error: {str(e)}"],
                 metrics=RAGPipelineMetrics(),
                 mode=mode if isinstance(mode, ResponseMode) else ResponseMode.ASSIST,
-                guardrailStatus=WardenStatus.ERROR,
+                guardrail_status=WardenStatus.ERROR,
                 evidence_level="NONE",
                 success=False,
                 error=str(e),

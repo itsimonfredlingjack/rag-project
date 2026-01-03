@@ -147,6 +147,47 @@ async def health_check(
     )
 
 
+@router.get("/stats/overview", response_model=OverviewStats)
+async def get_stats_overview():
+    """
+    Placeholder for dashboard statistics to satisfy frontend requirements.
+    Returns OverviewStats format matching frontend expectations.
+    """
+    return OverviewStats(
+        total_documents=0,
+        collections={},
+        storage_size_mb=0.0,
+        last_updated=datetime.now().isoformat()
+    )
+
+
+@router.get("/collections", response_model=List[CollectionInfo])
+async def get_collections():
+    """
+    Get list of ChromaDB collections with metadata.
+    Returns CollectionInfo list for frontend.
+    """
+    try:
+        import chromadb
+        # Get retrieval service directly
+        retrieval = get_retrieval_service()
+        client = retrieval._chromadb_client
+        if not client:
+            return []
+
+        collections = client.list_collections()
+        result = []
+        for coll in collections:
+            result.append(CollectionInfo(
+                name=coll.name,
+                document_count=coll.count(),
+                metadata_fields=list(coll.metadata.get("metadata_fields", [])) if coll.metadata else []
+            ))
+        return result
+    except Exception as e:
+        return []
+
+
 @router.post("/agent/query", response_model=AgentQueryResponse)
 async def agent_query(
     request: AgentQueryRequest,

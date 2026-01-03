@@ -17,6 +17,7 @@ from .api.Backend_Chat_Stream import websocket_endpoint, cascade_websocket_endpo
 from .api.terminal_ws import terminal_websocket
 from .services.ollama_client import ollama_client
 from .services.gpu_monitor import gpu_monitor
+from .services.orchestrator_service import get_orchestrator_service
 from .config import settings
 from .utils.logging import setup_logging, get_logger
 
@@ -59,6 +60,15 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("GPU monitoring: FAILED - nvidia-smi not available")
 
+    # Initialize Constitutional AI Services
+    try:
+        logger.info("Initializing Constitutional AI Services...")
+        orchestrator = get_orchestrator_service()
+        await orchestrator.initialize()
+        logger.info("✅ Orchestrator & Retrieval Stack ONLINE")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize services: {e}")
+
     # Optional warmup
     if settings.warmup_on_startup and ollama_ok:
         from .models.Backend_Agent_Prompts import get_profile
@@ -76,6 +86,13 @@ async def lifespan(app: FastAPI):
     stop_gpu_broadcast()  # Stop GPU telemetry broadcast
     stop_status_pulse()   # Stop status pulse
     await ollama_client.close()
+    
+    # Close Orchestrator services
+    try:
+        orchestrator = get_orchestrator_service()
+        await orchestrator.close()
+    except Exception as e:
+        logger.error(f"Error closing orchestrator: {e}")
 
 
 # Create FastAPI application
