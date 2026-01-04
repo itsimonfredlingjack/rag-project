@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+/* Custom theme variables for Tailwind v4 */
+@theme {
+  --color-void-dark: #050505;
+  --color-glass-border: rgba(255, 255, 255, 0.1);
+  --color-glass-bg: rgba(10, 10, 10, 0.6);
+  --color-cyan-glow: #00f3ff;
+  --color-amber-alert: #ffaa00;
+
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* Base styles */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--color-void-dark);
+  color: white;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
