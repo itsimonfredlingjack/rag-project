@@ -1,0 +1,98 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+venv_scraper/
+env/
+ENV/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Database files
+*.db
+*.sqlite3
+*.sqlite
+corpus_bridge.db
+
+# Data directories
+chromadb_data/
+pdf_cache/
+scraped_data/
+harvest_results/
+logs/
+backups/
+data/
+
+# Cache and temporary files
+.cache/
+*.cache
+*.log
+*.tmp
+
+# Project specific
+benchmark_results.json
+kommuner_batch_list.json
+
+# AI/ML models and data
+*.bin
+*.pt
+*.pth
+*.h5
+*.pkl
+*.pickle
+
+# Archive and old files
+archive/
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Environment variables
+.env
+.env.local
+
+# Claude/Cursor specific
+.claude-flow/
+.conductor/
+.context/
+.hive-mind/
+.swarm/
+
+# Large documentation files that change frequently
+*.pdf
+esv_docs/
+skatteverket_docs/
+
+# n8n workflows (if they contain sensitive data)
+n8n_workflows/
