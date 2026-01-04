@@ -4,7 +4,7 @@ import { Activity, AlertCircle } from 'lucide-react';
 
 const WS_URL = typeof window !== 'undefined'
   ? `ws://${window.location.hostname}:8000/ws/harvest`
-  : 'ws://localhost:8000/ws/harvest';
+  : 'ws://localhost:8900/ws/harvest';
 
 export function LiveProgress() {
   const { data, connected, error } = useWebSocket<HarvestProgress>(WS_URL);

@@ -68,10 +68,14 @@ export function TrustHull() {
                                             Based on the analysis of <span className="text-cyan-400 font-mono font-bold">{sources.length} sources</span>, the data indicates a significant shift in regional health outcomes. Specifically, rapid intervention protocols have reduced mortality by 15%
                                             <button
                                                 onMouseEnter={(e) => {
+                                                    console.log('Hover [1]');
                                                     setActiveSource('1');
-                                                    useAppStore.getState().setCitationTarget(e.currentTarget.getBoundingClientRect());
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    console.log('Target Rect:', rect);
+                                                    useAppStore.getState().setCitationTarget(rect);
                                                 }}
                                                 onMouseLeave={() => {
+                                                    console.log('Leave [1]');
                                                     setActiveSource(null);
                                                     useAppStore.getState().setCitationTarget(null);
                                                 }}

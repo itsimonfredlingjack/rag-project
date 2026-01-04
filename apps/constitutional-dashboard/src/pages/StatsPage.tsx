@@ -80,7 +80,7 @@ export function StatsPage() {
 
         // Fetch overview stats
         const overviewRes = await fetch(
-          'http://localhost:8000/api/stats/overview'
+          'http://localhost:8900/api/stats/overview'
         );
         if (overviewRes.ok) {
           setOverview(await overviewRes.json());
@@ -88,7 +88,7 @@ export function StatsPage() {
 
         // Fetch document types
         const typesRes = await fetch(
-          'http://localhost:8000/api/stats/documents-by-type'
+          'http://localhost:8900/api/stats/documents-by-type'
         );
         if (typesRes.ok) {
           const data = await typesRes.json();
@@ -97,7 +97,7 @@ export function StatsPage() {
 
         // Fetch timeline data
         const timelineRes = await fetch(
-          'http://localhost:8000/api/stats/timeline'
+          'http://localhost:8900/api/stats/timeline'
         );
         if (timelineRes.ok) {
           const data = await timelineRes.json();

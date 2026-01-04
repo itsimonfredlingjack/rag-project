@@ -2,45 +2,50 @@ import { useAppStore } from '../../stores/useAppStore';
 import { useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-// This component MUST be inside the Canvas to access 3D context,
-// BUT it renders nothing in 3D.
-// Instead, it updates a global SVG overlay or store coordinates.
-// However, the user wants the Connector to be in the "2D Overlay".
-// So we will trigger an update to a separate 2D component via store or event.
-
-// Alternative: We can compute the screen coords here and pass them to a Zustand store,
-// which the 2D overlay consumes.
+// This component runs inside the Canvas to project 3D card positions to 2D screen coords.
+// It updates the Zustand store, which the 2D ConnectorOverlay reads.
 
 export function ConnectorLogic() {
     const { activeSourceId, sources, setConnectorCoords } = useAppStore();
     const { camera, size } = useThree();
 
-    useFrame(() => {
+    useFrame((state) => {
+        // Heartbeat log every 60 frames (~1 sec)
+        if (state.clock.getElapsedTime() % 1 < 0.05) {
+            console.log('ConnectorLogic Heartbeat. ActiveSource:', activeSourceId);
+        }
+
         if (!activeSourceId) {
             setConnectorCoords(null);
             return;
         }
 
         const sourceIndex = sources.findIndex(s => s.id === activeSourceId);
-        if (sourceIndex === -1) return;
+        if (sourceIndex === -1) {
+            console.log('ConnectorLogic: Source not found', activeSourceId);
+            setConnectorCoords(null);
+            return;
+        }
 
-        // Calculate 3D position (matching EvidenceDeck logic)
-        const deckOffset = 2.5;
-        const cardLocalX = (sourceIndex - 1.5) * 1.8;
-        const x = deckOffset + cardLocalX;
-        const y = 0.2;
-        const z = 1.5;
+        // Match the EvidenceDeck and SourceCard positioning:
+        // EvidenceDeck is at [0, -1.5, 0]
+        // Cards spread with: spread = 2.2, centerOffset = (total-1)/2, x = (index - centerOffset) * spread
+        // Active card moves to z=2, y=0.5
+        const total = sources.length;
+        const spread = 2.2;
+        const centerOffset = (total - 1) / 2;
+
+        const x = (sourceIndex - centerOffset) * spread;
+        const y = -1.5 + 0.5; // EvidenceDeck y offset + active card y
+        const z = 2; // Active card z position
 
         const vec = new THREE.Vector3(x, y, z);
-
-        // Project to 2D screen space
         vec.project(camera);
 
-        const x2 = (vec.x * .5 + .5) * size.width;
-        const y2 = (-(vec.y * .5) + .5) * size.height;
+        // Convert NDC to screen pixels
+        const x2 = (vec.x * 0.5 + 0.5) * size.width;
+        const y2 = (-(vec.y * 0.5) + 0.5) * size.height;
 
-        console.log('Sending Coords:', x2, y2);
-        // Send to store for 2D rendering
         setConnectorCoords({ x: x2, y: y2 });
     });
 

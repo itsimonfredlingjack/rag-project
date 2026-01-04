@@ -332,7 +332,7 @@ class RetrievalService(BaseService):
         self,
         query: str,
         k: int = 10,
-        strategy: RetrievalStrategy = RetrievalStrategy.PARALLEL_V1,
+        strategy: RetrievalStrategy | str = RetrievalStrategy.PARALLEL_V1,
         where_filter: Optional[Dict] = None,
         collections: Optional[List[str]] = None,
         history: Optional[List[str]] = None,
@@ -416,7 +416,7 @@ class RetrievalService(BaseService):
                     score_entropy=metrics_dict.get("scores", {}).get("entropy", 0.0),
                     dense_timeout=metrics_dict.get("timeouts", {}).get("dense", False),
                     bm25_timeout=metrics_dict.get("timeouts", {}).get("bm25", False),
-                    strategy=metrics_dict.get("strategy", strategy.value),
+                    strategy=metrics_dict.get("strategy", strategy if isinstance(strategy, str) else strategy.value),
                     rewrite_used=metrics_dict.get("rewrite", {}).get("used", False),
                     rewrite_latency_ms=metrics_dict.get("rewrite", {}).get("latency_ms", 0.0),
                     original_query=metrics_dict.get("rewrite", {}).get("original_query", ""),
@@ -454,7 +454,7 @@ class RetrievalService(BaseService):
 
                 logger.info(
                     f"Search complete: {len(search_results)} results in "
-                    f"{metrics.total_latency_ms:.1f}ms (strategy: {strategy.value})"
+                    f"{metrics.total_latency_ms:.1f}ms (strategy: {strategy if isinstance(strategy, str) else strategy.value})"
                 )
 
                 return RetrievalResult(
