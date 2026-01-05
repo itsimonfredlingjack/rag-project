@@ -44,9 +44,17 @@ class ConfigSettings(BaseSettings):
     expected_embedding_dim: int = 768
 
     # LLM Configuration (Constitutional AI)
-    constitutional_model: str = "ministral-3:14b"
-    constitutional_fallback: str = "gpt-sw3:6.7b"
+    constitutional_model: str = "Mistral-Nemo-Instruct-2407-Q5_K_M.gguf"
+    constitutional_fallback: str = "Mistral-Nemo-Instruct-2407-Q5_K_M.gguf"
     llm_timeout: float = 60.0
+    
+    # LLM Base URL (OpenAI-compatible llama-server)
+    llm_base_url: str = "http://localhost:8080/v1"
+    llama_server_base_url: str = "http://localhost:8080/v1"
+    llama_server_enabled: bool = True
+    llama_server_timeout: float = 120.0
+    gguf_primary_model: str = "Mistral-Nemo-Instruct-2407-Q5_K_M.gguf"
+    gguf_context_window: int = 32768
 
     # Response Modes
     mode_evidence_temperature: float = 0.2
@@ -139,6 +147,7 @@ class ConfigService:
     def __init__(self):
         """Initialize configuration from environment"""
         self._settings: ConfigSettings = ConfigSettings()
+        self._config: ConfigSettings = self._settings
         self._validate_paths()
         logger.info(
             f"ConfigService initialized: {self._settings.app_name} v{self._settings.app_version}"
@@ -205,6 +214,36 @@ class ConfigService:
     @property
     def llm_timeout(self) -> float:
         return self._settings.llm_timeout
+    
+    @property
+    def llm_base_url(self) -> str:
+        """Get the base URL for the OpenAI-compatible llama-server"""
+        return self._settings.llm_base_url or self._settings.llama_server_base_url
+    
+    @property
+    def llama_server_base_url(self) -> str:
+        """Deprecated: use llm_base_url instead"""
+        return self.llm_base_url
+    
+    @property
+    def llama_server_enabled(self) -> bool:
+        """Check if llama-server (RAG-optimized Ollama) is enabled"""
+        return self._settings.llama_server_enabled
+    
+    @property
+    def llama_server_timeout(self) -> float:
+        """Get the timeout for llama-server requests"""
+        return self._settings.llama_server_timeout
+    
+    @property
+    def gguf_primary_model(self) -> str:
+        """Get the primary GGUF model name"""
+        return self._settings.gguf_primary_model
+    
+    @property
+    def gguf_context_window(self) -> int:
+        """Get the context window size for GGUF models"""
+        return self._settings.gguf_context_window
 
     @property
     def embedding_model(self) -> str:

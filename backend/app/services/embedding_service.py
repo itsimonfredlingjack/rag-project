@@ -55,7 +55,8 @@ class EmbeddingService:
 
         try:
             logger.info(f"Loading embedding model: {self.config.embedding_model}")
-            self._model = SentenceTransformer(self.config.embedding_model)
+            # Force CPU to save VRAM for the LLM
+            self._model = SentenceTransformer(self.config.embedding_model, device="cpu")
 
             # Verify dimension on load
             test_text = ["test"]

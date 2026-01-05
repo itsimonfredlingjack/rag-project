@@ -20,9 +20,13 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8900  # Updated from 8000 to match systemd service (RAG fix)
 
+    # LLM (llama-server, OpenAI-compatible)
+    llm_base_url: str = "http://localhost:8080/v1"
+
     # Ollama (local)
     ollama_base_url: str = "http://localhost:11434"
     ollama_timeout_seconds: int = 120
+
 
     # CORS - explicit origins needed when allow_credentials=True
     cors_origins: list[str] = [
