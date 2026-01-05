@@ -3,6 +3,9 @@ import { create } from 'zustand';
 const BACKEND_URL = 'http://192.168.86.32:8900';
 const API_ENDPOINT = `${BACKEND_URL}/api/constitutional/agent/query/stream`;
 
+// Prevent overlapping streams when user iterates quickly.
+let activeAbortController: AbortController | null = null;
+
 // Matches backend Source response
 export interface Source {
     id: string;
@@ -32,6 +35,8 @@ export interface PipelineLogEntry {
 
 interface AppState {
     query: string;
+    submittedQuery: string;
+    queryHistory: string[];
     isSearching: boolean;
     searchStage: 'idle' | 'searching' | 'reading' | 'reasoning' | 'complete' | 'error';
     pipelineStage: PipelineStage;
@@ -51,6 +56,7 @@ interface AppState {
 
     setQuery: (q: string) => void;
     startSearch: (mode?: 'auto' | 'chat' | 'assist' | 'evidence') => Promise<void>;
+    addQueryToHistory: (q: string) => void;
     // Hover = preview/highlight (unless locked)
     setHoveredSource: (id: string | null) => void;
     // Click = lock/unlock selection
@@ -69,6 +75,8 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set, get) => ({
     query: '',
+    submittedQuery: '',
+    queryHistory: [],
     isSearching: false,
     searchStage: 'idle',
     pipelineStage: 'idle',
@@ -88,18 +96,35 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     setQuery: (query) => set({ query }),
 
+    addQueryToHistory: (q) =>
+        set((state) => {
+            const trimmed = q.trim();
+            if (!trimmed) return state;
+            const next = [trimmed, ...state.queryHistory.filter((x) => x !== trimmed)].slice(0, 12);
+            return { queryHistory: next };
+        }),
+
     startSearch: async (mode = 'auto') => {
         const { query } = get();
         if (!query.trim()) return;
+
+        // Abort any in-flight stream before starting a new run.
+        if (activeAbortController) {
+            activeAbortController.abort();
+        }
+        activeAbortController = new AbortController();
 
         let decontextTimer: ReturnType<typeof setTimeout> | null = null;
         let retrievalTimer: ReturnType<typeof setTimeout> | null = null;
         let generationLogged = false;
 
+        get().addQueryToHistory(query);
+
         set({
             isSearching: true,
             searchStage: 'searching',
             pipelineStage: 'query_classification',
+            submittedQuery: query,
             selectedPipelineStage: 'query_classification',
             isPipelineDrawerOpen: false,
             pipelineLog: [
@@ -151,6 +176,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             const response = await fetch(API_ENDPOINT, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                signal: activeAbortController.signal,
                 body: JSON.stringify({
                     question: query,  // Backend expects "question", not "query"
                     mode: mode,
@@ -348,6 +374,10 @@ export const useAppStore = create<AppState>((set, get) => ({
             }
 
         } catch (error) {
+            // Ignore aborts (expected when user starts a new query).
+            if (error instanceof DOMException && error.name === 'AbortError') {
+                return;
+            }
             console.error('Search failed:', error);
             set({
                 isSearching: false,
@@ -358,6 +388,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         } finally {
             if (decontextTimer) clearTimeout(decontextTimer);
             if (retrievalTimer) clearTimeout(retrievalTimer);
+            if (activeAbortController?.signal.aborted) {
+                // Keep controller cleared on abort
+                activeAbortController = null;
+            }
         }
     },
 

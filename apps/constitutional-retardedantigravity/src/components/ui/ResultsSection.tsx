@@ -3,9 +3,11 @@ import { Zap, ShieldAlert, ShieldCheck, Shield } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import type { EvidenceLevel } from '../../stores/useAppStore';
 import { PipelineVisualizer } from './PipelineVisualizer';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { SourcesPanel } from './SourcesPanel';
 import { AnswerWithCitations, extractCitedSourceIds } from './AnswerWithCitations';
+import { QueryBar } from './QueryBar';
+import { SearchOverlay } from './SearchOverlay';
 
 
 const EvidenceLevelInline = ({ level }: { level: EvidenceLevel }) => {
@@ -33,15 +35,38 @@ const EvidenceLevelInline = ({ level }: { level: EvidenceLevel }) => {
 export function ResultsSection() {
     const {
         sources,
+        submittedQuery,
         hoveredSourceId,
         lockedSourceId,
-        query,
         searchStage,
         answer,
         evidenceLevel
     } = useAppStore();
     const answerContainerRef = useRef<HTMLDivElement>(null);
     const citedSourceIds = useMemo(() => extractCitedSourceIds(answer, sources), [answer, sources]);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+    // Cmd/Ctrl+K opens query history overlay (Results view).
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if (e.key.toLowerCase() !== 'k') return;
+            if (!(e.metaKey || e.ctrlKey)) return;
+
+            const el = document.activeElement as HTMLElement | null;
+            const tag = el?.tagName?.toLowerCase();
+            const isTyping =
+                tag === 'input' ||
+                tag === 'textarea' ||
+                (el instanceof HTMLElement && el.isContentEditable);
+            if (isTyping) return;
+
+            e.preventDefault();
+            setIsHistoryOpen(true);
+        };
+
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, []);
 
     // Auto-scroll to bottom when answer updates during streaming
     useEffect(() => {
@@ -83,6 +108,13 @@ export function ResultsSection() {
 
                         <div className="h-px bg-stone-200/70" />
 
+                        {/* Query bar (always visible in Results mode) */}
+                        <div className="px-6 py-4">
+                            <QueryBar onOpenHistory={() => setIsHistoryOpen(true)} />
+                        </div>
+
+                        <div className="h-px bg-stone-200/70" />
+
                         {/* Scrollable content */}
                         <div
                             ref={answerContainerRef}
@@ -96,7 +128,6 @@ export function ResultsSection() {
                                             ANALYSIS RESULTS
                                         </h2>
                                         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-stone-500 font-mono">
-                                            <span className="truncate max-w-[520px]">QUERY: {query}</span>
                                             {evidenceLevel && <EvidenceLevelInline level={evidenceLevel} />}
                                         </div>
                                     </div>
@@ -162,6 +193,8 @@ export function ResultsSection() {
                     <SourcesPanel citedSourceIds={citedSourceIds} />
                 </motion.aside>
             </div>
+
+            <SearchOverlay isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
         </div>
     );
 }
