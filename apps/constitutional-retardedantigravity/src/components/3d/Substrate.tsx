@@ -1,76 +1,70 @@
-import { useRef } from 'react';
+import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Plane } from '@react-three/drei';
+import { Points, PointMaterial } from '@react-three/drei';
 import * as THREE from 'three';
 
-const AURORA_VERTEX = `
-varying vec2 vUv;
-varying float vElevation;
-uniform float uTime;
+// Generate random points in a sphere (replacement for maath.random.inSphere)
+function generateSpherePoints(count: number, radius: number): Float32Array {
+    const points = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+        // Generate random point in sphere using rejection sampling
+        let x, y, z, len;
+        do {
+            x = (Math.random() - 0.5) * 2;
+            y = (Math.random() - 0.5) * 2;
+            z = (Math.random() - 0.5) * 2;
+            len = Math.sqrt(x * x + y * y + z * z);
+        } while (len > 1 || len === 0);
 
-void main() {
-  vUv = uv;
-  vec4 modelPosition = modelMatrix * vec4(position, 1.0);
-  
-  // Create organic wave movement
-  float elevation = sin(modelPosition.x * 0.5 + uTime * 0.5) * 0.5
-                  + sin(modelPosition.y * 0.3 + uTime * 0.3) * 0.5;
-                  
-  modelPosition.z += elevation * 1.5; // Heighten the wave
-  
-  vElevation = elevation;
-  gl_Position = projectionMatrix * viewMatrix * modelPosition;
+        // Normalize and scale by radius
+        const scale = radius / len;
+        points[i * 3] = x * scale;
+        points[i * 3 + 1] = y * scale;
+        points[i * 3 + 2] = z * scale;
+    }
+    return points;
 }
-`;
-
-const AURORA_FRAGMENT = `
-varying vec2 vUv;
-varying float vElevation;
-
-void main() {
-  // Color palette: Cyan main, with deep blue shadows and white peaks
-  vec3 colorA = vec3(0.0, 0.05, 0.1); // Deep void blue
-  vec3 colorB = vec3(0.0, 0.95, 1.0); // Cyan glow
-  
-  float mixStrength = (vElevation + 1.0) * 0.4;
-  vec3 color = mix(colorA, colorB, mixStrength);
-  
-  // Add grid transparency logic if desired, or just soft glow
-  float alpha = smoothstep(0.0, 1.0, mixStrength) * 0.3;
-  
-  gl_FragColor = vec4(color, alpha);
-}
-`;
 
 export function Substrate() {
-    const materialRef = useRef<THREE.ShaderMaterial>(null);
+    const ref = useRef<THREE.Points>(null);
 
-    useFrame((state) => {
-        if (materialRef.current) {
-            materialRef.current.uniforms.uTime.value = state.clock.getElapsedTime();
+    // Generate subtle tech particles (not snow!)
+    const sphere = useMemo(() => {
+        return generateSpherePoints(800, 25); // Much fewer particles
+    }, []);
+
+    useFrame((state, delta) => {
+        if (ref.current) {
+            ref.current.rotation.x -= delta / 30;
+            ref.current.rotation.y -= delta / 40;
+
+            // Gentle wave scale pulsation
+            const t = state.clock.getElapsedTime();
+            ref.current.position.y = -2 + Math.sin(t / 4) * 0.2;
         }
     });
 
     return (
-        <group rotation={[-Math.PI / 2, 0, 0]} position={[0, -2, 0]}>
-            {/* 1. Underlying Grid */}
-            <gridHelper args={[60, 60, '#111111', '#050505']} position={[0, 0.1, 0]} />
+        <group rotation={[0, 0, Math.PI / 4]} position={[0, -2, 0]}>
+            {/* 1. Underlying Horizon Grid (Subtle) */}
+            <gridHelper args={[100, 50, '#cbd5e1', '#f1f5f9']} position={[0, -5, 0]} />
 
-            {/* 2. The Aurora Mesh */}
-            <mesh position={[0, -0.5, 0]}>
-                <planeGeometry args={[60, 60, 64, 64]} />
-                <shaderMaterial
-                    ref={materialRef}
-                    vertexShader={AURORA_VERTEX}
-                    fragmentShader={AURORA_FRAGMENT}
-                    uniforms={{
-                        uTime: { value: 0 }
-                    }}
+            {/* 2. Subtle Tech Particles - NOT SNOW */}
+            <Points ref={ref} positions={sphere} stride={3} frustumCulled={false}>
+                <PointMaterial
                     transparent
-                    side={THREE.DoubleSide}
+                    color="#0891b2"
+                    size={0.02}
+                    sizeAttenuation={true}
                     depthWrite={false}
-                    blending={THREE.AdditiveBlending}
+                    opacity={0.15}
                 />
+            </Points>
+
+            {/* 3. Ambient Glow Mesh */}
+            <mesh position={[0, -8, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                <planeGeometry args={[100, 100]} />
+                <meshBasicMaterial color="#ffffff" transparent opacity={0.1} />
             </mesh>
         </group>
     );

@@ -37,16 +37,17 @@ export function ConnectorLines() {
 
         // 2. Get End Point (3D Card Position)
         // We need to know where the active card is.
-        // Based on EvidenceDeck position (2.5) + SourceCard logic: xPos = (index - 1.5) * 1.8;
+        // Match SourceViewer3D logic:
+        // World X: -5.5
+        // World Y: 1.5 - index * 0.85
+        // World Z: 2.8 (Group 2 + Card 0.8)
+
         const sourceIndex = sources.findIndex(s => s.id === activeSourceId);
         if (sourceIndex === -1) return;
 
-        const deckOffset = 2.5;
-        const cardLocalX = (sourceIndex - 1.5) * 1.8;
-        const endX = deckOffset + cardLocalX;
-
-        const endY = 0.2; // Active Y
-        const endZ = 1.5; // Active Z
+        const endX = -5.5 + 1.4; // Right edge of the card (approx, card width is ~2.8)
+        const endY = 1.5 - (sourceIndex * 0.85);
+        const endZ = 2.8;
 
         // Update geometry
         const points = [startPos, new THREE.Vector3(endX, endY, endZ)];
@@ -55,6 +56,7 @@ export function ConnectorLines() {
     });
 
     return (
+        // @ts-expect-error - line element conflict with SVG
         <line ref={lineRef}>
             <bufferGeometry />
             <lineBasicMaterial color="#00f3ff" linewidth={2} transparent opacity={0.6} />

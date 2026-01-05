@@ -1,63 +1,400 @@
 import { create } from 'zustand';
 
-interface Source {
+const BACKEND_URL = 'http://192.168.86.32:8900';
+const API_ENDPOINT = `${BACKEND_URL}/api/constitutional/agent/query/stream`;
+
+// Matches backend Source response
+export interface Source {
     id: string;
     title: string;
-    type: 'pdf' | 'web' | 'text';
-    date: string;
     snippet: string;
-    relevance: number; // 0-1
+    score: number;         // Backend uses "score", not "relevance"
+    doc_type: string;      // "prop", "mot", "sou", "bet", "sfs"
+    source: string;        // "riksdagen", etc.
+}
+
+// Pipeline stages matching backend flow
+export type PipelineStage =
+    | 'idle'
+    | 'query_classification'
+    | 'decontextualization'
+    | 'retrieval'
+    | 'generation'
+    | 'guardrail_validation';
+
+export type EvidenceLevel = 'HIGH' | 'MEDIUM' | 'LOW' | null;
+
+export interface PipelineLogEntry {
+    ts: number;
+    stage: PipelineStage;
+    message: string;
 }
 
 interface AppState {
     query: string;
     isSearching: boolean;
-    searchStage: 'idle' | 'searching' | 'reading' | 'reasoning' | 'complete';
+    searchStage: 'idle' | 'searching' | 'reading' | 'reasoning' | 'complete' | 'error';
+    pipelineStage: PipelineStage;
+    selectedPipelineStage: PipelineStage;
+    isPipelineDrawerOpen: boolean;
+    pipelineLog: PipelineLogEntry[];
+    evidenceLevel: EvidenceLevel;
+    retrievalStrategy: string | null;
     sources: Source[];
     activeSourceId: string | null;
+    hoveredSourceId: string | null;
+    lockedSourceId: string | null;
     citationTarget: DOMRect | null;
     connectorCoords: { x: number; y: number } | null;
+    answer: string;
+    error: string | null;
 
     setQuery: (q: string) => void;
-    startSearch: () => void;
+    startSearch: (mode?: 'auto' | 'chat' | 'assist' | 'evidence') => Promise<void>;
+    // Hover = preview/highlight (unless locked)
+    setHoveredSource: (id: string | null) => void;
+    // Click = lock/unlock selection
+    toggleLockedSource: (id: string) => void;
+    // Back-compat (used by older components): acts like hover
     setActiveSource: (id: string | null) => void;
+    // Derived helper
+    getEffectiveActiveSourceId: () => string | null;
+    // Pipeline UI controls
+    setSelectedPipelineStage: (stage: PipelineStage) => void;
+    togglePipelineDrawer: (force?: boolean) => void;
     setSearchStage: (stage: AppState['searchStage']) => void;
     setCitationTarget: (rect: DOMRect | null) => void;
     setConnectorCoords: (coords: { x: number; y: number } | null) => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>((set, get) => ({
     query: '',
     isSearching: false,
     searchStage: 'idle',
+    pipelineStage: 'idle',
+    selectedPipelineStage: 'query_classification',
+    isPipelineDrawerOpen: false,
+    pipelineLog: [],
+    evidenceLevel: null,
+    retrievalStrategy: null,
     sources: [],
     activeSourceId: null,
+    hoveredSourceId: null,
+    lockedSourceId: null,
     citationTarget: null,
     connectorCoords: null,
+    answer: '',
+    error: null,
 
     setQuery: (query) => set({ query }),
 
-    startSearch: () => {
-        set({ isSearching: true, searchStage: 'searching', activeSourceId: null, citationTarget: null, connectorCoords: null });
+    startSearch: async (mode = 'auto') => {
+        const { query } = get();
+        if (!query.trim()) return;
 
-        // Simulate RAG pipeline
-        setTimeout(() => {
-            set({
-                sources: MOCK_SOURCES,
-                searchStage: 'reading'
+        let decontextTimer: ReturnType<typeof setTimeout> | null = null;
+        let retrievalTimer: ReturnType<typeof setTimeout> | null = null;
+        let generationLogged = false;
+
+        set({
+            isSearching: true,
+            searchStage: 'searching',
+            pipelineStage: 'query_classification',
+            selectedPipelineStage: 'query_classification',
+            isPipelineDrawerOpen: false,
+            pipelineLog: [
+                {
+                    ts: Date.now(),
+                    stage: 'query_classification',
+                    message: 'Classify: starting pipeline…',
+                },
+            ],
+            activeSourceId: null,
+            hoveredSourceId: null,
+            lockedSourceId: null,
+            citationTarget: null,
+            connectorCoords: null,
+            sources: [],
+            answer: '',
+            error: null,
+            evidenceLevel: null
+        });
+
+        try {
+            // Optimistic / inferred transitions: keep the cockpit feeling alive even if backend is quiet early.
+            decontextTimer = setTimeout(() => {
+                const state = get();
+                if (state.searchStage !== 'searching') return;
+                if (state.pipelineStage !== 'query_classification') return;
+                set((s) => ({
+                    pipelineStage: 'decontextualization',
+                    pipelineLog: [
+                        ...s.pipelineLog,
+                        { ts: Date.now(), stage: 'decontextualization', message: 'Decontext: rewriting query…' },
+                    ].slice(-50),
+                }));
+            }, 260);
+
+            retrievalTimer = setTimeout(() => {
+                const state = get();
+                if (state.searchStage !== 'searching') return;
+                if (state.pipelineStage !== 'query_classification' && state.pipelineStage !== 'decontextualization') return;
+                set((s) => ({
+                    pipelineStage: 'retrieval',
+                    pipelineLog: [
+                        ...s.pipelineLog,
+                        { ts: Date.now(), stage: 'retrieval', message: 'Retrieval: fetching sources…' },
+                    ].slice(-50),
+                }));
+            }, 740);
+
+            const response = await fetch(API_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    question: query,  // Backend expects "question", not "query"
+                    mode: mode,
+                    history: []       // Empty history for now
+                }),
             });
-        }, 1500);
+
+            if (!response.ok) {
+                throw new Error(`Backend request failed: ${response.status}`);
+            }
+            if (!response.body) {
+                throw new Error('No response body');
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+                buffer += chunk;
+
+                // Process SSE lines (events are separated by double newlines)
+                const events = buffer.split('\n\n');
+                buffer = events.pop() || ''; // Keep incomplete last event
+
+                for (const eventBlock of events) {
+                    if (!eventBlock.trim()) continue;
+
+                    // Parse SSE format: "data: {...}"
+                    const dataMatch = eventBlock.match(/^data:\s*(.+)$/m);
+                    if (!dataMatch) continue;
+
+                    const jsonStr = dataMatch[1];
+
+                    try {
+                        const data = JSON.parse(jsonStr);
+
+                        // Handle different event types from backend
+                        switch (data.type) {
+                            case 'metadata':
+                                // Contains mode, sources, evidence_level
+                                if (data.sources) {
+                                    set({ sources: data.sources });
+                                }
+                                if (data.evidence_level) {
+                                    set({ evidenceLevel: data.evidence_level });
+                                }
+                                set((state) => {
+                                    const nextLog: PipelineLogEntry[] = [
+                                        ...state.pipelineLog,
+                                        {
+                                            ts: Date.now(),
+                                            stage: 'retrieval',
+                                            message: `Retrieval: fetched ${data.sources?.length ?? 0} sources`,
+                                        },
+                                    ];
+                                    return {
+                                        pipelineLog: nextLog.slice(-50),
+                                        pipelineStage: 'generation',
+                                        searchStage: 'reading',
+                                    };
+                                });
+                                break;
+
+                            case 'decontextualized':
+                                // Query was rewritten for context
+                                set((state) => {
+                                    const rewritten = typeof data.rewritten === 'string' ? data.rewritten : '';
+                                    const nextLog: PipelineLogEntry[] = [
+                                        ...state.pipelineLog,
+                                        {
+                                            ts: Date.now(),
+                                            stage: 'decontextualization',
+                                            message: rewritten
+                                                ? `Decontext: “${rewritten}”`
+                                                : 'Decontext: query rewritten',
+                                        },
+                                    ];
+                                    return {
+                                        pipelineLog: nextLog.slice(-50),
+                                        pipelineStage: 'decontextualization',
+                                    };
+                                });
+                                break;
+
+                            case 'token':
+                                // Streaming token content
+                                if (data.content) {
+                                    if (!generationLogged) {
+                                        generationLogged = true;
+                                        set((state) => ({
+                                            pipelineLog: [
+                                                ...state.pipelineLog,
+                                                { ts: Date.now(), stage: 'generation', message: 'Generate: composing answer…' },
+                                            ].slice(-50),
+                                        }));
+                                    }
+                                    set((state) => ({
+                                        answer: state.answer + data.content,
+                                        pipelineStage: state.pipelineStage === 'generation' ? state.pipelineStage : 'generation',
+                                        searchStage: state.searchStage === 'reading' ? state.searchStage : 'reading',
+                                    }));
+                                }
+                                break;
+
+                            case 'corrections':
+                                // Guardrail corrections applied
+                                set((state) => {
+                                    const correctionsCount = Array.isArray(data.corrections)
+                                        ? data.corrections.length
+                                        : 0;
+                                    const nextLog: PipelineLogEntry[] = [
+                                        ...state.pipelineLog,
+                                        {
+                                            ts: Date.now(),
+                                            stage: 'guardrail_validation',
+                                            message:
+                                                correctionsCount > 0
+                                                    ? `Validate: ${correctionsCount} corrections applied`
+                                                    : 'Validate: corrections applied',
+                                        },
+                                    ];
+                                    return {
+                                        pipelineStage: 'guardrail_validation',
+                                        pipelineLog: nextLog.slice(-50),
+                                    };
+                                });
+                                if (data.corrected_text) {
+                                    set({ answer: data.corrected_text });
+                                }
+                                break;
+
+                            case 'done':
+                                // Stream complete
+                                set((state) => ({
+                                    searchStage: 'complete',
+                                    pipelineStage: 'idle',
+                                    isSearching: false,
+                                    pipelineLog: [
+                                        ...state.pipelineLog,
+                                        {
+                                            ts: Date.now(),
+                                            stage: 'guardrail_validation',
+                                            message: `Complete: ${typeof data.total_time_ms === 'number' ? `${data.total_time_ms}ms` : 'done'}`,
+                                        },
+                                    ].slice(-50),
+                                }));
+                                break;
+
+                            case 'error':
+                                // Backend error
+                                set((state) => ({
+                                    error: data.message || 'Unknown error',
+                                    searchStage: 'error',
+                                    pipelineStage: 'idle',
+                                    isSearching: false,
+                                    pipelineLog: [
+                                        ...state.pipelineLog,
+                                        {
+                                            ts: Date.now(),
+                                            stage: state.pipelineStage === 'idle' ? 'query_classification' : state.pipelineStage,
+                                            message: `Error: ${data.message || 'Unknown error'}`,
+                                        },
+                                    ].slice(-50),
+                                }));
+                                break;
+
+                            default:
+                            // Unknown event type, log for debugging
+                            // console.warn('Unknown SSE event type:', data.type, data);
+                        }
+
+                    } catch (e) {
+                        console.error('Error parsing SSE data:', e, jsonStr);
+                    }
+                }
+            }
+
+            // Ensure we mark as complete if stream ended without 'done' event
+            const currentState = get();
+            if (currentState.isSearching) {
+                set((state) => ({
+                    searchStage: 'complete',
+                    pipelineStage: 'idle',
+                    isSearching: false,
+                    pipelineLog: [
+                        ...state.pipelineLog,
+                        { ts: Date.now(), stage: 'guardrail_validation', message: 'Complete: stream ended' },
+                    ].slice(-50),
+                }));
+            }
+
+        } catch (error) {
+            console.error('Search failed:', error);
+            set({
+                isSearching: false,
+                searchStage: 'error',
+                pipelineStage: 'idle',
+                error: error instanceof Error ? error.message : 'Search failed'
+            });
+        } finally {
+            if (decontextTimer) clearTimeout(decontextTimer);
+            if (retrievalTimer) clearTimeout(retrievalTimer);
+        }
     },
 
-    setActiveSource: (id) => set({ activeSourceId: id }),
+    setHoveredSource: (id) =>
+        set((state) => ({
+            hoveredSourceId: id,
+            activeSourceId: state.lockedSourceId ? state.lockedSourceId : id,
+        })),
+
+    toggleLockedSource: (id) =>
+        set((state) => {
+            const isUnlock = state.lockedSourceId === id;
+            const nextLocked = isUnlock ? null : id;
+            const nextActive = nextLocked ?? state.hoveredSourceId;
+            return {
+                lockedSourceId: nextLocked,
+                activeSourceId: nextActive,
+            };
+        }),
+
+    setActiveSource: (id) => {
+        // Back-compat: treat as hover behavior
+        get().setHoveredSource(id);
+    },
+
+    getEffectiveActiveSourceId: () => {
+        const state = get();
+        return state.lockedSourceId ?? state.hoveredSourceId;
+    },
+
+    setSelectedPipelineStage: (stage) => set({ selectedPipelineStage: stage }),
+    togglePipelineDrawer: (force) =>
+        set((state) => ({
+            isPipelineDrawerOpen: typeof force === 'boolean' ? force : !state.isPipelineDrawerOpen,
+        })),
+
     setSearchStage: (stage) => set({ searchStage: stage }),
     setCitationTarget: (rect) => set({ citationTarget: rect }),
     setConnectorCoords: (coords) => set({ connectorCoords: coords }),
 }));
-
-const MOCK_SOURCES: Source[] = [
-    { id: '1', title: 'Global Health Report 2024', type: 'pdf', date: '2024-01-15', snippet: 'Key findings indicate a 15% rise in...', relevance: 0.95 },
-    { id: '2', title: 'WHO Policy Brief', type: 'web', date: '2023-11-20', snippet: 'The framework suggests implementing...', relevance: 0.88 },
-    { id: '3', title: 'Academic Journal X', type: 'text', date: '2023-09-00', snippet: 'Methodology used in this study involved...', relevance: 0.82 },
-    { id: '4', title: 'Dataset Z', type: 'text', date: '2024-02-01', snippet: 'Raw data compilation from region...', relevance: 0.75 },
-];
