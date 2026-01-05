@@ -19,9 +19,9 @@ systemctl --user start constitutional-ai-backend
 ### Frontend
 
 ```bash
-cd apps/constitutional-gpt
+cd apps/constitutional-retardedantigravity
 npm install
-npm run dev
+npm run dev -- --port 3001 --host 0.0.0.0
 ```
 
 ## Projektstruktur
@@ -36,8 +36,9 @@ npm run dev
 │   │   └── main.py       # FastAPI entry point
 │   └── requirements.txt
 ├── apps/
-│   ├── constitutional-gpt/      # Main RAG interface (Next.js 16)
-│   └── constitutional-dashboard/ # Metrics dashboard (Vite + React)
+│   ├── constitutional-retardedantigravity/ # Main RAG interface (Vite + React + 3D)
+│   ├── constitutional-dashboard/ # Admin/server control dashboard (Vite + React)
+│   └── constitutional-gpt-database/ # Database interface (experimental)
 ├── docs/                 # Dokumentation
 │   ├── system-overview.md
 │   ├── BACKEND_STATUS.md
@@ -76,7 +77,9 @@ npm run dev
 
 | Tjänst | Port | Status |
 |--------|------|--------|
-| Constitutional AI Backend | 8000 | 🟢 Active |
+| Constitutional AI Backend | 8900 | 🟢 Active |
+| Constitutional RAG Frontend | 3001 | 🟢 Active |
+| Constitutional Dashboard | 5175 | 🟢 Active |
 | Ollama | 11434 | Running |
 
 ## API Endpoints
@@ -111,13 +114,19 @@ Se [API Dokumentation](apps/constitutional-dashboard/CONSTITUTIONAL_API.md) för
 ```bash
 cd backend
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8900
 ```
 
 ### Frontend Development
 
 ```bash
-cd apps/constitutional-gpt
+# Main RAG interface
+cd apps/constitutional-retardedantigravity
+npm install
+npm run dev -- --port 3001 --host 0.0.0.0
+
+# Admin dashboard
+cd apps/constitutional-dashboard
 npm install
 npm run dev
 ```
@@ -126,10 +135,10 @@ npm run dev
 
 ```bash
 # Health check
-curl http://localhost:8000/api/constitutional/health | jq .
+curl http://localhost:8900/api/constitutional/health | jq .
 
 # RAG query
-curl -X POST http://localhost:8000/api/constitutional/agent/query \
+curl -X POST http://localhost:8900/api/constitutional/agent/query \
   -H "Content-Type: application/json" \
   -d '{"question":"Vad säger GDPR om personuppgifter?","mode":"assist"}' | jq .
 ```
