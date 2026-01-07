@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
-const BACKEND_URL = 'http://192.168.86.32:8900';
+// ANVÄNDER PORT 8900 - HÄMTAR FRÅN ENV ELLER FALLBACK TILL DIN IP
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://192.168.86.32:8900';
 const API_ENDPOINT = `${BACKEND_URL}/api/constitutional/agent/query/stream`;
 
 // Prevent overlapping streams when user iterates quickly.

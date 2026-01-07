@@ -13,6 +13,7 @@ function App() {
       {/* ===== LAYER 0: 3D Background (Fixed, Z-0) ===== */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <Canvas
+          dpr={[1, 2]}
           camera={{ position: [0, 2, 8], fov: 50 }}
           gl={{ antialias: true, powerPreference: "high-performance" }}
         >
