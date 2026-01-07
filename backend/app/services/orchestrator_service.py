@@ -31,7 +31,8 @@ from .structured_output_service import (
     get_structured_output_service,
     StructuredOutputSchema,
 )
-from .critic_service import CriticService
+from .critic_service import CriticService, get_critic_service
+from .grader_service import GraderService, get_grader_service
 from ..core.exceptions import SecurityViolationError
 from ..utils.logging import get_logger
 
@@ -85,6 +86,15 @@ class RAGPipelineMetrics:
     critic_ms: float = 0.0
     critic_ok: bool = False
 
+    # CRAG (Corrective RAG) details (NEW)
+    crag_enabled: bool = False
+    grade_count: int = 0
+    relevant_count: int = 0
+    grade_ms: float = 0.0
+    self_reflection_used: bool = False
+    self_reflection_ms: float = 0.0
+    rewrite_count: int = 0
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-serializable dict"""
         return {
@@ -132,10 +142,11 @@ class RAGResult:
     evidence_level: str
     success: bool = True
     error: Optional[str] = None
+    thought_chain: Optional[str] = None  # Chain of Thought from self-reflection
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-serializable dict"""
-        return {
+        result = {
             "answer": self.answer,
             "sources": [
                 {
@@ -157,6 +168,12 @@ class RAGResult:
             "success": self.success,
             "error": self.error,
         }
+
+        # Only include thought_chain if debug mode is enabled
+        if self.thought_chain and self.mode.value in ["assist", "evidence"]:
+            result["thought_chain"] = self.thought_chain
+
+        return result
 
 
 class OrchestratorService(BaseService):
@@ -186,6 +203,7 @@ class OrchestratorService(BaseService):
         reranker: Optional[RerankingService] = None,
         structured_output: Optional[StructuredOutputService] = None,  # NEW
         critic: Optional[CriticService] = None,  # NEW
+        grader: Optional[GraderService] = None,  # NEW
     ):
         """
         Initialize Orchestrator Service.
@@ -199,6 +217,7 @@ class OrchestratorService(BaseService):
             reranker: RerankingService (optional, will create if not provided)
             structured_output: StructuredOutputService (optional, will create if not provided)  # NEW
             critic: CriticService (optional, will create if not provided)  # NEW
+            grader: GraderService (optional, will create if not provided)  # NEW
         """
         super().__init__(config)
 
@@ -210,11 +229,14 @@ class OrchestratorService(BaseService):
         self.reranker = reranker or get_reranking_service(config)
         self.structured_output = structured_output or get_structured_output_service(config)  # NEW
         # Only create critic service if explicitly provided (for backwards compatibility)
-        self.critic = critic
+        self.critic = critic or get_critic_service(config, llm_service)
+        # Only create grader service if explicitly provided (for backwards compatibility)
+        self.grader = grader or get_grader_service(config)
 
         critic_status = "ENABLED" if config.critic_revise_effective_enabled else "DISABLED"
+        grader_status = "ENABLED" if config.settings.crag_enabled else "DISABLED"
         self.logger.info(
-            f"Orchestrator Service initialized (RAG pipeline ready with structured output, critic→revise: {critic_status})"
+            f"Orchestrator Service initialized (RAG pipeline ready with structured output, critic→revise: {critic_status}, CRAG grading: {grader_status})"
         )
 
     async def initialize(self) -> None:
@@ -229,6 +251,10 @@ class OrchestratorService(BaseService):
         if self.reranker:
             await self.reranker.initialize()
         await self.structured_output.initialize()  # NEW
+        if self.critic:
+            await self.critic.initialize()  # NEW
+        if self.grader:
+            await self.grader.initialize()  # NEW
 
         self._mark_initialized()
         logger.info("Orchestrator Service initialized (all child services ready)")
@@ -248,6 +274,10 @@ class OrchestratorService(BaseService):
         ]
         if self.reranker:
             tasks.append(self.reranker.health_check())
+        if self.critic:
+            tasks.append(self.critic.health_check())
+        if self.grader:
+            tasks.append(self.grader.health_check())
 
         health_checks = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -267,6 +297,10 @@ class OrchestratorService(BaseService):
         if self.reranker:
             await self.reranker.close()
         await self.structured_output.close()  # NEW
+        if self.critic:
+            await self.critic.close()  # NEW
+        if self.grader:
+            await self.grader.close()  # NEW
 
         self._mark_uninitialized()
 
@@ -306,24 +340,41 @@ class OrchestratorService(BaseService):
         start_time = time.perf_counter()
         reasoning_steps = []
 
+        # CRAG variables (initialized for metrics)
+        grade_count = 0
+        relevant_count = 0
+        grade_ms = 0.0
+        self_reflection_ms = 0.0
+        thought_chain = None
+        rewrite_count = 0
+
         try:
             # STEP 1: Query classification
             class_start = time.perf_counter()
             classification = self.query_processor.classify_query(question)
-            # Convert string mode to ResponseMode Enum if needed
-            if isinstance(mode, str):
-                mode = mode if mode != "auto" else classification.mode
-                # Ensure mode is ResponseMode Enum (not just string)
-                if isinstance(mode, str):
-                    mode = ResponseMode(mode)
+            resolved_mode = classification.mode
+            if mode is None:
+                resolved_mode = classification.mode
+            elif isinstance(mode, ResponseMode):
+                resolved_mode = mode
+            elif isinstance(mode, str):
+                if mode != "auto":
+                    try:
+                        resolved_mode = ResponseMode(mode)
+                    except ValueError:
+                        resolved_mode = classification.mode
             else:
-                mode = mode if mode != ResponseMode.AUTO else classification.mode
+                resolved_mode = classification.mode
+
+            mode = resolved_mode
 
             query_classification_ms = (time.perf_counter() - class_start) * 1000
-            reasoning_steps.append(f"Query classified as {mode.value} ({classification.reason})")
+            reasoning_steps.append(
+                f"Query classified as {resolved_mode.value} ({classification.reason})"
+            )
 
             # CHAT mode: Skip RAG, just chat
-            if mode == ResponseMode.CHAT:
+            if resolved_mode == ResponseMode.CHAT:
                 return await self._process_chat_mode(question, start_time, reasoning_steps)
 
             # STEP 2: Decontextualization (if history provided)
@@ -340,6 +391,13 @@ class OrchestratorService(BaseService):
 
             decontextualization_ms = (time.perf_counter() - decont_start) * 1000
 
+            # Convert history to strings for retrieval service
+            history_for_retrieval = None
+            if history:
+                history_for_retrieval = [
+                    f"{h.get('role', 'user')}: {h.get('content', '')}" for h in history
+                ]
+
             # STEP 3: Retrieval
             retrieval_start = time.perf_counter()
 
@@ -351,7 +409,7 @@ class OrchestratorService(BaseService):
                 query=search_query,
                 k=k,
                 strategy=retrieval_strategy,
-                history=history,
+                history=history_for_retrieval,
             )
 
             retrieval_ms = (time.perf_counter() - retrieval_start) * 1000
@@ -362,8 +420,149 @@ class OrchestratorService(BaseService):
             if not retrieval_result.success:
                 raise Exception(f"Retrieval failed: {retrieval_result.error}")
 
-            # STEP 4: Build LLM context from sources
+            # Initialize sources from retrieval result
             sources = retrieval_result.results
+
+            # STEP 3.5: CRAG (Corrective RAG) - Document Grading and Self-Reflection
+            grade_ms = 0.0
+            self_reflection_ms = 0.0
+            thought_chain = None
+            rewrite_count = 0
+
+            if (
+                self.config.settings.crag_enabled
+                and self.grader
+                and resolved_mode != ResponseMode.CHAT
+            ):
+                # 3.5A: Grade documents for relevance
+                if retrieval_result.results:
+                    grading_result = await self.grader.grade_documents(
+                        query=search_query, documents=retrieval_result.results
+                    )
+
+                    grade_ms = grading_result.metrics.total_latency_ms
+                    grade_count = grading_result.metrics.total_documents
+                    relevant_count = grading_result.metrics.relevant_count
+
+                    reasoning_steps.append(
+                        f"CRAG graded {grade_count} documents, {relevant_count} relevant "
+                        f"({grading_result.metrics.relevant_percentage:.1f}%) in {grade_ms:.1f}ms"
+                    )
+
+                    # Filter sources to only relevant ones using existing grading result
+                    if relevant_count > 0:
+                        # Filter using the existing grading result instead of re-grading
+                        filtered_docs = [
+                            doc
+                            for doc, grade in zip(retrieval_result.results, grading_result.grades)
+                            if grade.relevant
+                        ]
+                        sources = filtered_docs
+                        reasoning_steps.append(
+                            f"CRAG filtered to {len(sources)} relevant documents for generation"
+                        )
+                    else:
+                        # No relevant documents - try query rewrite
+                        sources = []
+                        reasoning_steps.append(
+                            "CRAG: No relevant documents found, considering query rewrite"
+                        )
+                else:
+                    grade_count = 0
+                    relevant_count = 0
+                    sources = []
+
+                # 3.5B: Self-Reflection (Chain of Thought) before generation
+                if sources and self.config.settings.crag_enable_self_reflection and self.critic:
+                    reflection_start = time.perf_counter()
+
+                    try:
+                        # Get self-reflection from critic
+                        reflection = await self.critic.self_reflection(
+                            query=question, mode=resolved_mode.value, sources=sources
+                        )
+
+                        self_reflection_ms = (time.perf_counter() - reflection_start) * 1000
+                        thought_chain = reflection.thought_process
+
+                        reasoning_steps.append(
+                            f"Self-reflection generated in {self_reflection_ms:.1f}ms "
+                            f"(confidence: {reflection.confidence:.2f})"
+                        )
+
+                        # Check if reflection indicates insufficient evidence
+                        if not reflection.has_sufficient_evidence:
+                            # Return refusal if insufficient evidence
+                            if resolved_mode == ResponseMode.EVIDENCE:
+                                refusal_template = getattr(
+                                    self.config.settings,
+                                    "evidence_refusal_template",
+                                    "Tyvärr kan jag inte besvara frågan utifrån de dokument som har hämtats...",
+                                )
+
+                                reasoning_steps.append(
+                                    f"CRAG refusal: insufficient evidence - {', '.join(reflection.missing_evidence)}"
+                                )
+
+                                # Build metrics for early return
+                                total_pipeline_ms = (time.perf_counter() - start_time) * 1000
+
+                                metrics = RAGPipelineMetrics(
+                                    query_classification_ms=query_classification_ms,
+                                    decontextualization_ms=decontextualization_ms,
+                                    retrieval_ms=retrieval_ms,
+                                    grade_ms=grade_ms,
+                                    self_reflection_ms=self_reflection_ms,
+                                    total_pipeline_ms=total_pipeline_ms,
+                                    mode=mode.value,
+                                    sources_count=0,
+                                    tokens_generated=0,
+                                    corrections_count=0,
+                                    retrieval_strategy=retrieval_result.metrics.strategy,
+                                    retrieval_results_count=len(retrieval_result.results),
+                                    top_relevance_score=retrieval_result.metrics.top_score,
+                                    guardrail_status="unchanged",
+                                    evidence_level="NONE",
+                                    model_used="",
+                                    llm_latency_ms=0.0,
+                                    parse_errors=False,
+                                    structured_output_enabled=self.config.structured_output_effective_enabled,
+                                    critic_revision_count=0,
+                                    critic_ms=0.0,
+                                    critic_ok=False,
+                                    crag_enabled=True,
+                                    grade_count=grade_count,
+                                    relevant_count=relevant_count,
+                                    self_reflection_used=True,
+                                    rewrite_count=rewrite_count,
+                                )
+
+                                return RAGResult(
+                                    answer=refusal_template,
+                                    sources=[],
+                                    reasoning_steps=reasoning_steps,
+                                    metrics=metrics,
+                                    mode=resolved_mode,
+                                    guardrail_status=WardenStatus.UNCHANGED,
+                                    evidence_level="NONE",
+                                    success=True,
+                                    thought_chain=thought_chain,
+                                )
+
+                    except Exception as e:
+                        self.logger.warning(f"Self-reflection failed: {e}")
+                        reasoning_steps.append(f"Self-reflection failed: {str(e)[:100]}")
+                        self_reflection_ms = (time.perf_counter() - reflection_start) * 1000
+
+            # STEP 4: Build LLM context from sources
+            # Note: sources may have been filtered by CRAG already
+            if not (
+                self.config.settings.crag_enabled
+                and self.grader
+                and resolved_mode != ResponseMode.CHAT
+            ):
+                # Only set sources from retrieval if CRAG is not enabled
+                sources = retrieval_result.results
 
             # Extract source text for context
             context_text = self._build_llm_context(sources)
@@ -373,19 +572,23 @@ class OrchestratorService(BaseService):
             llm_start = time.perf_counter()
 
             # Get mode-specific configuration
-            llm_config = self.query_processor.get_mode_config(mode.value)
+            llm_config = self.query_processor.get_mode_config(resolved_mode.value)
 
             # Build messages
             system_prompt = self._build_system_prompt(
-                mode.value,
+                resolved_mode.value,
                 sources,
                 context_text,
                 structured_output_enabled=self.config.structured_output_effective_enabled,
             )
             messages = [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"Fråga: {question}"},
             ]
+
+            # Note: thought_chain is NOT included in prompts for security
+            # It can contaminate outputs and leak internal reasoning
+
+            messages.append({"role": "user", "content": f"Fråga: {question}"})
 
             if history:
                 # Add conversation history
@@ -786,6 +989,13 @@ class OrchestratorService(BaseService):
                 critic_revision_count=critic_revision_count,  # NEW
                 critic_ms=0.0 if critic_revision_count == 0 else critic_ms,  # NEW
                 critic_ok=critic_feedback.ok if critic_feedback else False,  # NEW
+                crag_enabled=self.config.settings.crag_enabled,  # NEW
+                grade_count=grade_count,  # NEW
+                relevant_count=relevant_count,  # NEW
+                grade_ms=grade_ms,  # NEW
+                self_reflection_used=bool(thought_chain),  # NEW
+                self_reflection_ms=self_reflection_ms,  # NEW
+                rewrite_count=rewrite_count,  # NEW
             )
 
             logger.info(
@@ -803,6 +1013,7 @@ class OrchestratorService(BaseService):
                 guardrail_status=guardrail_result.status,
                 evidence_level=evidence_level,
                 success=True,
+                thought_chain=thought_chain,  # NEW
             )
 
         except SecurityViolationError as e:
@@ -817,6 +1028,7 @@ class OrchestratorService(BaseService):
                 evidence_level="NONE",
                 success=False,
                 error=str(e),
+                thought_chain=None,  # NEW
             )
 
         except Exception as e:
@@ -831,6 +1043,7 @@ class OrchestratorService(BaseService):
                 evidence_level="NONE",
                 success=False,
                 error=str(e),
+                thought_chain=None,  # NEW
             )
 
     async def _process_chat_mode(
@@ -891,6 +1104,7 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
             guardrail_status=WardenStatus.UNCHANGED,
             evidence_level="NONE",
             success=True,
+            thought_chain=None,  # NEW
         )
 
     def _build_llm_context(self, sources: List[SearchResult]) -> str:
@@ -1005,7 +1219,19 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
         try:
             # Step 1: Classify query
             classification = self.query_processor.classify_query(question)
-            response_mode = mode if mode != "auto" else classification.mode
+
+            # Normalize mode safely (None/str/Enum)
+            if mode is None or mode == "auto":
+                response_mode = classification.mode
+            elif isinstance(mode, ResponseMode):
+                response_mode = mode
+            elif isinstance(mode, str):
+                try:
+                    response_mode = ResponseMode(mode)
+                except ValueError:
+                    response_mode = classification.mode
+            else:
+                response_mode = classification.mode
 
             if response_mode == ResponseMode.CHAT:
                 # CHAT mode: Direct streaming
@@ -1037,14 +1263,87 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
 
             # Step 3: Retrieval
             retrieval_start = time.perf_counter()
+
+            # Convert history to strings for retrieval service
+            history_for_retrieval = None
+            if history:
+                history_for_retrieval = [
+                    f"{h.get('role', 'user')}: {h.get('content', '')}" for h in history
+                ]
+
             retrieval_result = await self.retrieval.search(
                 query=search_query,
                 k=k,
                 strategy=retrieval_strategy,
-                history=history,
+                history=history_for_retrieval,
             )
 
             retrieval_ms = (time.perf_counter() - retrieval_start) * 1000
+
+            # CRAG: Document Grading & Filtering
+            sources = retrieval_result.results
+
+            if self.config.settings.crag_enabled and self.grader:
+                # Grade documents
+                grading_result = await self.grader.grade_documents(
+                    query=search_query, documents=retrieval_result.results
+                )
+
+                # Emit grading status event
+                yield f"data: {self._json({'type': 'grading', 'total': grading_result.metrics.total_documents, 'relevant': grading_result.metrics.relevant_count, 'message': '⚖️ Väger bevis...'})}\n\n"
+
+                # Filter sources
+                relevant_docs = []
+                for doc, grade in zip(retrieval_result.results, grading_result.grades):
+                    if grade.relevant:
+                        relevant_docs.append(doc)
+
+                if relevant_docs:
+                    sources = relevant_docs
+                else:
+                    # If no relevant docs, keep empty list (will trigger refusal if enabled)
+                    sources = []
+
+            # CRAG: Self-Reflection
+            thought_chain = None
+            if (
+                sources
+                and self.config.settings.crag_enabled
+                and self.config.settings.crag_enable_self_reflection
+                and self.critic
+            ):
+                reflection = await self.critic.self_reflection(
+                    query=question, mode=response_mode.value, sources=sources
+                )
+                thought_chain = reflection.thought_process
+
+                # Emit thought chain event
+                yield f"data: {self._json({'type': 'thought_chain', 'content': thought_chain})}\n\n"
+
+                # Handle refusal
+                if (
+                    not reflection.has_sufficient_evidence
+                    and response_mode == ResponseMode.EVIDENCE
+                ):
+                    refusal_text = getattr(
+                        self.config.settings,
+                        "evidence_refusal_template",
+                        "Tyvärr kan jag inte besvara frågan utifrån de dokument som har hämtats...",
+                    )
+                    refusal_reason = (
+                        ", ".join(reflection.missing_evidence)
+                        if reflection.missing_evidence
+                        else "Underlag saknas"
+                    )
+
+                    # Emit metadata with empty sources and refusal reason
+                    yield f"data: {self._json({'type': 'metadata', 'mode': response_mode.value, 'sources': [], 'search_time_ms': retrieval_ms, 'refusal': True, 'refusal_reason': refusal_reason})}\n\n"
+                    # Emit explicit refusal event
+                    yield f"data: {self._json({'type': 'refusal', 'message': refusal_text, 'reason': refusal_reason})}\n\n"
+                    # Stream refusal as content
+                    yield f"data: {self._json({'type': 'token', 'content': refusal_text})}\n\n"
+                    yield f"data: {self._json({'type': 'done'})}\n\n"
+                    return
 
             # Build sources for metadata event
             sources_metadata = [
@@ -1055,17 +1354,17 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
                     "doc_type": s.doc_type,
                     "source": s.source,
                 }
-                for s in retrieval_result.results
+                for s in sources
             ]
 
             yield f"data: {self._json({'type': 'metadata', 'mode': response_mode.value, 'sources': sources_metadata, 'search_time_ms': retrieval_ms})}\n\n"
 
             # Step 4: Build context and stream LLM response
-            context_text = self._build_llm_context(retrieval_result.results)
+            context_text = self._build_llm_context(sources)
             # Disable structured output for streaming to prevent internal note leakage
             system_prompt = self._build_system_prompt(
                 response_mode.value,
-                retrieval_result.results,
+                sources,
                 context_text,
                 structured_output_enabled=False,
             )
