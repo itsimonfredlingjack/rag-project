@@ -433,7 +433,12 @@ class RetrievalOrchestrator:
         )
     """
 
-    DEFAULT_COLLECTIONS = ["sfs_lagtext", "riksdag_documents_p1", "swedish_gov_docs"]
+    # Fallback only - prefer passing default_collections from config
+    DEFAULT_COLLECTIONS = [
+        "sfs_lagtext_bge_m3_1024",
+        "riksdag_documents_p1_bge_m3_1024",
+        "swedish_gov_docs_bge_m3_1024",
+    ]
 
     # Concurrency control for multi-query (Phase 3)
     MAX_CONCURRENT_QUERIES = 3
@@ -445,6 +450,9 @@ class RetrievalOrchestrator:
         default_timeout: float = 5.0,
         query_rewriter=None,  # Phase 2: Optional QueryRewriter instance
         query_expander=None,  # Phase 3: Optional QueryExpander instance
+        default_collections: Optional[
+            List[str]
+        ] = None,  # From config.effective_default_collections
     ):
         self.client = chromadb_client
         self.embed_fn = embedding_function
@@ -452,6 +460,8 @@ class RetrievalOrchestrator:
         self.rewriter = query_rewriter
         self.expander = query_expander or QueryExpander(max_queries=3)
         self._query_semaphore = asyncio.Semaphore(self.MAX_CONCURRENT_QUERIES)
+        # Use passed collections or fall back to class default
+        self._default_collections = default_collections or self._default_collections
 
     async def search(
         self,
@@ -499,7 +509,7 @@ class RetrievalOrchestrator:
                 results, metrics = await parallel_collection_search(
                     client=self.client,
                     query_embedding=query_embedding,
-                    collection_names=collections or self.DEFAULT_COLLECTIONS,
+                    collection_names=collections or self._default_collections,
                     n_results_per_collection=k,
                     where_filter=where_filter,
                     timeout_seconds=self.default_timeout,
@@ -645,7 +655,7 @@ class RetrievalOrchestrator:
         logger.info(f"Batch embedding: {len(expanded.queries)} queries in {embed_latency:.1f}ms")
 
         # Step 4: Search each embedding in parallel (with semaphore)
-        collection_names = collections or self.DEFAULT_COLLECTIONS
+        collection_names = collections or self._default_collections
 
         async def search_single_embedding(embedding: List[float]) -> List[Dict]:
             """Search with semaphore to prevent self-DDoS."""
@@ -977,7 +987,7 @@ class RetrievalOrchestrator:
 
         # Adjusted k for this step
         adjusted_k = int(k * k_multiplier)
-        collection_names = collections or self.DEFAULT_COLLECTIONS
+        collection_names = collections or self._default_collections
 
         # Search each embedding in parallel
         async def search_single_embedding(embedding: List[float]) -> List[Dict]:

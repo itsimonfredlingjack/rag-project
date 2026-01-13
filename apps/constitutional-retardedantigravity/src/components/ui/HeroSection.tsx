@@ -56,7 +56,9 @@ export function HeroSection() {
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            if (query.trim()) startSearch();
+            if (query.trim()) {
+                startSearch();
+            }
         }
     };
 

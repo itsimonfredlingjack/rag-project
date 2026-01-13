@@ -318,7 +318,7 @@ class RetrievalService(BaseService):
                         try:
                             collection = self._chromadb_client.get_collection(name=coll_name)
                             # Try a test query to verify dimension compatibility
-                            test_results = collection.query(
+                            _ = collection.query(
                                 query_embeddings=[test_embedding],
                                 n_results=1,
                             )
@@ -351,6 +351,7 @@ class RetrievalService(BaseService):
                     default_timeout=self.config.search_timeout,
                     query_rewriter=None,  # Will be added separately
                     query_expander=None,  # Will be added separately
+                    default_collections=self.config.effective_default_collections,
                 )
                 logger.info("RetrievalOrchestrator initialized")
             except Exception as e:

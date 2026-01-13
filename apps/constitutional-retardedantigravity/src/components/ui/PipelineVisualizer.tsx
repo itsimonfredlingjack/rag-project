@@ -56,13 +56,12 @@ export const PipelineVisualizer: React.FC = () => {
     const togglePipelineDrawer = useAppStore((state) => state.togglePipelineDrawer);
     const pipelineLog = useAppStore((state) => state.pipelineLog);
 
+    const isIdle = searchStage === 'idle';
+
     // Determine active index for progress bar
     const runningStage: PipelineStage =
         pipelineStage === 'idle' ? 'guardrail_validation' : pipelineStage;
     const activeIndex = stages.findIndex(s => s.id === runningStage);
-
-    // Hide only on landing/hero
-    if (searchStage === 'idle') return null;
 
     const selectedIndex = stages.findIndex((s) => s.id === selectedPipelineStage);
     const progressPct = selectedIndex >= 0 ? `${(selectedIndex / (stages.length - 1)) * 100}%` : '0%';
@@ -135,6 +134,8 @@ export const PipelineVisualizer: React.FC = () => {
                 : stageMessages[effectiveStageForStatus];
 
     const percent = Math.round((displayIndex / (stages.length - 1)) * 100);
+
+    if (isIdle) return null;
 
     return (
         <div className={clsx(

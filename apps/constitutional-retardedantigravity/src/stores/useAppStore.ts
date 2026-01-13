@@ -5,6 +5,14 @@ const API_ENDPOINT = `${BACKEND_URL}/api/constitutional/agent/query/stream`;
 
 // Prevent overlapping streams when user iterates quickly.
 let activeAbortController: AbortController | null = null;
+const createSearchId = () => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+    return `search-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+};
+const scheduleMicrotask =
+    typeof queueMicrotask === 'function' ? queueMicrotask : (cb: () => void) => setTimeout(cb, 0);
 
 // Matches backend Source response
 export interface Source {
@@ -111,11 +119,28 @@ export const useAppStore = create<AppState>((set, get) => ({
         const { query } = get();
         if (!query.trim()) return;
 
-        if (activeAbortController) {
-            activeAbortController.abort();
+        const previousAbortController = activeAbortController;
+        let currentAbortController: AbortController | null = null;
+        try {
+            currentAbortController = new AbortController();
+        } catch (abortCreateError) {
+            console.warn('[startSearch] AbortController unavailable, continuing without signal', abortCreateError);
         }
-        activeAbortController = new AbortController();
-        const searchId = crypto.randomUUID();
+        activeAbortController = currentAbortController;
+
+        if (previousAbortController) {
+            scheduleMicrotask(() => {
+                try {
+                    if (!previousAbortController.signal.aborted) {
+                        previousAbortController.abort();
+                    }
+                } catch (abortError) {
+                    console.warn('[startSearch] Abort threw, continuing', abortError);
+                }
+            });
+        }
+
+        const searchId = createSearchId();
 
         let generationLogged = false;
         let gradingWatchdog: ReturnType<typeof setTimeout> | null = null;
@@ -203,7 +228,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             const response = await fetch(API_ENDPOINT, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                signal: activeAbortController.signal,
+                ...(currentAbortController ? { signal: currentAbortController.signal } : {}),
                 body: JSON.stringify({
                     question: query,
                     mode: mode,
@@ -376,8 +401,12 @@ export const useAppStore = create<AppState>((set, get) => ({
             }
 
         } catch (error) {
-            if (error instanceof DOMException && error.name === 'AbortError') return;
-            if (get().currentSearchId !== searchId) return;
+            if (error instanceof DOMException && error.name === 'AbortError') {
+                return;
+            }
+            if (get().currentSearchId !== searchId) {
+                return;
+            }
             clearGradingWatchdog();
             set({
                 isSearching: false,
@@ -387,7 +416,9 @@ export const useAppStore = create<AppState>((set, get) => ({
             });
         } finally {
             clearGradingWatchdog();
-            if (activeAbortController?.signal.aborted) activeAbortController = null;
+            if (activeAbortController === currentAbortController && currentAbortController?.signal.aborted) {
+                activeAbortController = null;
+            }
         }
     },
 

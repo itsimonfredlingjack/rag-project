@@ -22,11 +22,6 @@ export function QueryBar({ onOpenHistory, className }: QueryBarProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
-        // Keep draft in sync when not editing.
-        if (!isEditing) setDraft(submittedQuery);
-    }, [submittedQuery, isEditing]);
-
-    useEffect(() => {
         if (!isEditing) return;
         const t = setTimeout(() => {
             if (textareaRef.current) {
@@ -48,6 +43,10 @@ export function QueryBar({ onOpenHistory, className }: QueryBarProps) {
     }, [draft, isEditing]);
 
     const recent = useMemo(() => queryHistory.slice(0, 6), [queryHistory]);
+    const startEditing = () => {
+        setDraft(submittedQuery);
+        setIsEditing(true);
+    };
 
     const run = async (q: string) => {
         const trimmed = q.trim();
@@ -72,7 +71,7 @@ export function QueryBar({ onOpenHistory, className }: QueryBarProps) {
                                 <motion.button
                                     key="chip"
                                     type="button"
-                                    onClick={() => setIsEditing(true)}
+                                    onClick={startEditing}
                                     className={clsx(
                                         "group inline-flex items-center gap-2 max-w-[680px]",
                                         "px-3 py-1.5 rounded-full border",
@@ -161,7 +160,7 @@ export function QueryBar({ onOpenHistory, className }: QueryBarProps) {
                 <div className={clsx("flex items-center gap-2 flex-shrink-0", isEditing && "hidden")}>
                     <button
                         type="button"
-                        onClick={() => setIsEditing(true)}
+                        onClick={startEditing}
                         className="hidden md:inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-stone-300/70 bg-white/40 hover:bg-white/60 transition-colors text-stone-700"
                         title="Edit"
                     >
