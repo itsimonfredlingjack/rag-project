@@ -4,15 +4,16 @@ Refactored with Service Layer Architecture
 """
 
 import asyncio
-from fastapi import APIRouter, Header, Depends, WebSocket
+from datetime import datetime
+from typing import Dict, List, Optional
+
+from fastapi import APIRouter, Depends, Header, WebSocket
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict
-from datetime import datetime
 
 # Import services
-from ..services.orchestrator_service import OrchestratorService, get_orchestrator_service, RAGResult
-from ..services.retrieval_service import get_retrieval_service, RetrievalStrategy
+from ..services.orchestrator_service import OrchestratorService, RAGResult, get_orchestrator_service
+from ..services.retrieval_service import RetrievalStrategy, get_retrieval_service
 
 router = APIRouter(prefix="/api/constitutional", tags=["constitutional"])
 
@@ -102,6 +103,9 @@ class AgentQueryRequest(BaseModel):
     mode: str = Field(default="auto", description="Query mode: auto, chat, assist, evidence")
     history: Optional[List[ConversationMessage]] = Field(
         default=None, description="Conversation history for context (max 10 messages)"
+    )
+    use_agent: bool = Field(
+        default=False, description="Use LangGraph agentic flow instead of linear pipeline"
     )
 
 
@@ -230,22 +234,6 @@ async def agent_query(
 ):
     """
     Full agentic RAG pipeline using OrchestratorService.
-
-    Pipeline:
-    1. Query classification (CHAT/ASSIST/EVIDENCE)
-    2. Query decontextualization (if history provided)
-    3. Document retrieval (Phase 1-4 RetrievalOrchestrator)
-    4. LLM generation (Ministral 3 14B)
-    5. Guardrail validation (Jail Warden v2)
-    6. Evidence level assignment
-
-    Response modes:
-    - CHAT: Direct LLM response, no sources
-    - ASSIST: Search + LLM with conversational tone
-    - EVIDENCE: Search + LLM with formal tone and citations
-
-    Headers:
-    - X-Retrieval-Strategy: "parallel_v1" (default) | "rewrite_v1" | "rag_fusion" | "adaptive"
     """
     try:
         # Map header to RetrievalStrategy
@@ -255,7 +243,10 @@ async def agent_query(
             "rag_fusion": RetrievalStrategy.RAG_FUSION,
             "adaptive": RetrievalStrategy.ADAPTIVE,
         }
-        retrieval_strategy = strategy_map.get(x_retrieval_strategy, RetrievalStrategy.PARALLEL_V1)
+
+        # FIX: Säkra upp None-värde innan lookup
+        strategy_key = x_retrieval_strategy or "parallel_v1"
+        retrieval_strategy = strategy_map.get(strategy_key, RetrievalStrategy.PARALLEL_V1)
 
         # Convert history for OrchestratorService
         history = [{"role": msg.role, "content": msg.content} for msg in request.history or []]
@@ -267,6 +258,7 @@ async def agent_query(
             k=10,
             retrieval_strategy=retrieval_strategy,
             history=history,
+            use_agent=request.use_agent,  # NEW: Pass agent flag
         )
 
         mode_value = result.mode.value if hasattr(result.mode, "value") else str(result.mode)
@@ -365,7 +357,8 @@ async def agent_query_stream(
         "rag_fusion": RetrievalStrategy.RAG_FUSION,
         "adaptive": RetrievalStrategy.ADAPTIVE,
     }
-    retrieval_strategy = strategy_map.get(x_retrieval_strategy, RetrievalStrategy.PARALLEL_V1)
+    retrieval_key = x_retrieval_strategy or "parallel_v1"
+    retrieval_strategy = strategy_map.get(retrieval_key, RetrievalStrategy.PARALLEL_V1)
 
     # Convert history for OrchestratorService
     history = [{"role": msg.role, "content": msg.content} for msg in request.history or []]

@@ -13,6 +13,8 @@ import {
     Check,
     XCircle,
     Loader2,
+    Filter,
+    Lightbulb,
     type LucideIcon,
 } from 'lucide-react';
 import clsx from 'clsx';
@@ -21,6 +23,8 @@ const stages: { id: PipelineStage; label: string; icon: LucideIcon }[] = [
     { id: 'query_classification', label: 'Classify', icon: Brain },
     { id: 'decontextualization', label: 'Decontext', icon: RefreshCw },
     { id: 'retrieval', label: 'Retrieval', icon: Database },
+    { id: 'grading', label: 'Grade', icon: Filter },
+    { id: 'self_reflection', label: 'Reflect', icon: Lightbulb },
     { id: 'generation', label: 'Generate', icon: Sparkles },
     { id: 'guardrail_validation', label: 'Validate', icon: ShieldCheck },
 ];
@@ -30,6 +34,8 @@ const stageMessages: Record<PipelineStage, string> = {
     query_classification: 'Classify: analyzing intent…',
     decontextualization: 'Decontext: rewriting query…',
     retrieval: 'Retrieval: fetching sources…',
+    grading: 'Grade: verifying relevance…',
+    self_reflection: 'Reflect: planning response…',
     generation: 'Generate: composing answer…',
     guardrail_validation: 'Validate: checking output…',
 };
@@ -50,13 +56,12 @@ export const PipelineVisualizer: React.FC = () => {
     const togglePipelineDrawer = useAppStore((state) => state.togglePipelineDrawer);
     const pipelineLog = useAppStore((state) => state.pipelineLog);
 
+    const isIdle = searchStage === 'idle';
+
     // Determine active index for progress bar
     const runningStage: PipelineStage =
         pipelineStage === 'idle' ? 'guardrail_validation' : pipelineStage;
     const activeIndex = stages.findIndex(s => s.id === runningStage);
-
-    // Hide only on landing/hero
-    if (searchStage === 'idle') return null;
 
     const selectedIndex = stages.findIndex((s) => s.id === selectedPipelineStage);
     const progressPct = selectedIndex >= 0 ? `${(selectedIndex / (stages.length - 1)) * 100}%` : '0%';
@@ -129,6 +134,8 @@ export const PipelineVisualizer: React.FC = () => {
                 : stageMessages[effectiveStageForStatus];
 
     const percent = Math.round((displayIndex / (stages.length - 1)) * 100);
+
+    if (isIdle) return null;
 
     return (
         <div className={clsx(

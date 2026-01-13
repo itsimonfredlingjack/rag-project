@@ -3,9 +3,10 @@ Application configuration for Constitutional AI Backend
 Environment variables and settings
 """
 
-from typing import Optional
-from pydantic_settings import BaseSettings
 from functools import lru_cache
+from typing import Optional
+
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -18,7 +19,7 @@ class Settings(BaseSettings):
 
     # Server
     host: str = "0.0.0.0"
-    port: int = 8900  # Updated from 8000 to match systemd service (RAG fix)
+    port: int = 8900
 
     # LLM (llama-server, OpenAI-compatible)
     llm_base_url: str = "http://localhost:8080/v1"
@@ -26,6 +27,15 @@ class Settings(BaseSettings):
     # Ollama (local)
     ollama_base_url: str = "http://localhost:11434"
     ollama_timeout_seconds: int = 120
+
+    # CRAG (Corrective RAG) Settings
+    # Maps to CONST_CRAG_ENABLED and CONST_CRAG_ENABLE_SELF_REFLECTION
+    crag_enabled: bool = False
+    crag_enable_self_reflection: bool = False
+
+    # Backwards compatibility for typo "CAG" (Maps to CONST_CAG_...)
+    cag_enabled: bool = False
+    cag_enable_self_reflection: bool = False
 
     # CORS - explicit origins needed when allow_credentials=True
     cors_origins: list[str] = [
@@ -38,12 +48,18 @@ class Settings(BaseSettings):
         "http://localhost:5175",
         "http://127.0.0.1:5175",
         "http://192.168.86.32:5175",
-        "http://localhost:3000",  # Constitutional-GPT
+        "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://192.168.86.32:3000",
         "http://localhost:3001",
         "http://127.0.0.1:3001",
         "http://192.168.86.32:3001",
+        "http://localhost:3002",
+        "http://127.0.0.1:3002",
+        "http://192.168.86.32:3002",
+        "http://localhost:3003",
+        "http://127.0.0.1:3003",
+        "http://192.168.86.32:3003",
         "http://localhost:8000",
         "http://127.0.0.1:8000",
         "http://192.168.86.32:8000",
@@ -56,13 +72,14 @@ class Settings(BaseSettings):
     log_file: Optional[str] = None
 
     # WebSocket
-    ws_heartbeat_interval: int = 30  # seconds
-    ws_max_message_size: int = 65536  # bytes
+    ws_heartbeat_interval: int = 30
+    ws_max_message_size: int = 65536
 
     class Config:
         env_prefix = "CONST_"
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"  # VIKTIGT: Förhindrar krasch vid okända env vars
 
 
 @lru_cache()

@@ -3,21 +3,22 @@ LLM Service - Ollama Wrapper for Constitutional AI
 Handles all LLM interactions with streaming and model fallback
 """
 
-from typing import AsyncGenerator, Optional, List
+import asyncio
+import json
 from dataclasses import dataclass
 from functools import lru_cache
-import httpx
-import json
-import asyncio
+from typing import AsyncGenerator, List, Optional
 
-from .base_service import BaseService
-from .config_service import ConfigService, get_config_service
+import httpx
+
 from ..core.exceptions import (
-    LLMTimeoutError,
     LLMConnectionError,
     LLMModelNotFoundError,
+    LLMTimeoutError,
 )
 from ..utils.logging import get_logger
+from .base_service import BaseService
+from .config_service import ConfigService, get_config_service
 
 logger = get_logger(__name__)
 
@@ -179,7 +180,8 @@ class LLMService(BaseService):
                 timeout=httpx.Timeout(timeout),
                 limits=httpx.Limits(
                     max_keepalive_connections=self._config.pool_connections,
-                    max_connections=10,
+                    max_connections=20,  # Increased from 10 for better concurrency
+                    keepalive_expiry=30.0,  # Added keepalive expiry
                 ),
             )
             self.logger.info(f"LLM Service HTTP client initialized for {base_url}")
@@ -194,6 +196,9 @@ class LLMService(BaseService):
         """
         try:
             await self.ensure_initialized()
+            if self._client is None:
+                self.logger.error("LLM client is not initialized")
+                return False
             health_endpoint = self._get_health_endpoint()
             response = await self._client.get(health_endpoint, timeout=2.0)
             is_healthy = response.status_code == 200
@@ -400,6 +405,8 @@ class LLMService(BaseService):
             LLMModelNotFoundError: If model not available
         """
         await self.ensure_initialized()
+        if self._client is None:
+            raise LLMConnectionError("LLM client is not initialized")
 
         # Use provided model or default
         model_to_use = model or self._config.primary_model

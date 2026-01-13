@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Substrate } from './components/3d/Substrate';
 import { TrustHull } from './components/ui/TrustHull';
@@ -8,25 +8,21 @@ import { SourceViewer3D } from './components/3d/SourceViewer3D';
 import { ConnectorLogic } from './components/3d/ConnectorLogic';
 
 function App() {
-  const [isHighPerformance, setIsHighPerformance] = useState(true);
-
-  useEffect(() => {
+  const [isHighPerformance] = useState(() => {
+    if (typeof window === 'undefined') return true;
     // Check pixel ratio. If > 2 (Retina/HighDPI) or mobile agent, assume restricted performance budget.
     const pixelRatio = window.devicePixelRatio;
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-    if (pixelRatio > 2 || isMobile) {
-      setIsHighPerformance(false);
-    }
-  }, []);
+    return !(pixelRatio > 2 || isMobile);
+  });
 
   return (
     <div className="w-screen h-screen bg-[#E7E5E4] overflow-hidden relative">
       {/* ===== LAYER 0: 3D Background (Fixed, Z-0) ===== */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <Canvas
-          camera={{ position: [0, 2, 8], fov: 50 }}
           dpr={isHighPerformance ? [1, 2] : [1, 1.5]} // Cap DPR on lower end
+          camera={{ position: [0, 2, 8], fov: 50 }}
           gl={{ antialias: true, powerPreference: "high-performance" }}
         >
           <color attach="background" args={['#E7E5E4']} />
