@@ -357,8 +357,9 @@ async def agent_query_stream(
         "rag_fusion": RetrievalStrategy.RAG_FUSION,
         "adaptive": RetrievalStrategy.ADAPTIVE,
     }
-    retrieval_key = x_retrieval_strategy or "parallel_v1"
-    retrieval_strategy = strategy_map.get(retrieval_key, RetrievalStrategy.PARALLEL_V1)
+    # Default to ADAPTIVE for better förkortningsexpansion och query understanding
+    retrieval_key = x_retrieval_strategy or "adaptive"
+    retrieval_strategy = strategy_map.get(retrieval_key, RetrievalStrategy.ADAPTIVE)
 
     # Convert history for OrchestratorService
     history = [{"role": msg.role, "content": msg.content} for msg in request.history or []]

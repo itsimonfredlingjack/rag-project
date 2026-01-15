@@ -33,6 +33,8 @@ try:
         RetrievalResult as ORResult,
         RetrievalStrategy as ORStrategy,
     )
+    from .query_rewriter import QueryRewriter
+    from .bm25_service import get_bm25_service
 
     RETRIEVAL_ORCHESTRATOR_AVAILABLE = True
 except ImportError:
@@ -345,15 +347,29 @@ class RetrievalService(BaseService):
         # Initialize RetrievalOrchestrator if available
         if self.RETRIEVAL_ORCHESTRATOR_AVAILABLE:
             try:
+                # Initialize QueryRewriter för förkortningsexpansion
+                query_rewriter = QueryRewriter()
+                logger.info("QueryRewriter initialized (with abbreviation expansion)")
+
+                # Initialize BM25 service for hybrid search
+                bm25_service = get_bm25_service()
+                if bm25_service.is_available():
+                    logger.info(f"BM25 service available at {bm25_service.index_path}")
+                else:
+                    logger.warning("BM25 index not found - hybrid search disabled")
+                    bm25_service = None
+
                 self._orchestrator = self.RetrievalOrchestrator(
                     chromadb_client=self._chromadb_client,
                     embedding_function=self._embedding_service.embed,
                     default_timeout=self.config.search_timeout,
-                    query_rewriter=None,  # Will be added separately
+                    query_rewriter=query_rewriter,  # Aktiverar förkortningsexpansion
                     query_expander=None,  # Will be added separately
                     default_collections=self.config.effective_default_collections,
+                    bm25_service=bm25_service,  # Hybrid search: BM25 sidecar
+                    bm25_weight=1.0,  # Equal weight for BM25 in RRF
                 )
-                logger.info("RetrievalOrchestrator initialized")
+                logger.info("RetrievalOrchestrator initialized with QueryRewriter and BM25")
             except Exception as e:
                 logger.error(f"Failed to initialize RetrievalOrchestrator: {e}")
                 self._orchestrator = None

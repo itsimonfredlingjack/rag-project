@@ -70,16 +70,22 @@ export function ResultsSection() {
         return () => window.removeEventListener('keydown', handler);
     }, []);
 
-    // Auto-scroll to bottom when answer updates during streaming
+    // Auto-scroll to bottom when answer updates during streaming (throttled)
+    const lastScrollRef = useRef(0);
     useEffect(() => {
-        if ((searchStage === 'reading' || searchStage === 'complete') && answer && answerContainerRef.current) {
-            // Small delay to ensure DOM has updated
-            const timeoutId = setTimeout(() => {
+        if ((searchStage === 'reading' || searchStage === 'reasoning') && answer && answerContainerRef.current) {
+            // Throttle scroll checks to max once per 150ms
+            const now = Date.now();
+            if (now - lastScrollRef.current < 150) return;
+            lastScrollRef.current = now;
+
+            // Use requestIdleCallback for non-blocking scroll check
+            const scheduleScroll = window.requestIdleCallback || ((cb: () => void) => setTimeout(cb, 16));
+            const idleId = scheduleScroll(() => {
                 if (answerContainerRef.current) {
                     const container = answerContainerRef.current;
                     const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
 
-                    // Only auto-scroll if user is near bottom (hasn't scrolled up)
                     if (isNearBottom) {
                         container.scrollTo({
                             top: container.scrollHeight,
@@ -87,9 +93,11 @@ export function ResultsSection() {
                         });
                     }
                 }
-            }, 50);
+            });
 
-            return () => clearTimeout(timeoutId);
+            return () => {
+                if (window.cancelIdleCallback) window.cancelIdleCallback(idleId as number);
+            };
         }
     }, [answer, searchStage]);
 

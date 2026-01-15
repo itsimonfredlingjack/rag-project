@@ -1302,9 +1302,11 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
         """
 
         # Base prompt templates
-        base_evidence = """Du är en AI-assistent inom en svensk myndighet. Din uppgift är att besvara användarens fråga enbart utifrån tillgängliga dokument och källor. KONSTITUTIONELLA REGLER: 1. Legalitet: Du får INTE använda information som inte uttryckligen stöds av de dokument som hämtats. 2. Transparens: Alla påståenden måste ha en källhänvisning. Om en uppgift saknas i dokumenten, svara ärligt att underlag saknas. Spekulera aldrig. 3. Objektivitet: Var neutral, saklig och formell. Undvik värdeladdade ord. Svara på svenska."""
+        abbreviations_note = "FÖRSTÅ FÖRKORTNINGAR: RF=Regeringsformen, TF=Tryckfrihetsförordningen, YGL=Yttrandefrihetsgrundlagen, OSL=Offentlighets- och sekretesslagen, GDPR=Dataskyddsförordningen, BrB=Brottsbalken, LAS=Lagen om anställningsskydd, FL=Förvaltningslagen, PBL=Plan- och bygglagen, SoL=Socialtjänstlagen."
 
-        base_assist = """Du är en AI-assistent inom en svensk myndighet. Du ska vara hjälpsam och pedagogisk i enlighet med serviceskyldigheten i förvaltningslagen. KONSTITUTIONELLA REGLER: 1. Pedagogik: Du får använda din allmänna kunskap för att förklara begrepp och sammanhang. 2. Källkritik: Du måste tydligt skilja på vad som är verifierade fakta från dokument (ange källa) och vad som är dina egna förklaringar. 3. Tonalitet: Var artig och tillgänglig, men behåll en professionell myndighetston. Svara på svenska."""
+        base_evidence = f"""Du är en AI-assistent inom en svensk myndighet. Din uppgift är att besvara användarens fråga enbart utifrån tillgängliga dokument och källor. KONSTITUTIONELLA REGLER: 1. Legalitet: Du får INTE använda information som inte uttryckligen stöds av de dokument som hämtats. 2. Transparens: Alla påståenden måste ha en källhänvisning. Om en uppgift saknas i dokumenten, svara ärligt att underlag saknas. Spekulera aldrig. 3. Objektivitet: Var neutral, saklig och formell. Undvik värdeladdade ord. {abbreviations_note} Svara på svenska."""
+
+        base_assist = f"""Du är en AI-assistent inom en svensk myndighet. Du ska vara hjälpsam och pedagogisk i enlighet med serviceskyldigheten i förvaltningslagen. KONSTITUTIONELLA REGLER: 1. Pedagogik: Du får använda din allmänna kunskap för att förklara begrepp och sammanhang. 2. Källkritik: Du måste tydligt skilja på vad som är verifierade fakta från dokument (ange källa) och vad som är dina egna förklaringar. 3. Tonalitet: Var artig och tillgänglig, men behåll en professionell myndighetston. {abbreviations_note} Svara på svenska."""
 
         # JSON schema instruction (only when structured output is enabled)
         json_instruction = """
@@ -1329,7 +1331,7 @@ Om du saknar stöd för svaret i dokumenten, svara tydligt att du saknar underla
 
         # RetICL: Retrieve constitutional examples (async, but we'll handle it synchronously for now)
         # Note: This is a synchronous method, so we'll need to make it async or use a workaround
-        constitutional_examples_text = ""
+        _constitutional_examples_text = ""
         if user_query and mode in ["evidence", "assist"]:
             # For now, we'll retrieve examples in the calling method and pass them
             # This method signature will be updated to accept examples as parameter
@@ -1368,7 +1370,7 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
         question: str,
         mode: Optional[str] = "auto",
         k: int = 10,
-        retrieval_strategy: RetrievalStrategy = RetrievalStrategy.PARALLEL_V1,
+        retrieval_strategy: RetrievalStrategy = RetrievalStrategy.ADAPTIVE,  # Använd ADAPTIVE för förkortningsexpansion
         history: Optional[List[dict]] = None,
     ) -> AsyncGenerator[str, None]:
         """
@@ -1649,7 +1651,7 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
         query_classification_ms: float,
         decontextualization_ms: float,
         retrieval_ms: float,
-    ) -> "CragResult":
+    ) -> "CragResult":  # noqa: F821
         """
         Process CRAG (Corrective RAG) grading and self-reflection.
 

@@ -14,6 +14,25 @@ const createSearchId = () => {
 const scheduleMicrotask =
     typeof queueMicrotask === 'function' ? queueMicrotask : (cb: () => void) => setTimeout(cb, 0);
 
+// Token batching for performance - accumulate tokens and flush with RAF
+let tokenBuffer: string[] = [];
+let rafId: number | null = null;
+let flushCallback: (() => void) | null = null;
+
+const flushTokenBuffer = () => {
+    rafId = null;
+    if (tokenBuffer.length === 0 || !flushCallback) return;
+    flushCallback();
+    flushCallback = null;
+};
+
+const scheduleTokenFlush = (callback: () => void) => {
+    flushCallback = callback;
+    if (rafId === null) {
+        rafId = requestAnimationFrame(flushTokenBuffer);
+    }
+};
+
 // Matches backend Source response
 export interface Source {
     id: string;
@@ -337,11 +356,17 @@ export const useAppStore = create<AppState>((set, get) => ({
                                             }].slice(-50),
                                         }));
                                     }
-                                    set((state) => ({
-                                        answer: state.answer + data.content,
-                                        pipelineStage: 'generation',
-                                        searchStage: 'reasoning',
-                                    }));
+                                    // Batch token updates with RAF for smooth rendering
+                                    tokenBuffer.push(data.content);
+                                    scheduleTokenFlush(() => {
+                                        const buffered = tokenBuffer.join('');
+                                        tokenBuffer = [];
+                                        set((state) => ({
+                                            answer: state.answer + buffered,
+                                            pipelineStage: 'generation',
+                                            searchStage: 'reasoning',
+                                        }));
+                                    });
                                 }
                                 break;
 
@@ -360,6 +385,16 @@ export const useAppStore = create<AppState>((set, get) => ({
 
                             case 'done':
                                 clearGradingWatchdog();
+                                // Flush any remaining buffered tokens before completing
+                                if (tokenBuffer.length > 0) {
+                                    const remaining = tokenBuffer.join('');
+                                    tokenBuffer = [];
+                                    set((state) => ({ answer: state.answer + remaining }));
+                                }
+                                if (rafId !== null) {
+                                    cancelAnimationFrame(rafId);
+                                    rafId = null;
+                                }
                                 set((state) => ({
                                     searchStage: 'complete',
                                     pipelineStage: 'idle',
@@ -374,6 +409,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
                             case 'error':
                                 clearGradingWatchdog();
+                                // Clear any pending token buffer on error
+                                tokenBuffer = [];
+                                if (rafId !== null) {
+                                    cancelAnimationFrame(rafId);
+                                    rafId = null;
+                                }
                                 set((state) => ({
                                     error: data.message || 'Unknown error',
                                     searchStage: 'error',

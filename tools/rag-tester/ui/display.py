@@ -3,11 +3,11 @@ Display module for RAG-Eval Terminal.
 Handles all rendering using rich.
 """
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from rich.align import Align
 from rich.box import HEAVY, ROUNDED
-from rich.console import Console
+from rich.console import Console, Group
 from rich.layout import Layout
 from rich.live import Live
 from rich.markdown import Markdown
@@ -16,11 +16,10 @@ from rich.spinner import Spinner
 from rich.table import Table
 from rich.text import Text
 
-if TYPE_CHECKING:
-    try:
-        from tools.rag_tester.core.api_client import Source
-    except ImportError:
-        from core.api_client import Source
+try:
+    from tools.rag_tester.core.api_client import Source
+except ImportError:
+    from core.api_client import Source  # noqa: TC002
 
 
 class Dashboard:
@@ -62,8 +61,6 @@ class Dashboard:
             ]
             if subtitle:
                 content.append(Align.center(subtitle))
-
-            from rich.console import Group
 
             return Panel(
                 Group(*content),
@@ -363,7 +360,6 @@ class SourceInspector:
 
             # Simple non-blocking input wait?
             # We are in async context, so we can use prompt_toolkit's prompt in a thread or patching.
-            # But earlier we used `await ...run_async()`.
             # `prompt` is synchronous. `session.prompt_async()` is async.
             from prompt_toolkit import PromptSession
 
