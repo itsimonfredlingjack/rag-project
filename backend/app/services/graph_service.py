@@ -273,6 +273,18 @@ KONSTITUTIONELLA REGLER:
 3. OBJEKTIVITET: Var neutral, saklig och formell
 4. SERVICEKYLDIGHET: Var hjälpsam inom ramen för lagen
 
+SVENSKA JURIDISKA FÖRKORTNINGAR (förstå användarens frågor):
+- RF = Regeringsformen (grundlag)
+- TF = Tryckfrihetsförordningen (grundlag)
+- YGL = Yttrandefrihetsgrundlagen (grundlag)
+- OSL = Offentlighets- och sekretesslagen
+- GDPR = Dataskyddsförordningen
+- BrB = Brottsbalken
+- LAS = Lagen om anställningsskydd
+- PBL = Plan- och bygglagen
+- FL = Förvaltningslagen
+- SoL = Socialtjänstlagen
+
 TILLGÄNGLIGA KÄLLOR:
 {context_text}
 
@@ -280,6 +292,11 @@ Om dokumenten inte innehåller tillräckligt stöd för att besvara frågan, sä
         else:  # ASSIST
             system_prompt = f"""Du är en hjälpsam AI-assistent för svenska myndigheter.
 Du svarar baserat på tillgänglig information och kan ge allmänna råd när specifik information saknas.
+
+SVENSKA JURIDISKA FÖRKORTNINGAR (förstå användarens frågor):
+- RF = Regeringsformen, TF = Tryckfrihetsförordningen, YGL = Yttrandefrihetsgrundlagen
+- OSL = Offentlighets- och sekretesslagen, GDPR = Dataskyddsförordningen
+- BrB = Brottsbalken, LAS = Lagen om anställningsskydd, FL = Förvaltningslagen
 
 TILLGÄNGLIG INFORMATION:
 {context_text}
@@ -346,7 +363,7 @@ async def critique_node(state: GraphState) -> Dict[str, Any]:
         search_results = [document_to_search_result(doc) for doc in documents]
 
         # Build sources context
-        sources_context = [
+        _sources_context = [
             {
                 "id": doc.metadata.get("id", "unknown"),
                 "title": doc.metadata.get("title", "Untitled"),

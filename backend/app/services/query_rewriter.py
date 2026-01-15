@@ -20,6 +20,11 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
+from app.services.legal_abbreviations import (
+    LEGAL_ABBREVIATIONS as ABBREV_MAPPING,
+    expand_abbreviations,
+)
+
 logger = logging.getLogger("constitutional.rewriter")
 
 
@@ -34,9 +39,13 @@ class RewriteResult:
 
     original_query: str
     standalone_query: str  # Decontextualized, self-contained
+    expanded_query: str  # With abbreviations expanded (for embedding)
     lexical_query: str  # For BM25/keyword boost
     must_include: List[str]  # Terms that MUST appear in results
     detected_entities: List[Dict[str, Any]] = field(default_factory=list)
+    expanded_abbreviations: List[str] = field(
+        default_factory=list
+    )  # Förkortningar som expanderades
 
     # Metrics for Phase 4
     rewrite_used: bool = True
@@ -301,7 +310,7 @@ class QueryRewriter:
             history: Conversation history for decontextualization
 
         Returns:
-            RewriteResult with standalone_query, lexical_query, etc.
+            RewriteResult with standalone_query, expanded_query, lexical_query, etc.
         """
         start = time.perf_counter()
 
@@ -314,8 +323,24 @@ class QueryRewriter:
         else:
             standalone_query = query
 
-        # Extract entities from final query
-        detected_entities = self.extract_entities(standalone_query)
+        # STEG 1: Expandera förkortningar (TF → TF (Tryckfrihetsförordningen))
+        expanded_query, found_abbrevs = expand_abbreviations(standalone_query)
+
+        # Extract entities from expanded query
+        detected_entities = self.extract_entities(expanded_query)
+
+        # Add expanded abbreviations as entities if not already detected
+        for abbr in found_abbrevs:
+            full_name = ABBREV_MAPPING.get(abbr, "")
+            if full_name and not any(e["value"] == abbr for e in detected_entities):
+                detected_entities.append(
+                    {
+                        "type": "lag",
+                        "value": abbr,
+                        "full_name": full_name,
+                        "confidence": 0.95,
+                    }
+                )
 
         # Build must_include list (entities that MUST appear in results)
         must_include = [
@@ -324,26 +349,34 @@ class QueryRewriter:
             if e["type"] in ("lag", "sfs") and e["confidence"] >= 0.9
         ]
 
-        # Build lexical query (for BM25 boost)
-        lexical_query = self._build_lexical_query(standalone_query, detected_entities)
+        # Build lexical query (for BM25 boost) - include full names
+        lexical_query = self._build_lexical_query(expanded_query, detected_entities)
 
         latency_ms = (time.perf_counter() - start) * 1000
 
         result = RewriteResult(
             original_query=query,
             standalone_query=standalone_query,
+            expanded_query=expanded_query,
             lexical_query=lexical_query,
             must_include=must_include,
             detected_entities=detected_entities,
-            rewrite_used=query_needs_rewrite,
+            expanded_abbreviations=found_abbrevs,
+            rewrite_used=query_needs_rewrite or len(found_abbrevs) > 0,
             rewrite_latency_ms=latency_ms,
             needs_rewrite=query_needs_rewrite,
         )
 
-        logger.info(
-            f"Query rewrite: '{query}' → '{standalone_query}' "
-            f"(entities: {len(detected_entities)}, latency: {latency_ms:.2f}ms)"
-        )
+        if found_abbrevs:
+            logger.info(
+                f"Query expansion: '{query}' → '{expanded_query}' "
+                f"(expanded: {found_abbrevs}, latency: {latency_ms:.2f}ms)"
+            )
+        else:
+            logger.info(
+                f"Query rewrite: '{query}' → '{standalone_query}' "
+                f"(entities: {len(detected_entities)}, latency: {latency_ms:.2f}ms)"
+            )
 
         return result
 

@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { useMemo } from 'react';
+import { useDeferredValue, useMemo } from 'react';
 
 import type { Source } from '../../stores/useAppStore';
 import { useAppStore } from '../../stores/useAppStore';
@@ -17,19 +17,22 @@ export function AnswerWithCitations({ answer, sources, className }: AnswerWithCi
     const toggleLockedSource = useAppStore((s) => s.toggleLockedSource);
     const setCitationTarget = useAppStore((s) => s.setCitationTarget);
 
+    // Defer citation parsing during rapid streaming updates
+    const deferredAnswer = useDeferredValue(answer);
+
     const parts = useMemo(() => {
         const nodes: Array<
             | { type: 'text'; value: string }
             | { type: 'citation'; n: number; sourceId: string | null }
         > = [];
 
-        if (!answer) return nodes;
+        if (!deferredAnswer) return nodes;
 
         let lastIndex = 0;
-        for (const match of answer.matchAll(CITATION_RE)) {
+        for (const match of deferredAnswer.matchAll(CITATION_RE)) {
             const idx = match.index ?? 0;
             if (idx > lastIndex) {
-                nodes.push({ type: 'text', value: answer.slice(lastIndex, idx) });
+                nodes.push({ type: 'text', value: deferredAnswer.slice(lastIndex, idx) });
             }
 
             const n = Number(match[1]);
@@ -38,12 +41,12 @@ export function AnswerWithCitations({ answer, sources, className }: AnswerWithCi
             lastIndex = idx + match[0].length;
         }
 
-        if (lastIndex < answer.length) {
-            nodes.push({ type: 'text', value: answer.slice(lastIndex) });
+        if (lastIndex < deferredAnswer.length) {
+            nodes.push({ type: 'text', value: deferredAnswer.slice(lastIndex) });
         }
 
         return nodes;
-    }, [answer, sources]);
+    }, [deferredAnswer, sources]);
 
     return (
         <div className={clsx("whitespace-pre-wrap break-words", className)}>

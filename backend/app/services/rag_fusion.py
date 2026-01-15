@@ -517,3 +517,111 @@ def should_use_fusion_results(
         )
 
     return gain >= min_gain_threshold
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# HYBRID RRF (DENSE + BM25)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def hybrid_reciprocal_rank_fusion(
+    dense_result_sets: List[List[Dict[str, Any]]],
+    bm25_results: Optional[List[Dict[str, Any]]] = None,
+    k: float = 60.0,
+    bm25_weight: float = 1.0,
+) -> List[Dict[str, Any]]:
+    """
+    Hybrid RRF that combines dense and BM25 results.
+
+    This extends standard RRF by treating BM25 results as an additional
+    result set with configurable weighting.
+
+    Args:
+        dense_result_sets: List of result sets from dense queries (Q0, Q1, Q2, ...)
+        bm25_results: Optional results from BM25 lexical search
+        k: RRF constant (default: 60)
+        bm25_weight: Weight multiplier for BM25 contributions (default: 1.0)
+            - Use 1.5 for legal docs with exact terms
+            - Use 0.7 for conceptual queries
+
+    Returns:
+        Merged results sorted by hybrid RRF score
+
+    Example:
+        # Dense: 3 query variants
+        # BM25: 1 lexical search
+        # Total: 4 result sets in RRF with BM25 having 1.5x weight
+        merged = hybrid_reciprocal_rank_fusion(
+            dense_result_sets=[q0_results, q1_results, q2_results],
+            bm25_results=bm25_results,
+            bm25_weight=1.5,
+        )
+    """
+    if not dense_result_sets:
+        if bm25_results:
+            # Only BM25 results - return as-is with RRF scores
+            return [
+                {**doc, "rrf_score": 1.0 / (k + rank + 1), "query_appearances": 1}
+                for rank, doc in enumerate(bm25_results)
+            ]
+        return []
+
+    # Combine all result sets
+    all_result_sets = list(dense_result_sets)
+    bm25_index = None
+
+    if bm25_results:
+        bm25_index = len(all_result_sets)
+        all_result_sets.append(bm25_results)
+
+    # RRF scoring with optional BM25 weight
+    doc_scores: Dict[str, float] = {}
+    doc_data: Dict[str, Dict[str, Any]] = {}
+    doc_appearances: Dict[str, int] = {}
+    doc_sources: Dict[str, Set[str]] = {}  # Track which retrievers found each doc
+
+    for set_idx, results in enumerate(all_result_sets):
+        is_bm25 = (set_idx == bm25_index) if bm25_index is not None else False
+        weight = bm25_weight if is_bm25 else 1.0
+        source_tag = "bm25" if is_bm25 else f"dense_q{set_idx}"
+
+        for rank, doc in enumerate(results, start=1):
+            doc_id = doc.get("id", "")
+            if not doc_id:
+                continue
+
+            # Calculate weighted RRF contribution
+            rrf_contribution = weight * (1.0 / (k + rank))
+            doc_scores[doc_id] = doc_scores.get(doc_id, 0.0) + rrf_contribution
+
+            # Track appearances and sources
+            doc_appearances[doc_id] = doc_appearances.get(doc_id, 0) + 1
+            if doc_id not in doc_sources:
+                doc_sources[doc_id] = set()
+            doc_sources[doc_id].add(source_tag)
+
+            # Keep doc data (first occurrence wins for metadata)
+            if doc_id not in doc_data:
+                doc_data[doc_id] = doc.copy()
+
+    # Sort by RRF score (descending)
+    sorted_ids = sorted(doc_scores.keys(), key=lambda x: doc_scores[x], reverse=True)
+
+    # Build result list with RRF scores and source tracking
+    merged_results = []
+    for doc_id in sorted_ids:
+        doc = doc_data[doc_id].copy()
+        doc["rrf_score"] = doc_scores[doc_id]
+        doc["original_score"] = doc.get("score", 0.0)
+        doc["query_appearances"] = doc_appearances[doc_id]
+        doc["retriever_sources"] = list(doc_sources[doc_id])
+        doc["found_by_bm25"] = "bm25" in doc_sources[doc_id]
+        merged_results.append(doc)
+
+    logger.info(
+        f"Hybrid RRF: {len(dense_result_sets)} dense + "
+        f"{'1 BM25' if bm25_results else '0 BM25'} → "
+        f"{len(merged_results)} merged (BM25 weight: {bm25_weight})"
+    )
+
+    return merged_results

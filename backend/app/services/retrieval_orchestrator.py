@@ -37,7 +37,11 @@ from .rag_fusion import (
     QueryExpander,
     calculate_fusion_metrics,
     reciprocal_rank_fusion,
+    hybrid_reciprocal_rank_fusion,
 )
+
+# BM25 Sidecar for hybrid search
+from .bm25_service import BM25Service
 
 logger = logging.getLogger("constitutional.retrieval")
 
@@ -453,6 +457,8 @@ class RetrievalOrchestrator:
         default_collections: Optional[
             List[str]
         ] = None,  # From config.effective_default_collections
+        bm25_service: Optional[BM25Service] = None,  # Hybrid search: BM25 sidecar
+        bm25_weight: float = 1.0,  # Weight for BM25 in RRF (1.0 = equal, 1.5 = favor BM25)
     ):
         self.client = chromadb_client
         self.embed_fn = embedding_function
@@ -462,6 +468,9 @@ class RetrievalOrchestrator:
         self._query_semaphore = asyncio.Semaphore(self.MAX_CONCURRENT_QUERIES)
         # Use passed collections or fall back to class default
         self._default_collections = default_collections or self._default_collections
+        # BM25 sidecar for hybrid search (lazy load if not provided)
+        self._bm25_service = bm25_service
+        self._bm25_weight = bm25_weight
 
     async def search(
         self,
@@ -495,10 +504,12 @@ class RetrievalOrchestrator:
 
             if strategy == RetrievalStrategy.REWRITE_V1 and self.rewriter:
                 rewrite_result = self.rewriter.rewrite(query, history)
-                search_query = rewrite_result.standalone_query
+                # Använd expanded_query (med förkortningar utskrivna) för bättre embedding-matchning
+                search_query = rewrite_result.expanded_query
                 logger.info(
                     f"Query rewritten: '{query}' → '{search_query}' "
-                    f"(latency: {rewrite_result.rewrite_latency_ms:.2f}ms)"
+                    f"(expanded: {rewrite_result.expanded_abbreviations}, "
+                    f"latency: {rewrite_result.rewrite_latency_ms:.2f}ms)"
                 )
 
             # Generate embedding for the (possibly rewritten) query
@@ -613,11 +624,14 @@ class RetrievalOrchestrator:
 
         if self.rewriter:
             rewrite_result = self.rewriter.rewrite(query, history)
-            search_query = rewrite_result.standalone_query
+            # Använd expanded_query för bättre embedding-matchning
+            search_query = rewrite_result.expanded_query
             metrics.rewrite_used = rewrite_result.rewrite_used
             metrics.rewrite_latency_ms = rewrite_result.rewrite_latency_ms
             metrics.original_query = query
             metrics.rewritten_query = search_query
+            if rewrite_result.expanded_abbreviations:
+                logger.info(f"Expanded abbreviations: {rewrite_result.expanded_abbreviations}")
 
         # Step 2: Expand to multiple query variants
         if rewrite_result:
@@ -670,7 +684,7 @@ class RetrievalOrchestrator:
                 )
                 return results
 
-        # Execute all searches in parallel
+        # Execute all dense searches in parallel
         tasks = [search_single_embedding(emb) for emb in query_embeddings]
         result_sets = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -685,9 +699,35 @@ class RetrievalOrchestrator:
 
         metrics.per_query_result_counts = [len(rs) for rs in valid_result_sets]
 
-        # Step 5: Merge with RRF
+        # Step 4b: BM25 search (parallel with dense, uses lexical_query if available)
+        bm25_results = []
+        if self._bm25_service and self._bm25_service.is_available():
+            try:
+                bm25_start = time.perf_counter()
+                # Use lexical_query from rewrite if available, otherwise original query
+                bm25_query = search_query
+                if rewrite_result and hasattr(rewrite_result, "lexical_query"):
+                    bm25_query = rewrite_result.lexical_query or search_query
+
+                bm25_results = self._bm25_service.search(bm25_query, k=k * 2)
+                metrics.bm25_latency_ms = (time.perf_counter() - bm25_start) * 1000
+                metrics.bm25_result_count = len(bm25_results)
+                logger.info(
+                    f"BM25 search: '{bm25_query[:30]}...' → {len(bm25_results)} results "
+                    f"in {metrics.bm25_latency_ms:.1f}ms"
+                )
+            except Exception as e:
+                logger.warning(f"BM25 search failed (continuing with dense only): {e}")
+                metrics.bm25_timeout = True
+
+        # Step 5: Merge with Hybrid RRF (dense + BM25)
         rrf_start = time.perf_counter()
-        merged_results = reciprocal_rank_fusion(valid_result_sets, k=60.0)
+        merged_results = hybrid_reciprocal_rank_fusion(
+            dense_result_sets=valid_result_sets,
+            bm25_results=bm25_results if bm25_results else None,
+            k=60.0,
+            bm25_weight=self._bm25_weight,
+        )
         metrics.rrf_latency_ms = (time.perf_counter() - rrf_start) * 1000
 
         # Step 6: Calculate fusion metrics
@@ -706,6 +746,9 @@ class RetrievalOrchestrator:
         # Calculate total latency
         metrics.total_latency_ms = (time.perf_counter() - start_total) * 1000
 
+        # Determine retriever type (hybrid if BM25 was used)
+        retriever_type = "hybrid" if bm25_results else "fusion"
+
         # Convert to SearchResult objects
         search_results = [
             SearchResult(
@@ -716,14 +759,15 @@ class RetrievalOrchestrator:
                 source=r.get("source", "unknown"),
                 doc_type=r.get("doc_type"),
                 date=r.get("date"),
-                retriever="fusion",
+                retriever=retriever_type,
             )
             for r in merged_results[:k]
         ]
 
+        bm25_info = f", bm25: {metrics.bm25_result_count}" if bm25_results else ""
         logger.info(
             f"RAG-Fusion complete: {len(search_results)} results in {metrics.total_latency_ms:.1f}ms "
-            f"(queries: {metrics.num_queries}, gain: {metrics.fusion_gain:.1%})"
+            f"(queries: {metrics.num_queries}{bm25_info}, gain: {metrics.fusion_gain:.1%})"
         )
 
         return RetrievalResult(
@@ -771,7 +815,10 @@ class RetrievalOrchestrator:
             metrics.rewrite_used = rewrite_result.rewrite_used
             metrics.rewrite_latency_ms = rewrite_result.rewrite_latency_ms
             metrics.original_query = query
-            metrics.rewritten_query = rewrite_result.standalone_query
+            # Visa expanded_query i metrics (med förkortningar utskrivna)
+            metrics.rewritten_query = rewrite_result.expanded_query
+            if rewrite_result.expanded_abbreviations:
+                logger.info(f"Adaptive search - expanded: {rewrite_result.expanded_abbreviations}")
 
         # Track escalation path and reason codes for decision trace
         escalation_path = []
@@ -955,10 +1002,10 @@ class RetrievalOrchestrator:
         """
         metrics = RetrievalMetrics(strategy="adaptive_step")
 
-        # Use rewritten query if available
+        # Use expanded query (med förkortningar) if available
         search_query = query
         if rewrite_result:
-            search_query = rewrite_result.standalone_query
+            search_query = rewrite_result.expanded_query
 
         # Expand queries (limit to num_queries)
         if rewrite_result:
