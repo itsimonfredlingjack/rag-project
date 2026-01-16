@@ -117,6 +117,7 @@ class BM25Service:
         query: str,
         k: int = 50,
         return_docs: bool = False,
+        use_compound_splitting: bool = True,
     ) -> List[Dict[str, Any]]:
         """
         Search documents using BM25.
@@ -125,6 +126,7 @@ class BM25Service:
             query: Search query (will be processed with stemmer)
             k: Number of results to return
             return_docs: Include full document text in results
+            use_compound_splitting: Enable Swedish compound word expansion (default: True)
 
         Returns:
             List of dicts with keys: id, score, (optionally: text, metadata)
@@ -143,7 +145,11 @@ class BM25Service:
             # Expand compound words in query for better recall
             # "skadeståndsanspråk" → "skadeståndsanspråk skadestånd anspråk"
             expanded_query = query
-            if self._compound_splitter and self._compound_splitter.is_available():
+            if (
+                use_compound_splitting
+                and self._compound_splitter
+                and self._compound_splitter.is_available()
+            ):
                 expanded_query = self._compound_splitter.expand_text(query)
                 if expanded_query != query:
                     logger.debug(f"Query expanded: '{query}' → '{expanded_query}'")
