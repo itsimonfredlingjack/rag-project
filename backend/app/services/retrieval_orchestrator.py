@@ -43,6 +43,11 @@ from .rag_fusion import (
 # BM25 Sidecar for hybrid search
 from .bm25_service import BM25Service
 
+# EPR: Evidence Policy Routing (Phase 5)
+from .source_hierarchy import SourceHierarchy, SourceTier
+from .intent_classifier import IntentClassifier
+from .intent_routing import get_routing_for_intent
+
 logger = logging.getLogger("constitutional.retrieval")
 
 
@@ -174,6 +179,7 @@ class SearchResult:
     doc_type: Optional[str] = None
     date: Optional[str] = None
     retriever: str = "unknown"  # 'dense', 'bm25', or 'both'
+    tier: Optional[str] = None  # EPR: Source tier (A/B/C)
 
 
 @dataclass
@@ -184,6 +190,8 @@ class RetrievalResult:
     metrics: RetrievalMetrics
     success: bool = True
     error: Optional[str] = None
+    intent: Optional[str] = None  # EPR: Classified query intent
+    routing_used: Optional[Dict] = None  # EPR: Routing config used
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1099,4 +1107,166 @@ class RetrievalOrchestrator:
             results=search_results,
             metrics=metrics,
             success=True,
+        )
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # EPR: TWO-PASS RETRIEVAL WITH INTENT ROUTING (Phase 5)
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    async def search_with_routing(
+        self,
+        query: str,
+        k: int = 10,
+        where_filter: Optional[Dict] = None,
+        history: Optional[List[str]] = None,
+    ) -> RetrievalResult:
+        """
+        Execute two-pass retrieval with Evidence Policy Routing (EPR).
+
+        This method implements EPR by:
+        1. Classifying query intent using IntentClassifier
+        2. Getting routing config via get_routing_for_intent()
+        3. Pass 1: Search primary + support collections
+        4. Pass 2: If secondary_budget > 0, search secondary collections
+        5. Merge results using SourceHierarchy.sort_by_priority()
+        6. Return RetrievalResult with intent and routing metadata
+
+        Args:
+            query: User query string
+            k: Number of results to return
+            where_filter: Optional ChromaDB where filter
+            history: Conversation history for intent classification context
+
+        Returns:
+            RetrievalResult with results sorted by tier, intent, and routing metadata
+        """
+        start_total = time.perf_counter()
+        metrics = RetrievalMetrics(strategy="epr_two_pass")
+
+        # Initialize EPR components
+        intent_classifier = IntentClassifier()
+        source_hierarchy = SourceHierarchy()
+
+        # Step 1: Classify query intent
+        intent_result = intent_classifier.classify(query)
+        detected_intent = intent_result.intent
+        logger.info(
+            f"EPR: Classified intent={detected_intent.value} "
+            f"(confidence={intent_result.confidence:.2f}, patterns={intent_result.matched_patterns})"
+        )
+
+        # Step 2: Get routing configuration
+        routing_config = get_routing_for_intent(detected_intent)
+
+        routing_metadata = {
+            "primary": routing_config.primary,
+            "support": routing_config.support,
+            "secondary": routing_config.secondary,
+            "secondary_budget": routing_config.secondary_budget,
+            "require_separation": routing_config.require_separation,
+        }
+
+        logger.info(
+            f"EPR: Routing primary={routing_config.primary}, "
+            f"secondary={routing_config.secondary}, budget={routing_config.secondary_budget}"
+        )
+
+        # Generate query embedding
+        query_embedding = self.embed_fn([query])[0]
+
+        # Step 3: Pass 1 - Search primary + support collections
+        pass1_collections = routing_config.primary + routing_config.support
+        pass1_results = []
+
+        if pass1_collections:
+            raw_results, pass1_metrics = await parallel_collection_search(
+                client=self.client,
+                query_embedding=query_embedding,
+                collection_names=pass1_collections,
+                n_results_per_collection=k,
+                where_filter=where_filter,
+                timeout_seconds=self.default_timeout,
+            )
+            pass1_results = raw_results
+            metrics.dense_latency_ms = pass1_metrics.dense_latency_ms
+            metrics.dense_result_count = len(raw_results)
+            logger.info(f"EPR Pass 1: {len(raw_results)} results from {pass1_collections}")
+
+        # Step 4: Pass 2 - Search secondary collections (if budget > 0)
+        pass2_results = []
+
+        if routing_config.secondary_budget > 0 and routing_config.secondary:
+            secondary_raw, pass2_metrics = await parallel_collection_search(
+                client=self.client,
+                query_embedding=query_embedding,
+                collection_names=routing_config.secondary,
+                n_results_per_collection=routing_config.secondary_budget,
+                where_filter=where_filter,
+                timeout_seconds=self.default_timeout,
+            )
+            # Limit to budget
+            pass2_results = secondary_raw[: routing_config.secondary_budget]
+            metrics.bm25_latency_ms = pass2_metrics.dense_latency_ms  # Reuse field for pass2
+            metrics.bm25_result_count = len(pass2_results)
+            logger.info(
+                f"EPR Pass 2: {len(pass2_results)} results from {routing_config.secondary} "
+                f"(budget={routing_config.secondary_budget})"
+            )
+
+        # Step 5: Merge and sort results by tier
+        all_results = pass1_results + pass2_results
+
+        # Convert to SearchResult with tier annotation
+        search_results = []
+        for r in all_results:
+            source = r.get("source", r.get("collection", "unknown"))
+            tier = source_hierarchy.get_tier(source)
+            tier_label = {SourceTier.A: "A", SourceTier.B: "B", SourceTier.C: "C"}.get(tier, "C")
+
+            search_results.append(
+                SearchResult(
+                    id=r["id"],
+                    title=r.get("title", "Untitled"),
+                    snippet=r.get("snippet", ""),
+                    score=r.get("score", 0.0),
+                    source=source,
+                    doc_type=r.get("doc_type"),
+                    date=r.get("date"),
+                    retriever="epr",
+                    tier=tier_label,
+                )
+            )
+
+        # Sort by tier priority (A before B before C), then by score within tier
+        def sort_key(result: SearchResult):
+            tier_order = {"A": 1, "B": 2, "C": 3}
+            return (tier_order.get(result.tier, 99), -result.score)
+
+        search_results.sort(key=sort_key)
+
+        # Limit to k results
+        search_results = search_results[:k]
+
+        # Deduplicate by id (keep first occurrence, which has best tier)
+        seen_ids = set()
+        unique_results = []
+        for r in search_results:
+            if r.id not in seen_ids:
+                seen_ids.add(r.id)
+                unique_results.append(r)
+
+        metrics.total_latency_ms = (time.perf_counter() - start_total) * 1000
+        metrics.unique_docs_total = len(unique_results)
+
+        logger.info(
+            f"EPR complete: {len(unique_results)} results in {metrics.total_latency_ms:.1f}ms "
+            f"(intent={detected_intent.value})"
+        )
+
+        return RetrievalResult(
+            results=unique_results,
+            metrics=metrics,
+            success=True,
+            intent=detected_intent.value,
+            routing_used=routing_metadata,
         )
