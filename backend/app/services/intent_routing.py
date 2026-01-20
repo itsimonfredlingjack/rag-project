@@ -88,7 +88,7 @@ INTENT_ROUTING = {
     ),
     QueryIntent.EDGE_CLARIFICATION: IntentRoutingConfig(
         primary=["sfs_lagtext_bge_m3_1024"],
-        support=["riksdag_documents_p1_bge_m3_1024", "procedural_guides_bge_m3_1024"],
+        support=["riksdag_documents_p1_bge_m3_1024"],
         secondary=[],
         secondary_budget=0,
     ),

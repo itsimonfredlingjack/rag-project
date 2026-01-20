@@ -245,3 +245,40 @@ if __name__ == "__main__":
         print("\n✅ All EPR regression tests passed!")
 
     asyncio.run(run_manual())
+
+
+# =============================================================================
+# Invariant 4: EDGE_CLARIFICATION - Clean behavior
+# =============================================================================
+
+EDGE_CLARIFICATION_QUERIES = [
+    "Menar du förvaltningslagen eller förvaltningsprocesslagen?",
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("query", EDGE_CLARIFICATION_QUERIES)
+async def test_edge_clarification_no_citations_ok(query: str):
+    """
+    P0 Invariant: EDGE_CLARIFICATION may return empty citations and still be valid.
+
+    Clarification questions don't need sources - they're asking for disambiguation.
+    The system should NOT set saknas_underlag=true for these.
+    """
+    async with httpx.AsyncClient(timeout=120.0, base_url="http://localhost:8900") as client:
+        response = await client.post(
+            "/api/constitutional/agent/query",
+            json={"question": query, "mode": "evidence"},
+        )
+        assert response.status_code == 200
+
+        data = response.json()
+        answer = data.get("answer", data.get("response", ""))
+
+        # Answer should not be a refusal
+        if isinstance(answer, str):
+            assert "saknar underlag" not in answer.lower(), (
+                f"EDGE_CLARIFICATION should not refuse to answer clarifying questions.\n"
+                f"Query: {query}\n"
+                f"Answer: {answer[:200]}"
+            )
