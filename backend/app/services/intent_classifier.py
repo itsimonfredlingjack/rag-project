@@ -109,6 +109,7 @@ class IntentClassifier:
         r"\bvad\s+är\s+processen\b",
         r"\bvad\s+innebär\s+\w*skyldighet",
         r"\bvad\s+innebär\s+\w*princip",
+        r"\bskillnaden\s+mellan\b",  # "Vad är skillnaden mellan X och Y?"
         r"\bsteg\s+för\s+steg\b",
         r"\bpraktiskt\b",
         r"\bi\s+praktiken\b",
@@ -137,7 +138,6 @@ class IntentClassifier:
     CLARIFICATION_PATTERNS = [
         r"\bmenar\s+du\b",
         r"\bvilken\s+(av|mellan)\b",
-        r"\bskillnaden\s+mellan\b",
     ]
 
     # Smalltalk patterns
