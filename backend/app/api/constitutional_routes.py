@@ -130,6 +130,15 @@ class CitationItem(BaseModel):
     tier: str
 
 
+class RoutingInfo(BaseModel):
+    """EPR routing configuration used for a query."""
+
+    primary: List[str] = []
+    support: List[str] = []
+    secondary: List[str] = []
+    secondary_budget: int = 0
+
+
 class AgentQueryResponse(BaseModel):
     answer: str
     sources: List[SourceItem]
@@ -138,6 +147,7 @@ class AgentQueryResponse(BaseModel):
     evidence_level: Optional[str] = None
     citations: List[CitationItem] = []
     intent: Optional[str] = None
+    routing: Optional[RoutingInfo] = None
 
 
 def _looks_like_structured_json(answer: str) -> bool:
