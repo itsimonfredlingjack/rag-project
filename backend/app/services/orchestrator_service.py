@@ -37,6 +37,7 @@ from .structured_output_service import (
     StructuredOutputService,
     get_structured_output_service,
 )
+from .intent_classifier import QueryIntent
 
 logger = get_logger(__name__)
 
@@ -57,6 +58,70 @@ class ResponseTemplates:
         "Du returnerade ogiltig JSON. Returnera endast giltig JSON enligt schema, "
         "inga backticks, ingen extra text."
     )
+
+
+# Answer contracts per intent - define output structure for each query type
+ANSWER_CONTRACTS = {
+    QueryIntent.PARLIAMENT_TRACE: """
+## Svarsformat: Riksdagens hantering
+
+Strukturera svaret som:
+1. **Tidslinje**: motion/proposition → utskott → betänkande → votering/beslut
+2. **Källcitat**: Minst 2 citat från riksdagsdokument
+3. **Aktörer**: Vilka partier/utskott var involverade
+
+ALDRIG spekulera om beslut som inte finns i källorna.
+Om underlag saknas, skriv: "Underlag för denna fråga saknas i de hämtade dokumenten."
+""",
+    QueryIntent.POLICY_ARGUMENTS: """
+## Svarsformat: Politiska argument
+
+Strukturera svaret i TVÅ separata delar:
+
+### Del A: Riksdagens hantering (PRIMÄRT)
+- Vilka argument framfördes i riksdagen
+- Källhänvisningar till propositioner/motioner/betänkanden
+
+### Del B: Forskningsbakgrund (SEKUNDÄRT, om hämtat)
+- Markera tydligt: "Forskning indikerar att..."
+- BLANDA ALDRIG ihop med riksdagskällor
+- Om ingen forskning hämtades, utelämna denna del
+
+REGEL: Del A får ALDRIG bygga på Del B som källa.
+""",
+    QueryIntent.RESEARCH_SYNTHESIS: """
+## Svarsformat: Forskningssyntes
+
+OBS: Detta svar handlar om FORSKNING, inte riksdagsbeslut.
+
+1. Sammanfatta forskningsläget (3-5 punkter)
+2. Ange käll-ID för varje påstående
+3. Avsluta med: "Detta är forskningsläget, inte riksdagens ställningstagande."
+
+Vid medicinsk/hälsorelaterad forskning: Ge neutral information, ingen behandlingsrådgivning.
+""",
+    QueryIntent.LEGAL_TEXT: """
+## Svarsformat: Lagtext
+
+1. CITERA ORDAGRANT från lagtexten
+2. Format: "Enligt [LAG] [kap.] [§]: '[EXAKT CITAT]'"
+3. Ingen tolkning utanför lagtextens lydelse
+4. Vid osäkerhet: "Lagtexten anger X, men tillämpning kräver myndighetsbedömning."
+""",
+    QueryIntent.PRACTICAL_PROCESS: """
+## Svarsformat: Praktisk process
+
+1. Lista stegen i numrerad ordning
+2. Ange relevanta myndigheter/instanser
+3. Inkludera tidsfrister om de nämns i källorna
+4. Vid rättsmedel: "Överklagan ska ske till [INSTANS] inom [TID] från [HÄNDELSE]."
+""",
+}
+
+
+def get_answer_contract(intent: QueryIntent) -> str:
+    """Get the answer contract/prompt template for an intent."""
+    return ANSWER_CONTRACTS.get(intent, "")
 
 
 @dataclass
