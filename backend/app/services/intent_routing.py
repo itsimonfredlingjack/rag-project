@@ -12,7 +12,7 @@ Collection Tiers:
 from dataclasses import dataclass, field
 from typing import List
 
-from backend.app.services.intent_classifier import QueryIntent
+from .intent_classifier import QueryIntent
 
 
 @dataclass
@@ -53,8 +53,8 @@ INTENT_ROUTING = {
     QueryIntent.POLICY_ARGUMENTS: IntentRoutingConfig(
         primary=["riksdag_documents_p1_bge_m3_1024", "swedish_gov_docs_bge_m3_1024"],
         support=["sfs_lagtext_bge_m3_1024"],
-        secondary=["diva_research_bge_m3_1024"],
-        secondary_budget=2,
+        secondary=[],
+        secondary_budget=0,
         require_separation=True,
     ),
     QueryIntent.RESEARCH_SYNTHESIS: IntentRoutingConfig(
@@ -88,7 +88,7 @@ INTENT_ROUTING = {
     ),
     QueryIntent.EDGE_CLARIFICATION: IntentRoutingConfig(
         primary=["sfs_lagtext_bge_m3_1024"],
-        support=["riksdag_documents_p1_bge_m3_1024"],
+        support=["riksdag_documents_p1_bge_m3_1024", "procedural_guides_bge_m3_1024"],
         secondary=[],
         secondary_budget=0,
     ),

@@ -62,7 +62,7 @@ except ImportError:
     class RetrievalOrchestrator:
         """Stub orchestrator if not available"""
 
-        DEFAULT_COLLECTIONS: list[str] = []
+        DEFAULT_COLLECTIONS: list[str] = field(default_factory=list)
         MAX_CONCURRENT_QUERIES: int = 3
 
         def __init__(
@@ -89,6 +89,15 @@ except ImportError:
             return ORResult(
                 results=[], metrics={}, success=False, error="Orchestrator not available"
             )
+
+        async def search_with_routing(
+            self,
+            query,
+            k=10,
+            where_filter=None,
+            history=None,
+        ):
+            return ORResult(results=[], metrics={}, success=False, error="EPR not available (stub)")
 
 
 class RetrievalStrategy(str, Enum):
@@ -651,7 +660,7 @@ class RetrievalService(BaseService):
                             distance = distances_list[i] if i < len(distances_list) else 1.0
 
                             score = 1.0 / (1.0 + distance)
-                            snippet = document[:200] + "..." if len(document) > 200 else document
+                            snippet = document[:1500] + "..." if len(document) > 1500 else document
 
                             results.append(
                                 SearchResult(

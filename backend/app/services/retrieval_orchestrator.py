@@ -270,7 +270,7 @@ async def search_single_collection(
                 # Use page_content from metadata if available (for contextual retrieval),
                 # otherwise fallback to document field
                 display_text = metadata.get("page_content", document)
-                snippet = display_text[:200] + "..." if len(display_text) > 200 else display_text
+                snippet = display_text[:1500] + "..." if len(display_text) > 1500 else display_text
 
                 results.append(
                     {
