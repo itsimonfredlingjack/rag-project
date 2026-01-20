@@ -8,7 +8,12 @@ Tests the two-pass retrieval routing with primary/secondary collections and DiVA
 import pytest
 
 from backend.app.services.intent_classifier import QueryIntent
-from backend.app.services.intent_routing import IntentRoutingConfig, get_routing_for_intent
+from backend.app.services.intent_routing import (
+    IntentRoutingConfig,
+    get_all_collections_for_intent,
+    get_routing_for_intent,
+    has_secondary_retrieval,
+)
 
 
 def test_parliament_trace_routing():
@@ -125,3 +130,78 @@ class TestAllIntentsHaveRouting:
         assert isinstance(config.primary, list)
         assert isinstance(config.secondary_budget, int)
         assert config.secondary_budget >= 0
+
+
+# ==================== Utility Function Tests ====================
+
+
+class TestGetAllCollectionsForIntent:
+    """Tests for get_all_collections_for_intent utility function."""
+
+    def test_removes_duplicates(self):
+        """get_all_collections_for_intent returns deduplicated list."""
+
+        collections = get_all_collections_for_intent(QueryIntent.POLICY_ARGUMENTS)
+        assert len(collections) == len(set(collections))
+
+    def test_preserves_order_primary_first(self):
+        """Primary collections come before support and secondary."""
+
+        collections = get_all_collections_for_intent(QueryIntent.POLICY_ARGUMENTS)
+        # Primary should be first
+        assert collections[0] in [
+            "riksdag_documents_p1_bge_m3_1024",
+            "swedish_gov_docs_bge_m3_1024",
+        ]
+
+    def test_includes_all_tiers(self):
+        """All tiers (primary, support, secondary) are included."""
+
+        collections = get_all_collections_for_intent(QueryIntent.POLICY_ARGUMENTS)
+        # Check primary
+        assert "riksdag_documents_p1_bge_m3_1024" in collections
+        assert "swedish_gov_docs_bge_m3_1024" in collections
+        # Check support
+        assert "sfs_lagtext_bge_m3_1024" in collections
+        # Check secondary
+        assert "diva_research_bge_m3_1024" in collections
+
+    def test_empty_for_smalltalk(self):
+        """SMALLTALK returns empty list."""
+
+        collections = get_all_collections_for_intent(QueryIntent.SMALLTALK)
+        assert collections == []
+
+
+class TestHasSecondaryRetrieval:
+    """Tests for has_secondary_retrieval utility function."""
+
+    def test_true_for_policy_arguments(self):
+        """POLICY_ARGUMENTS has secondary retrieval enabled."""
+
+        assert has_secondary_retrieval(QueryIntent.POLICY_ARGUMENTS) is True
+
+    def test_false_for_legal_text(self):
+        """LEGAL_TEXT has no secondary retrieval."""
+
+        assert has_secondary_retrieval(QueryIntent.LEGAL_TEXT) is False
+
+    def test_false_for_parliament_trace(self):
+        """PARLIAMENT_TRACE has no secondary retrieval."""
+
+        assert has_secondary_retrieval(QueryIntent.PARLIAMENT_TRACE) is False
+
+    def test_false_for_research_synthesis(self):
+        """RESEARCH_SYNTHESIS has no secondary retrieval (DiVA is primary)."""
+
+        assert has_secondary_retrieval(QueryIntent.RESEARCH_SYNTHESIS) is False
+
+    def test_false_for_unknown(self):
+        """UNKNOWN intent has no secondary retrieval."""
+
+        assert has_secondary_retrieval(QueryIntent.UNKNOWN) is False
+
+    def test_false_for_smalltalk(self):
+        """SMALLTALK has no secondary retrieval."""
+
+        assert has_secondary_retrieval(QueryIntent.SMALLTALK) is False
