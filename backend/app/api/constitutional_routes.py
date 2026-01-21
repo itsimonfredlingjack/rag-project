@@ -120,12 +120,34 @@ class SourceItem(BaseModel):
     loc: Optional[str] = None
 
 
+class CitationItem(BaseModel):
+    """Citation linking a claim to its source."""
+
+    claim: str
+    source_id: str
+    source_title: str
+    source_collection: str
+    tier: str
+
+
+class RoutingInfo(BaseModel):
+    """EPR routing configuration used for a query."""
+
+    primary: List[str] = []
+    support: List[str] = []
+    secondary: List[str] = []
+    secondary_budget: int = 0
+
+
 class AgentQueryResponse(BaseModel):
     answer: str
     sources: List[SourceItem]
     mode: str
     saknas_underlag: bool
     evidence_level: Optional[str] = None
+    citations: List[CitationItem] = []
+    intent: Optional[str] = None
+    routing: Optional[RoutingInfo] = None
 
 
 def _looks_like_structured_json(answer: str) -> bool:

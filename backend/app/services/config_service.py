@@ -3,6 +3,7 @@ Config Service - Centralized Configuration for Constitutional AI
 Wraps pydantic-settings with environment variable support
 """
 
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
@@ -40,7 +41,13 @@ class ConfigSettings(BaseSettings):
     # Collections
     # NOTE: Embedding switch to BGE-M3 (1024 dim) requires re-indexing.
     # Use new collection names to avoid dimension-mismatch crashes against legacy 768-dim collections.
-    default_collections: list[str] = ["sfs_lagtext", "riksdag_documents_p1", "swedish_gov_docs"]
+    default_collections: list[str] = [
+        "sfs_lagtext",
+        "riksdag_documents_p1",
+        "swedish_gov_docs",
+        "diva_research",
+        "procedural_guides",
+    ]
 
     # Embedding Model (BGE-M3, 1024 dim) - requires re-indexing
     embedding_model: str = "BAAI/bge-m3"
@@ -104,6 +111,16 @@ class ConfigSettings(BaseSettings):
     confidence_threshold_low: float = 0.4
     confidence_threshold_high: float = 0.7
     max_escalation_steps: int = 3
+
+    # Hybrid Search & RRF Fusion
+    # BM25 weight in RRF: 1.0 = equal weight, 1.5 = favor exact legal terms
+    # Higher values prioritize exact SFS matches over semantic similarity
+    rrf_bm25_weight: float = 1.5
+
+    # RRF k constant: lower = top results dominate, higher = flatter distribution
+    # k=60 is the original paper default, k=30 better for precise legal search
+    # where exact SFS matches at rank 1 should strongly dominate
+    rrf_k: float = 30.0
 
     # CORS
     cors_origins: list[str] = [
@@ -306,6 +323,14 @@ class ConfigService:
     def max_concurrent_queries(self) -> int:
         return self._settings.max_concurrent_queries
 
+    @property
+    def rrf_bm25_weight(self) -> float:
+        return self._settings.rrf_bm25_weight
+
+    @property
+    def rrf_k(self) -> float:
+        return self._settings.rrf_k
+
     def get_mode_config(self, mode: str) -> dict:
         """
         Get model configuration for a specific response mode.
@@ -337,7 +362,14 @@ class ConfigService:
             },
         }
 
-        return mode_config_map.get(mode.lower(), mode_config_map["assist"])
+        config = mode_config_map.get(mode.lower(), mode_config_map["assist"])
+
+        # DETERMINISTIC_EVAL mode: force temperature=0, top_p=1 for consistent output
+        if os.environ.get("DETERMINISTIC_EVAL", "").lower() == "true":
+            config["temperature"] = 0.0
+            config["top_p"] = 1.0
+
+        return config
 
     @property
     def structured_output_effective_enabled(self) -> bool:

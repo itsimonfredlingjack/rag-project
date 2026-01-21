@@ -55,11 +55,14 @@ except ImportError:
         success: bool
         error: Optional[str] = None
 
+    intent: Optional[str] = None  # EPR: Query intent
+    routing_used: Optional[Dict] = None  # EPR: Routing config used
+
     @dataclass
     class RetrievalOrchestrator:
         """Stub orchestrator if not available"""
 
-        DEFAULT_COLLECTIONS: list[str] = []
+        DEFAULT_COLLECTIONS: list[str] = field(default_factory=list)
         MAX_CONCURRENT_QUERIES: int = 3
 
         def __init__(
@@ -86,6 +89,15 @@ except ImportError:
             return ORResult(
                 results=[], metrics={}, success=False, error="Orchestrator not available"
             )
+
+        async def search_with_routing(
+            self,
+            query,
+            k=10,
+            where_filter=None,
+            history=None,
+        ):
+            return ORResult(results=[], metrics={}, success=False, error="EPR not available (stub)")
 
 
 class RetrievalStrategy(str, Enum):
@@ -213,6 +225,7 @@ class SearchResult:
     doc_type: Optional[str] = None
     date: Optional[str] = None
     retriever: str = "unknown"
+    tier: Optional[str] = None  # EPR: Source tier (A/B/C)
 
 
 @dataclass
@@ -223,6 +236,8 @@ class RetrievalResult:
     metrics: RetrievalMetrics
     success: bool = True
     error: Optional[str] = None
+    intent: Optional[str] = None  # EPR: Query intent
+    routing_used: Optional[Dict] = None  # EPR: Routing config used
 
 
 class RetrievalService(BaseService):
@@ -367,9 +382,13 @@ class RetrievalService(BaseService):
                     query_expander=None,  # Will be added separately
                     default_collections=self.config.effective_default_collections,
                     bm25_service=bm25_service,  # Hybrid search: BM25 sidecar
-                    bm25_weight=1.0,  # Equal weight for BM25 in RRF
+                    bm25_weight=self.config.rrf_bm25_weight,  # Favor exact legal terms
+                    rrf_k=self.config.rrf_k,  # Lower k = top results dominate
                 )
-                logger.info("RetrievalOrchestrator initialized with QueryRewriter and BM25")
+                logger.info(
+                    f"RetrievalOrchestrator initialized (bm25_weight={self.config.rrf_bm25_weight}, "
+                    f"rrf_k={self.config.rrf_k})"
+                )
             except Exception as e:
                 logger.error(f"Failed to initialize RetrievalOrchestrator: {e}")
                 self._orchestrator = None
@@ -438,8 +457,35 @@ class RetrievalService(BaseService):
         await self.ensure_initialized()
 
         try:
-            # Use provided collections or default
-            collections_to_search = collections or self.config.effective_default_collections
+            # Phase 5: Intent-based collection routing
+            collections_to_search = collections
+            if collections_to_search is None:
+                try:
+                    from .intent_classifier import get_intent_classifier
+
+                    intent_classifier = get_intent_classifier()
+                    intent_result = intent_classifier.classify(query)
+
+                    if intent_result.confidence >= 0.60:
+                        collections_to_search = intent_result.suggested_collections
+                        logger.info(
+                            f"Intent routing: {intent_result.intent.value} "
+                            f"(conf: {intent_result.confidence:.2f}) -> "
+                            f"{collections_to_search[:2]}..."
+                        )
+                    else:
+                        collections_to_search = self.config.effective_default_collections
+                        logger.debug(
+                            f"Intent routing: {intent_result.intent.value} "
+                            f"(conf: {intent_result.confidence:.2f}) - using defaults"
+                        )
+                except Exception as e:
+                    logger.warning(f"Intent classification failed: {e}")
+                    collections_to_search = self.config.effective_default_collections
+
+            # Fallback to defaults if still None
+            if collections_to_search is None:
+                collections_to_search = self.config.effective_default_collections
 
             # Map our RetrievalStrategy to orchestrator's strategy
             if self.RETRIEVAL_ORCHESTRATOR_AVAILABLE and self._orchestrator:
@@ -614,7 +660,7 @@ class RetrievalService(BaseService):
                             distance = distances_list[i] if i < len(distances_list) else 1.0
 
                             score = 1.0 / (1.0 + distance)
-                            snippet = document[:200] + "..." if len(document) > 200 else document
+                            snippet = document[:1500] + "..." if len(document) > 1500 else document
 
                             results.append(
                                 SearchResult(
@@ -726,6 +772,103 @@ class RetrievalService(BaseService):
         except Exception as e:
             logger.error(f"Failed to list collections: {e}")
             raise RetrievalError(f"Failed to list collections: {str(e)}") from e
+
+    async def search_with_epr(
+        self,
+        query: str,
+        k: int = 10,
+        where_filter: Optional[Dict] = None,
+        history: Optional[List[str]] = None,
+    ) -> RetrievalResult:
+        """
+        Execute search with Evidence Policy Routing (EPR).
+
+        This method wraps the orchestrator's search_with_routing() method
+        for two-pass retrieval with intent-based collection routing.
+
+        Args:
+            query: Search query
+            k: Number of results to return
+            where_filter: Optional ChromaDB where filter
+            history: Conversation history for intent classification context
+
+        Returns:
+            RetrievalResult with results sorted by tier, intent, and routing metadata
+        """
+        await self.ensure_initialized()
+
+        if not self._orchestrator:
+            raise RetrievalError("Orchestrator not initialized")
+
+        try:
+            # Call orchestrator's two-pass routing
+            orchestrator_result = await self._orchestrator.search_with_routing(
+                query=query,
+                k=k,
+                where_filter=where_filter,
+                history=history,
+            )
+
+            # Convert orchestrator results to RetrievalService format
+            search_results = [
+                SearchResult(
+                    id=r.id,
+                    title=r.title,
+                    snippet=r.snippet,
+                    score=r.score,
+                    source=r.source,
+                    doc_type=r.doc_type,
+                    date=r.date,
+                    retriever=r.retriever,
+                    tier=r.tier,  # EPR: Include tier
+                )
+                for r in orchestrator_result.results
+            ]
+
+            # Convert metrics
+            or_metrics = orchestrator_result.metrics
+            metrics_dict = or_metrics.to_dict() if hasattr(or_metrics, "to_dict") else {}
+
+            # Cache nested dictionaries
+            latency_dict = metrics_dict.get("latency", {})
+            results_dict = metrics_dict.get("results", {})
+            scores_dict = metrics_dict.get("scores", {})
+            timeouts_dict = metrics_dict.get("timeouts", {})
+
+            metrics = RetrievalMetrics(
+                strategy="epr_two_pass",
+                total_latency_ms=latency_dict.get("total_ms", or_metrics.total_latency_ms),
+                dense_latency_ms=latency_dict.get("dense_ms", or_metrics.dense_latency_ms),
+                bm25_latency_ms=latency_dict.get("bm25_ms", or_metrics.bm25_latency_ms),
+                dense_result_count=results_dict.get("dense_count", or_metrics.dense_result_count),
+                bm25_result_count=results_dict.get("bm25_count", or_metrics.bm25_result_count),
+                doc_overlap_count=results_dict.get("overlap", or_metrics.doc_overlap_count),
+                unique_docs_total=results_dict.get("unique_total", or_metrics.unique_docs_total),
+                top_score=scores_dict.get("top", or_metrics.top_score),
+                mean_score=scores_dict.get("mean", or_metrics.mean_score),
+                score_std=scores_dict.get("std", or_metrics.score_std),
+                score_entropy=scores_dict.get("entropy", or_metrics.score_entropy),
+                dense_timeout=timeouts_dict.get("dense", or_metrics.dense_timeout),
+                bm25_timeout=timeouts_dict.get("bm25", or_metrics.bm25_timeout),
+            )
+
+            logger.info(
+                f"EPR search complete: {len(search_results)} results in "
+                f"{metrics.total_latency_ms:.1f}ms (intent: {orchestrator_result.intent})"
+            )
+
+            return RetrievalResult(
+                results=search_results,
+                metrics=metrics,
+                success=orchestrator_result.success,
+                error=orchestrator_result.error,
+                intent=orchestrator_result.intent,
+                routing_used=orchestrator_result.routing_used,
+            )
+
+        except Exception as e:
+            logger.error(f"EPR search failed: {e}")
+            raise RetrievalError(f"EPR search failed: {str(e)}") from e
 
 
 # Dependency injection function for FastAPI
