@@ -1,0 +1,126 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+venv_scraper/
+env/
+ENV/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Database files
+*.db
+*.sqlite3
+*.sqlite
+corpus_bridge.db
+chroma_db/
+chromadb/
+
+# Data directories
+chromadb_data/
+pdf_cache/
+scraped_data/
+harvest_results/
+logs/
+backups/
+data/
+downloads/
+temp/
+raw_data/
+
+# Cache and temporary files
+.cache/
+*.cache
+*.log
+*.tmp
+
+# Project specific
+benchmark_results.json
+kommuner_batch_list.json
+_TEMP_DUMP/
+
+# AI/ML models and data
+*.bin
+*.pt
+*.pth
+*.h5
+*.pkl
+*.pickle
+*.gguf
+*.backup
+
+# Archive and old files
+archive/
+
+# Optional local llama.cpp checkout (keep out of git)
+llama.cpp/
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Evaluation results (generated output)
+eval/results/
+
+# Environment variables
+.env
+.env.local
+config_local.py
+
+# Claude/Cursor specific
+.claude-flow/
+.conductor/
+.context/
+.hive-mind/
+.swarm/
+
+# Large documentation files that change frequently
+*.pdf
+esv_docs/
+skatteverket_docs/
+
+# n8n workflows (if they contain sensitive data)
+n8n_workflows/
+
+# Node modules
+node_modules/
+
+# Specifika exceptions (behåll dessa!)
+!app/data/combined_training.jsonl
+!app/data/docs_qa_training.jsonl
+!app/data/eval_after_*.json
+
+# Felaktig frontend-mapp (använd /apps/constitutional-retardedantigravity/ istället)
+frontend/
+tools/rag-tester/data/ratings.db
+apps/DONT_USE_DOCUMENTATION/

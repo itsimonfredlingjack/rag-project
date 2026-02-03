@@ -1,0 +1,97 @@
+import clsx from 'clsx';
+import { useDeferredValue, useMemo } from 'react';
+
+import type { Source } from '../../stores/useAppStore';
+import { useAppStore } from '../../stores/useAppStore';
+import { CITATION_RE } from './citations';
+
+type AnswerWithCitationsProps = {
+    answer: string;
+    sources: Source[];
+    className?: string;
+};
+
+export function AnswerWithCitations({ answer, sources, className }: AnswerWithCitationsProps) {
+    const activeSourceId = useAppStore((s) => s.activeSourceId);
+    const setHoveredSource = useAppStore((s) => s.setHoveredSource);
+    const toggleLockedSource = useAppStore((s) => s.toggleLockedSource);
+    const setCitationTarget = useAppStore((s) => s.setCitationTarget);
+
+    // Defer citation parsing during rapid streaming updates
+    const deferredAnswer = useDeferredValue(answer);
+
+    const parts = useMemo(() => {
+        const nodes: Array<
+            | { type: 'text'; value: string }
+            | { type: 'citation'; n: number; sourceId: string | null }
+        > = [];
+
+        if (!deferredAnswer) return nodes;
+
+        let lastIndex = 0;
+        for (const match of deferredAnswer.matchAll(CITATION_RE)) {
+            const idx = match.index ?? 0;
+            if (idx > lastIndex) {
+                nodes.push({ type: 'text', value: deferredAnswer.slice(lastIndex, idx) });
+            }
+
+            const n = Number(match[1]);
+            const src = Number.isFinite(n) ? sources[n - 1] : undefined;
+            nodes.push({ type: 'citation', n, sourceId: src?.id ?? null });
+            lastIndex = idx + match[0].length;
+        }
+
+        if (lastIndex < deferredAnswer.length) {
+            nodes.push({ type: 'text', value: deferredAnswer.slice(lastIndex) });
+        }
+
+        return nodes;
+    }, [deferredAnswer, sources]);
+
+    return (
+        <div className={clsx("whitespace-pre-wrap break-words", className)}>
+            {parts.map((p, i) => {
+                if (p.type === 'text') {
+                    return <span key={`t:${i}`}>{p.value}</span>;
+                }
+
+                const isKnown = Boolean(p.sourceId);
+                const isActive = p.sourceId && activeSourceId === p.sourceId;
+
+                return (
+                    <button
+                        key={`c:${i}`}
+                        type="button"
+                        disabled={!isKnown}
+                        onMouseEnter={(e) => {
+                            if (!p.sourceId) return;
+                            setHoveredSource(p.sourceId);
+                            setCitationTarget(e.currentTarget.getBoundingClientRect());
+                        }}
+                        onMouseLeave={() => {
+                            setCitationTarget(null);
+                            setHoveredSource(null);
+                        }}
+                        onClick={(e) => {
+                            if (!p.sourceId) return;
+                            toggleLockedSource(p.sourceId);
+                            setCitationTarget(e.currentTarget.getBoundingClientRect());
+                        }}
+                        className={clsx(
+                            "inline-flex items-center align-baseline mx-1",
+                            "px-2 py-0.5 rounded-full border",
+                            "text-[11px] font-mono tracking-wider",
+                            isKnown
+                                ? "bg-stone-100/70 border-stone-300/70 text-stone-700 hover:bg-stone-100"
+                                : "bg-stone-100/40 border-stone-200/70 text-stone-400 cursor-not-allowed",
+                            isActive && "ring-2 ring-teal-700/20"
+                        )}
+                        aria-label={isKnown ? `Citation ${p.n}` : 'Unknown citation'}
+                    >
+                        [{p.n}]
+                    </button>
+                );
+            })}
+        </div>
+    );
+}

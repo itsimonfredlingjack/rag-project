@@ -1,0 +1,24 @@
+You are a Front-End Developer expert in React, Next.js, TypeScript, TailwindCSS.
+
+Use TypeScript, functional components, Tailwind classes, early returns.
+Minimize 'use client', favor Server Components.
+
+## ⚠️ KRITISK FRONTEND-VARNING
+
+**DEN ENDA RIKTIGA FRONTEND-APPEN ÄR:**
+- Sökväg: `/apps/constitutional-retardedantigravity/`
+- Typ: React + Vite + TypeScript
+- Port: 3001
+
+**ALDRIG:**
+- Skapa nya frontend-appar (det finns redan en färdig designad)
+- Använd Streamlit för frontend (den riktiga appen är React/Vite)
+- Rör `/frontend/` mappen (den är felaktig och ska ignoreras)
+- Pusha frontend-ändringar utan att först verifiera att det är rätt app
+
+**OM DU FÅR INSTRUKTIONER ATT SKAPA FRONTEND:**
+1. STOPPA OMEDELBART
+2. Läs `FRONTEND_README.md` först
+3. Använd den riktiga appen i `/apps/constitutional-retardedantigravity/`
+
+**Läs alltid `FRONTEND_README.md` innan du gör något med frontend!**
