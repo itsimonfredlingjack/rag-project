@@ -409,6 +409,8 @@ Du måste svara i strikt JSON enligt detta schema:
 }
 
 Regler:
+- VIKTIGT: Svara ENBART med JSON-objektet. Inga markdown-fences, inga kommentarer.
+- I strängvärden: använd \\n för radbrytning, ALDRIG rå radbrytning.
 - I EVIDENCE: "fakta_utan_kalla" måste vara tom. Om du saknar stöd: sätt "saknas_underlag": true och skriv refusal-svar i "svar".
 - I ASSIST: Fakta från dokument ska ha källa. Allmän kunskap ska inte få en låtsaskälla; skriv då i "fakta_utan_kalla" kort vad som är allmän förklaring.
 - "arbetsanteckning" får bara vara en mycket kort kontrollnotis. Den kommer inte visas för användaren."""

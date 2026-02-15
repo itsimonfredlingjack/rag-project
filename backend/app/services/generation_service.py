@@ -165,6 +165,7 @@ async def _parse_with_retry(
                 return True, schema, None
             return False, None, f"Validation failed attempt {attempt}: {', '.join(errors)}"
         except json.JSONDecodeError as e:
+            logger.debug(f"JSON parse failed attempt {attempt}, raw text: {text[:500]!r}")
             return False, None, f"JSON parsing failed attempt {attempt}: {str(e)[:100]}"
 
     # Attempt 1

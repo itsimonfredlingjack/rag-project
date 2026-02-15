@@ -134,6 +134,52 @@ class StructuredOutputService(BaseService):
             # arbetsanteckning is NOT included (security/privacy)
         }
 
+    @staticmethod
+    def _sanitize_json_control_chars(text: str) -> str:
+        """
+        Escape raw control characters inside JSON string values.
+
+        Walks char-by-char tracking whether we're inside a JSON string.
+        Only escapes \\r, \\n, \\t when inside a string value — JSON
+        structural whitespace outside strings is preserved.
+        Already-escaped sequences (\\\\n etc.) are NOT double-escaped.
+        """
+        out: list[str] = []
+        in_string = False
+        escape_next = False
+
+        for ch in text:
+            if escape_next:
+                out.append(ch)
+                escape_next = False
+                continue
+
+            if ch == "\\":
+                if in_string:
+                    escape_next = True
+                out.append(ch)
+                continue
+
+            if ch == '"':
+                in_string = not in_string
+                out.append(ch)
+                continue
+
+            if in_string:
+                if ch == "\r":
+                    out.append("\\r")
+                    continue
+                if ch == "\n":
+                    out.append("\\n")
+                    continue
+                if ch == "\t":
+                    out.append("\\t")
+                    continue
+
+            out.append(ch)
+
+        return "".join(out)
+
     def parse_llm_json(self, text: str) -> Dict[str, Any]:
         """
         Parse JSON from LLM response, handling various formats.
@@ -158,6 +204,9 @@ class StructuredOutputService(BaseService):
         if json_text.endswith("```"):
             json_text = json_text[:-3]
         json_text = json_text.strip()
+
+        # Sanitize control characters inside JSON string values
+        json_text = self._sanitize_json_control_chars(json_text)
 
         # Try direct parse first
         try:

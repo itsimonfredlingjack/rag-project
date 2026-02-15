@@ -213,5 +213,95 @@ class TestStructuredOutputService:
         assert validated.svar == "Success on retry"
 
 
+class TestSanitizeJsonControlChars:
+    """Tests for _sanitize_json_control_chars and control-char handling in parse_llm_json."""
+
+    def setup_method(self):
+        self.config_mock = Mock()
+        self.config_mock.settings.debug = False
+
+        with patch("app.services.structured_output_service.get_config_service") as mock_config:
+            mock_config.return_value = self.config_mock
+            self.service = StructuredOutputService(self.config_mock)
+
+    def test_crlf_in_svar_field_parsed_correctly(self):
+        """JSON with raw \\r\\n in 'svar' string value should parse without crashing."""
+        raw = '{"mode": "EVIDENCE", "saknas_underlag": false, "svar": "Rad 1\r\nRad 2\r\nRad 3", "kallor": [], "fakta_utan_kalla": []}'
+
+        result = self.service.parse_llm_json(raw)
+
+        # Sanitizer escapes raw control chars → json.loads interprets them back
+        # The key assertion: parsing succeeds and content is preserved
+        assert "Rad 1" in result["svar"]
+        assert "Rad 2" in result["svar"]
+        assert "Rad 3" in result["svar"]
+        assert result["mode"] == "EVIDENCE"
+
+    def test_tab_in_string_value_parsed_correctly(self):
+        """JSON with raw \\t in string value should parse without crashing."""
+        raw = '{"mode": "ASSIST", "saknas_underlag": false, "svar": "Kolumn1\tKolumn2", "kallor": [], "fakta_utan_kalla": []}'
+
+        result = self.service.parse_llm_json(raw)
+
+        assert "Kolumn1" in result["svar"]
+        assert "Kolumn2" in result["svar"]
+
+    def test_already_escaped_not_double_escaped(self):
+        """Already-escaped sequences (\\\\n) must NOT be double-escaped."""
+        raw = '{"mode": "ASSIST", "saknas_underlag": false, "svar": "Rad 1\\nRad 2", "kallor": [], "fakta_utan_kalla": []}'
+
+        result = self.service.parse_llm_json(raw)
+
+        # \\n in JSON becomes \n in Python string — this should remain a single newline
+        assert result["svar"] == "Rad 1\nRad 2"
+
+    def test_control_chars_outside_strings_preserved(self):
+        """Control characters used as JSON whitespace (outside strings) should be preserved."""
+        # JSON with newlines as structural whitespace (normal formatting)
+        raw = '{\n  "mode": "ASSIST",\n  "saknas_underlag": false,\n  "svar": "Test",\n  "kallor": [],\n  "fakta_utan_kalla": []\n}'
+
+        result = self.service.parse_llm_json(raw)
+
+        assert result["mode"] == "ASSIST"
+        assert result["svar"] == "Test"
+
+    def test_markdown_fences_with_control_chars(self):
+        """Markdown fences + control characters in string values should both be handled."""
+        raw = '```json\n{"mode": "EVIDENCE", "saknas_underlag": false, "svar": "Lag\r\ntext", "kallor": [], "fakta_utan_kalla": []}\n```'
+
+        result = self.service.parse_llm_json(raw)
+
+        assert result["mode"] == "EVIDENCE"
+        assert "Lag" in result["svar"]
+        assert "text" in result["svar"]
+
+    def test_sanitize_static_method_directly(self):
+        """Test _sanitize_json_control_chars as a standalone function."""
+        # Raw \r\n inside a string value
+        text = '"hello\r\nworld"'
+        sanitized = StructuredOutputService._sanitize_json_control_chars(text)
+        assert sanitized == '"hello\\r\\nworld"'
+
+    def test_sanitize_preserves_escaped_backslash_n(self):
+        """Test that \\n (already escaped) is preserved."""
+        text = r'"hello\nworld"'
+        sanitized = StructuredOutputService._sanitize_json_control_chars(text)
+        # The backslash-n should stay as is (already properly escaped)
+        assert sanitized == r'"hello\nworld"'
+
+    def test_raw_control_chars_would_fail_without_sanitizer(self):
+        """Verify that raw control chars in JSON strings cause JSONDecodeError without sanitization."""
+        raw = '{"svar": "Rad 1\r\nRad 2"}'
+        # Without sanitization, this should fail
+        with pytest.raises(json.JSONDecodeError):
+            json.loads(raw)
+
+        # With sanitization, it should succeed
+        sanitized = StructuredOutputService._sanitize_json_control_chars(raw)
+        result = json.loads(sanitized)
+        assert "Rad 1" in result["svar"]
+        assert "Rad 2" in result["svar"]
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

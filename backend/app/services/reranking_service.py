@@ -4,9 +4,12 @@ Wrapper for Jina reranker-v2-base-multilingual cross-encoder model
 """
 
 import asyncio
+import gc
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import List, Optional, Tuple
+
+import torch
 
 from ..core.exceptions import RerankingError
 from ..utils.logging import get_logger
@@ -139,7 +142,7 @@ class RerankingService(BaseService):
 
     async def close(self) -> None:
         """
-        Unload reranker model to free VRAM.
+        Unload reranker model to free memory.
 
         Clears the singleton, so next rerank() will reload model.
         """
@@ -148,6 +151,7 @@ class RerankingService(BaseService):
             del self._model
             self._model = None
             self._is_loaded = False
+            gc.collect()
 
         self._mark_uninitialized()
 
@@ -163,6 +167,21 @@ class RerankingService(BaseService):
         # Lazy-load model if not already loaded
         if not self._is_loaded:
             self._load_model()
+
+    def _predict_pairs(self, pairs: list) -> list:
+        """
+        Score (query, doc) pairs with torch.no_grad() and gc cleanup.
+
+        Args:
+            pairs: List of (query, document) tuples
+
+        Returns:
+            List of relevance scores
+        """
+        with torch.no_grad():
+            scores = self._model.predict(pairs)
+        gc.collect()
+        return scores
 
     async def rerank(
         self,
@@ -213,11 +232,11 @@ class RerankingService(BaseService):
 
             self.logger.info(f"Reranking {len(documents)} documents for query: '{query[:50]}...'")
 
-            # Run inference in executor (blocking call)
+            # Run inference in executor (blocking call) with memory cleanup
             loop = asyncio.get_event_loop()
             scores = await loop.run_in_executor(
                 None,
-                self._model.predict,
+                self._predict_pairs,
                 pairs,
             )
 
