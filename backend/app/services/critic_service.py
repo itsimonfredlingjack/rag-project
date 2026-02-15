@@ -410,9 +410,8 @@ EXEMPEL PÅ SVAR:
                 # ASSIST mode validation - more permissive
                 pass
 
-            # Check for internal notes (security)
-            if "arbetsanteckning" in parsed:
-                fel.append("Response contains internal notes ('arbetsanteckning')")
+            # Note: arbetsanteckning is NOT flagged here — it's a required schema
+            # field that strip_internal_note() removes before reaching the user.
 
             ok = len(fel) == 0
             atgard = (
