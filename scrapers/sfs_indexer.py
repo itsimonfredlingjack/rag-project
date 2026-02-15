@@ -301,15 +301,27 @@ class SFSIndexer:
                 documents.append(search_text)
                 metadatas.append(metadata)
 
+            # Deduplicate within batch (keep last occurrence per ID)
+            seen = {}
+            for idx, chunk_id in enumerate(ids):
+                seen[chunk_id] = idx
+            unique_indices = sorted(seen.values())
+            if len(unique_indices) < len(ids):
+                dupes = len(ids) - len(unique_indices)
+                logger.warning(f"  Dedup: {dupes} duplicate IDs removed from batch")
+                ids = [ids[j] for j in unique_indices]
+                documents = [documents[j] for j in unique_indices]
+                metadatas = [metadatas[j] for j in unique_indices]
+
             # Generate embeddings with Jina v3 (document/passage task)
             embeddings = self.embed_documents(documents)
 
             # Add to ChromaDB
-            self.collection.add(
+            self.collection.upsert(
                 ids=ids, documents=documents, embeddings=embeddings, metadatas=metadatas
             )
 
-            indexed += len(batch)
+            indexed += len(unique_indices)
             logger.info(f"  Indexerat {indexed}/{len(chunks)} chunks")
 
         return indexed

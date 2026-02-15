@@ -128,7 +128,7 @@ class EmbeddingService:
         if task and self._supports_task:
             encode_kwargs["task"] = task
 
-        embeddings = self._model.encode(texts, **encode_kwargs)
+        embeddings = self._model.encode(texts, batch_size=4, **encode_kwargs)
         return embeddings.tolist()
 
     # ─── Public API: asymmetric encoding ─────────────────────────────
