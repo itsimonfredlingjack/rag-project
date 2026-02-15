@@ -7,9 +7,11 @@ Supports asymmetric encoding via task-specific LoRA adapters (Jina v3):
   - embed_document() → task="retrieval.passage"  (for document indexing)
 """
 
+import gc
 from functools import lru_cache
 from typing import List, Optional
 
+import torch
 from sentence_transformers import SentenceTransformer
 
 from ..utils.logging import get_logger
@@ -128,8 +130,12 @@ class EmbeddingService:
         if task and self._supports_task:
             encode_kwargs["task"] = task
 
-        embeddings = self._model.encode(texts, batch_size=4, **encode_kwargs)
-        return embeddings.tolist()
+        with torch.no_grad():
+            embeddings = self._model.encode(texts, batch_size=4, **encode_kwargs)
+            result = embeddings.tolist()
+        del embeddings
+        gc.collect()
+        return result
 
     # ─── Public API: asymmetric encoding ─────────────────────────────
 
@@ -272,6 +278,9 @@ class EmbeddingService:
             del self._model
             self._model = None
             self._is_loaded = False
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             logger.info("Embedding model unloaded")
 
 

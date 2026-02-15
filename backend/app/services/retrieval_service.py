@@ -286,6 +286,10 @@ class RetrievalService(BaseService):
 
     async def initialize(self) -> None:
         """Initialize ChromaDB connection and embedding service"""
+        # Guard against double initialization (prevents "different settings" error)
+        if self._chromadb_client is not None:
+            return
+
         # Import chromadb here
         import chromadb
         import chromadb.config
