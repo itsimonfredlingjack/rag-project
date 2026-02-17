@@ -240,6 +240,33 @@ async def stream_query(
                                 tier=orig.tier,
                             )
                         )
+            # Minimum fallback: ensure at least N results survive reranking
+            min_results = config.settings.reranking_min_results
+            if len(filtered) < min_results and rerank_result.reranked_docs:
+                for i, doc in enumerate(rerank_result.reranked_docs):
+                    if len(filtered) >= min_results:
+                        break
+                    if any(s.id == doc["id"] for s in filtered):
+                        continue
+                    orig = next((s for s in sources if s.id == doc["id"]), None)
+                    if orig:
+                        filtered.append(
+                            SearchResult(
+                                id=orig.id,
+                                title=orig.title,
+                                snippet=orig.snippet,
+                                score=rerank_result.reranked_scores[i],
+                                source=orig.source,
+                                doc_type=orig.doc_type,
+                                date=orig.date,
+                                retriever=orig.retriever,
+                                tier=orig.tier,
+                            )
+                        )
+                logger.warning(
+                    f"Reranking fallback: padded to {len(filtered)} results "
+                    f"(min_results={min_results})"
+                )
             sources = filtered
 
         # Compute evidence level from final (reranked) sources
@@ -277,6 +304,7 @@ async def stream_query(
             context_text,
             structured_output_enabled=False,
             user_query=question,
+            thought_chain=thought_chain,
         )
         system_prompt = system_prompt.replace("{{CONSTITUTIONAL_EXAMPLES}}", examples_text)
 

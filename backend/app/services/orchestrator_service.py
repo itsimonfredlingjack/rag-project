@@ -433,6 +433,34 @@ class OrchestratorService(BaseService):
                                 )
                             )
 
+                # Minimum fallback: ensure at least N results survive reranking
+                min_results = self.config.settings.reranking_min_results
+                if len(filtered_sources) < min_results and rerank_result.reranked_docs:
+                    for i, doc in enumerate(rerank_result.reranked_docs):
+                        if len(filtered_sources) >= min_results:
+                            break
+                        if any(s.id == doc["id"] for s in filtered_sources):
+                            continue
+                        original = next((s for s in sources if s.id == doc["id"]), None)
+                        if original:
+                            filtered_sources.append(
+                                SearchResult(
+                                    id=original.id,
+                                    title=original.title,
+                                    snippet=original.snippet,
+                                    score=rerank_result.reranked_scores[i],
+                                    source=original.source,
+                                    doc_type=original.doc_type,
+                                    date=original.date,
+                                    retriever=original.retriever,
+                                    tier=original.tier,
+                                )
+                            )
+                    logger.warning(
+                        f"Reranking fallback: padded to {len(filtered_sources)} results "
+                        f"(min_results={min_results})"
+                    )
+
                 reasoning_steps.append(
                     f"Reranked {len(sources)} → {len(filtered_sources)} sources "
                     f"(threshold={score_threshold}, top_n={top_n}, "
@@ -473,13 +501,14 @@ class OrchestratorService(BaseService):
             )
             examples_text = self._format_constitutional_examples(constitutional_examples)
 
-            # Build messages
+            # Build messages (inject thought_chain so LLM can use its own reflection)
             system_prompt = self._build_system_prompt(
                 resolved_mode.value,
                 sources,
                 context_text,
                 structured_output_enabled=self.config.structured_output_effective_enabled,
                 user_query=question,
+                thought_chain=thought_chain,
             )
             # Replace placeholder with actual examples
             system_prompt = system_prompt.replace("{{CONSTITUTIONAL_EXAMPLES}}", examples_text)
@@ -496,9 +525,6 @@ class OrchestratorService(BaseService):
             messages = [
                 {"role": "system", "content": system_prompt},
             ]
-
-            # Note: thought_chain is NOT included in prompts for security
-            # It can contaminate outputs and leak internal reasoning
 
             messages.append({"role": "user", "content": f"Fråga: {question}"})
 
@@ -797,6 +823,7 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
         context_text: str = "",
         structured_output_enabled: bool = True,
         user_query=None,
+        thought_chain=None,
     ) -> str:
         """Build system prompt. Delegates to prompt_service."""
         return _build_system_prompt_fn(
@@ -805,6 +832,7 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
             context_text=context_text,
             structured_output_enabled=structured_output_enabled,
             user_query=user_query,
+            thought_chain=thought_chain,
         )
 
     async def stream_query(
