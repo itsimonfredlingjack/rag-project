@@ -437,12 +437,14 @@ def build_system_prompt(
     context_text: str,
     structured_output_enabled: bool = True,
     user_query: Optional[str] = None,
+    thought_chain: Optional[str] = None,
 ) -> str:
     """
     Build system prompt based on response mode and structured output setting.
 
     Different prompts for CHAT/ASSIST/EVIDENCE modes.
     JSON schema instructions only included when structured_output_enabled=True.
+    If thought_chain is provided, it is appended as internal reflection guidance.
     """
     if mode == "evidence":
         prompt = "\n\n".join(
@@ -459,6 +461,12 @@ def build_system_prompt(
         prompt += _JSON_INSTRUCTION if structured_output_enabled else _TEXT_INSTRUCTION
         prompt += "{{CONSTITUTIONAL_EXAMPLES}}"
         prompt += f"\n\nKälla från korpusen:\n{context_text}"
+        if thought_chain:
+            prompt += (
+                "\n\n=== INTERN REFLEKTION (Använd denna som vägledning) ===\n"
+                f"{thought_chain}\n"
+                "=== SLUT INTERN REFLEKTION ==="
+            )
         return prompt
 
     elif mode == "assist":
@@ -476,6 +484,12 @@ def build_system_prompt(
         prompt += _JSON_INSTRUCTION if structured_output_enabled else _TEXT_INSTRUCTION
         prompt += "{{CONSTITUTIONAL_EXAMPLES}}"
         prompt += f"\n\nKälla från korpusen:\n{context_text}"
+        if thought_chain:
+            prompt += (
+                "\n\n=== INTERN REFLEKTION (Använd denna som vägledning) ===\n"
+                f"{thought_chain}\n"
+                "=== SLUT INTERN REFLEKTION ==="
+            )
         return prompt
 
     else:  # chat
