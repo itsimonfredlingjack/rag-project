@@ -22,11 +22,14 @@ from typing import Dict, List, Optional
 # CONFIGURATION
 # ═══════════════════════════════════════════════════════════════════════════
 
-# Default thresholds - CALIBRATED for RRF scores (k=30)
+# Reference k value used for calibrating base thresholds.
+# All score-dependent thresholds were tuned at this k.
+_REFERENCE_K = 30
+
+# Base thresholds - CALIBRATED for RRF scores at k=_REFERENCE_K (30)
 # RRF formula: 1/(k+rank), so top score at rank 1 = 1/31 ≈ 0.032
 # With 2 queries at rank 1: 2/31 ≈ 0.065, with 3: 3/31 ≈ 0.097
-# NOTE: If changing rrf_k in config, adjust these thresholds proportionally
-DEFAULT_THRESHOLDS = {
+_BASE_THRESHOLDS = {
     "top_score_low": 0.050,  # Below this = weak top result (< rank 2 in any query)
     "margin_low": 0.006,  # Below this = uncertain ranking (normalized margin)
     "must_include_min": 0.5,  # Below this = missing key entities
@@ -34,11 +37,33 @@ DEFAULT_THRESHOLDS = {
     "overlap_high": 0.9,  # Above this + low scores = corpus lacks answer
     "near_duplicate_max": 0.7,  # Above this = too many duplicates
     "overall_confidence_low": 0.4,  # Below this = escalate
-    # NEW: Query quality thresholds
+    # Query quality thresholds
     "lexical_overlap_min": 0.15,  # Below this = query tokens not in results (gibberish)
     "abstain_confidence": 0.25,  # Below this after max escalation = refuse to answer
     "empty_entities_penalty": 0.20,  # Penalty when no entities extracted from query
 }
+
+# Thresholds that scale with RRF k (score-dependent)
+_SCORE_DEPENDENT_KEYS = {"top_score_low", "margin_low"}
+
+
+def compute_thresholds(rrf_k: float = _REFERENCE_K) -> Dict:
+    """
+    Compute confidence thresholds scaled to the given RRF k.
+
+    Score-dependent thresholds (top_score_low, margin_low) scale proportionally
+    because RRF scores decrease as k increases: score = 1/(k+rank).
+    Non-score thresholds (ratios, penalties) are invariant to k.
+    """
+    scale = (_REFERENCE_K + 1) / (rrf_k + 1)
+    thresholds = dict(_BASE_THRESHOLDS)
+    for key in _SCORE_DEPENDENT_KEYS:
+        thresholds[key] = thresholds[key] * scale
+    return thresholds
+
+
+# Backward-compatible alias at reference k
+DEFAULT_THRESHOLDS = _BASE_THRESHOLDS
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -157,8 +182,13 @@ class ConfidenceCalculator:
     No LLM calls - pure computation on existing data.
     """
 
-    def __init__(self, thresholds: Optional[Dict] = None):
-        self.thresholds = thresholds or DEFAULT_THRESHOLDS
+    def __init__(self, thresholds: Optional[Dict] = None, rrf_k: Optional[float] = None):
+        if thresholds:
+            self.thresholds = thresholds
+        elif rrf_k is not None:
+            self.thresholds = compute_thresholds(rrf_k)
+        else:
+            self.thresholds = DEFAULT_THRESHOLDS
 
     def compute(
         self,
