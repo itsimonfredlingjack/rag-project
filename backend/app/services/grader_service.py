@@ -22,8 +22,14 @@ from .retrieval_service import SearchResult
 
 logger = get_logger(__name__)
 
-# GBNF grammar: forces canonical output {"relevance":"yes"} or {"relevance":"no"}
-GRADING_GRAMMAR = 'root ::= "{" "\\"relevance\\"" ":" value "}"\nvalue ::= "\\"yes\\"" | "\\"no\\""'
+# GBNF grammar: forces 3-way output {"status":"RELEVANT","confidence":0.XX}
+GRADING_GRAMMAR = (
+    'root ::= "{" space "\\"status\\"" space ":" space status "," '
+    'space "\\"confidence\\"" space ":" space confidence "}" \n'
+    'status ::= "\\"RELEVANT\\"" | "\\"IRRELEVANT\\"" | "\\"AMBIGUOUS\\""\n'
+    'confidence ::= "0." [0-9][0-9] | "1.00"\n'
+    "space ::= [ \\t\\n]*"
+)
 
 
 @dataclass
@@ -33,7 +39,8 @@ class GradeResult:
 
     Attributes:
         doc_id: Document identifier from retrieval
-        relevant: True if document is relevant to query
+        relevant: True if document is relevant to query (backward compat: True if status == RELEVANT)
+        status: "RELEVANT" | "IRRELEVANT" | "AMBIGUOUS"
         reason: Human-readable explanation of relevance assessment
         score: Numerical score 0.0-1.0 (confidence of relevance)
         confidence: Confidence in the grading decision (0.0-1.0)
@@ -42,6 +49,7 @@ class GradeResult:
 
     doc_id: str
     relevant: bool
+    status: str
     reason: str
     score: float
     confidence: float
@@ -56,6 +64,8 @@ class GradingMetrics:
     Attributes:
         total_documents: Total documents graded
         relevant_count: Number of relevant documents found
+        ambiguous_count: Number of ambiguous documents
+        irrelevant_count: Number of irrelevant documents
         relevant_percentage: Percentage of relevant documents
         avg_score: Average relevance score
         total_latency_ms: Total time for grading
@@ -64,6 +74,8 @@ class GradingMetrics:
 
     total_documents: int
     relevant_count: int
+    ambiguous_count: int
+    irrelevant_count: int
     relevant_percentage: float
     avg_score: float
     total_latency_ms: float
@@ -74,6 +86,8 @@ class GradingMetrics:
         return {
             "total_documents": self.total_documents,
             "relevant_count": self.relevant_count,
+            "ambiguous_count": self.ambiguous_count,
+            "irrelevant_count": self.irrelevant_count,
             "relevant_percentage": round(self.relevant_percentage, 2),
             "avg_score": round(self.avg_score, 3),
             "total_latency_ms": round(self.total_latency_ms, 2),
@@ -207,6 +221,8 @@ class GraderService(BaseService):
                     metrics=GradingMetrics(
                         total_documents=0,
                         relevant_count=0,
+                        ambiguous_count=0,
+                        irrelevant_count=0,
                         relevant_percentage=0.0,
                         avg_score=0.0,
                         total_latency_ms=0.0,
@@ -248,6 +264,7 @@ class GraderService(BaseService):
                             grade_result = GradeResult(
                                 doc_id=doc.id,
                                 relevant=False,
+                                status="IRRELEVANT",
                                 reason=f"Grading error: {str(result)[:50]}",
                                 score=0.0,
                                 confidence=0.0,
@@ -268,6 +285,7 @@ class GraderService(BaseService):
                         grade_result = GradeResult(
                             doc_id=doc.id,
                             relevant=False,
+                            status="IRRELEVANT",
                             reason=f"Timeout grading document {doc.id}",
                             score=0.0,
                             confidence=0.0,
@@ -281,12 +299,16 @@ class GraderService(BaseService):
 
             # Calculate metrics
             total_latency_ms = (time.perf_counter() - start_time) * 1000
-            relevant_count = sum(1 for g in grades if g.relevant)
+            relevant_count = sum(1 for g in grades if g.status == "RELEVANT")
+            ambiguous_count = sum(1 for g in grades if g.status == "AMBIGUOUS")
+            irrelevant_count = sum(1 for g in grades if g.status == "IRRELEVANT")
             avg_score = sum(g.score for g in grades) / len(grades)
 
             metrics = GradingMetrics(
                 total_documents=len(documents),
                 relevant_count=relevant_count,
+                ambiguous_count=ambiguous_count,
+                irrelevant_count=irrelevant_count,
                 relevant_percentage=(relevant_count / len(documents)) * 100,
                 avg_score=avg_score,
                 total_latency_ms=total_latency_ms,
@@ -307,6 +329,8 @@ class GraderService(BaseService):
                 metrics=GradingMetrics(
                     total_documents=len(documents),
                     relevant_count=0,
+                    ambiguous_count=0,
+                    irrelevant_count=0,
                     relevant_percentage=0.0,
                     avg_score=0.0,
                     total_latency_ms=(time.perf_counter() - start_time) * 1000,
@@ -368,6 +392,7 @@ class GraderService(BaseService):
             return GradeResult(
                 doc_id=document.id,
                 relevant=False,
+                status="IRRELEVANT",
                 reason=f"Grading failed: {str(e)[:100]}",
                 score=0.0,
                 confidence=0.0,
@@ -385,26 +410,30 @@ class GraderService(BaseService):
         Returns:
             Formatted prompt string
         """
-        return f"""Är detta dokument relevant för frågan? Svara ENDAST med JSON.
+        return f"""Analysera dokumentet i relation till frågan. Svara med EXAKT ett JSON-objekt.
 
 FRÅGA: {query}
 
 DOKUMENT: {document.title} ({document.doc_type or "okänd"})
 {document.snippet[:500]}
 
-Relevant = dokumentet besvarar eller direkt relaterar till frågan.
-Irrelevant = dokumentet handlar om något annat.
+Om dokumentet direkt besvarar eller stödjer frågan:
+{{"status":"RELEVANT","confidence":0.XX}}
 
-Svara med EXAKT ett av dessa:
-{{"relevance":"yes"}}
-{{"relevance":"no"}}"""
+Om dokumentet är delvis relaterat men otillräckligt:
+{{"status":"AMBIGUOUS","confidence":0.XX}}
+
+Om dokumentet är irrelevant:
+{{"status":"IRRELEVANT","confidence":0.XX}}
+
+Confidence: 0.00 (helt osäker) till 1.00 (helt säker)."""
 
     def _parse_grading_response(self, doc_id: str, response: str, threshold: float) -> GradeResult:
         """
-        Parse minimal JSON grading response: {"relevance":"yes"} or {"relevance":"no"}.
+        Parse 3-way JSON grading response: {"status":"RELEVANT","confidence":0.XX}.
 
-        Falls back to keyword detection if JSON parsing fails.
-        The threshold parameter is unused with binary grading but kept for API compat.
+        Falls back to legacy {"relevance":"yes"/"no"} format, then keyword detection.
+        The threshold parameter is unused with grammar-based grading but kept for API compat.
         """
         try:
             cleaned = response.strip()
@@ -417,19 +446,39 @@ Svara med EXAKT ett av dessa:
 
             parsed = json.loads(cleaned[start_idx:end_idx])
 
-            # Support both new minimal format and legacy format
+            # New 3-way format: {"status":"RELEVANT","confidence":0.85}
+            if "status" in parsed:
+                status = parsed["status"].upper()
+                confidence = float(parsed.get("confidence", 0.5))
+                relevant = status == "RELEVANT"
+                score = (
+                    confidence if relevant else (confidence * 0.5 if status == "AMBIGUOUS" else 0.0)
+                )
+                return GradeResult(
+                    doc_id=doc_id,
+                    relevant=relevant,
+                    status=status,
+                    reason=status.lower(),
+                    score=score,
+                    confidence=confidence,
+                    latency_ms=0.0,
+                )
+
+            # Legacy format: {"relevance":"yes"/"no"}
             relevance_val = parsed.get("relevance", parsed.get("relevant", "no"))
             if isinstance(relevance_val, bool):
                 relevant = relevance_val
             else:
                 relevant = str(relevance_val).lower().strip() in ("yes", "true")
 
+            status = "RELEVANT" if relevant else "IRRELEVANT"
             score = 1.0 if relevant else 0.0
             reason = parsed.get("reason", "yes" if relevant else "no")
 
             return GradeResult(
                 doc_id=doc_id,
                 relevant=relevant,
+                status=status,
                 reason=reason,
                 score=score,
                 confidence=1.0 if relevant else 0.8,
@@ -439,17 +488,22 @@ Svara med EXAKT ett av dessa:
         except (json.JSONDecodeError, ValueError, KeyError) as e:
             # Fallback: keyword detection in raw response
             lower = response.lower()
-            relevant = (
-                '"yes"' in lower or '"relevant": true' in lower or '"relevance":"yes"' in lower
-            )
+            if '"relevant"' in lower or '"relevance":"yes"' in lower:
+                relevant = True
+                status = "RELEVANT"
+            elif '"ambiguous"' in lower:
+                relevant = False
+                status = "AMBIGUOUS"
+            else:
+                relevant = False
+                status = "IRRELEVANT"
 
-            self.logger.warning(
-                f"JSON parse failed for {doc_id}, keyword fallback → {relevant}: {e}"
-            )
+            self.logger.warning(f"JSON parse failed for {doc_id}, keyword fallback → {status}: {e}")
 
             return GradeResult(
                 doc_id=doc_id,
                 relevant=relevant,
+                status=status,
                 reason=f"Keyword fallback: {str(e)[:50]}",
                 score=1.0 if relevant else 0.0,
                 confidence=0.5,

@@ -89,26 +89,65 @@ async def process_crag_grading(
         grade_ms = grading_result.metrics.total_latency_ms
         grade_count = grading_result.metrics.total_documents
         relevant_count = grading_result.metrics.relevant_count
+        ambiguous_count = grading_result.metrics.ambiguous_count
+        irrelevant_count = grading_result.metrics.irrelevant_count
+
+        # Compute average confidence for observability
+        grades = grading_result.grades
+        avg_confidence = sum(g.confidence for g in grades) / len(grades) if grades else 0.0
 
         reasoning_steps.append(
-            f"CRAG graded {grade_count} documents, {relevant_count} relevant "
-            f"({grading_result.metrics.relevant_percentage:.1f}%) in {grade_ms:.1f}ms"
+            f"CRAG graded {grade_count} documents: {relevant_count} RELEVANT, "
+            f"{ambiguous_count} AMBIGUOUS, {irrelevant_count} IRRELEVANT "
+            f"(avg confidence: {avg_confidence:.2f}) in {grade_ms:.1f}ms"
         )
 
-        # Filter sources to only relevant ones
-        if relevant_count > 0:
+        # 3-way filtering logic
+        if relevant_count >= 3:
+            # Enough strong docs — drop ambiguous
             filtered_docs = [
                 doc
                 for doc, grade in zip(retrieval_result.results, grading_result.grades)
-                if grade.relevant
+                if grade.status == "RELEVANT"
             ]
             sources = filtered_docs
             reasoning_steps.append(
-                f"CRAG filtered to {len(sources)} relevant documents for generation"
+                f"CRAG filtered to {len(sources)} RELEVANT documents (ambiguous dropped)"
+            )
+        elif relevant_count > 0:
+            # Some relevant — include ambiguous as supplementary
+            filtered_docs = [
+                doc
+                for doc, grade in zip(retrieval_result.results, grading_result.grades)
+                if grade.status in ("RELEVANT", "AMBIGUOUS")
+            ]
+            sources = filtered_docs
+            reasoning_steps.append(
+                f"CRAG filtered to {len(sources)} documents "
+                f"({relevant_count} RELEVANT + {ambiguous_count} AMBIGUOUS)"
+            )
+        elif ambiguous_count > 0:
+            # No relevant — include ambiguous if any
+            filtered_docs = [
+                doc
+                for doc, grade in zip(retrieval_result.results, grading_result.grades)
+                if grade.status == "AMBIGUOUS"
+            ]
+            sources = filtered_docs
+            reasoning_steps.append(
+                f"CRAG: No RELEVANT docs, using {len(sources)} AMBIGUOUS documents"
             )
         else:
             sources = []
-            reasoning_steps.append("CRAG: No relevant documents found, considering query rewrite")
+            reasoning_steps.append("CRAG: No relevant or ambiguous documents found")
+
+        # Compute should_rewrite for observability (no functional rewrite implementation)
+        should_rewrite = (relevant_count == 0 and ambiguous_count <= 1) or avg_confidence < 0.4
+        if should_rewrite:
+            reasoning_steps.append(
+                f"CRAG: should_rewrite=True (relevant={relevant_count}, "
+                f"ambiguous={ambiguous_count}, avg_confidence={avg_confidence:.2f})"
+            )
     else:
         grade_count = 0
         relevant_count = 0

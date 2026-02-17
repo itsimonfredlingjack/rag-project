@@ -15,6 +15,7 @@ from .config_service import ConfigService
 from .query_processor_service import QueryProcessorService, ResponseMode
 from .retrieval_service import RetrievalStrategy, SearchResult
 
+
 logger = get_logger(__name__)
 
 
@@ -129,14 +130,31 @@ async def stream_query(
             grading_result = await grader.grade_documents(
                 query=search_query, documents=retrieval_result.results
             )
-            yield f"data: {_json({'type': 'grading', 'total': grading_result.metrics.total_documents, 'relevant': grading_result.metrics.relevant_count})}\n\n"
+            yield f"data: {_json({'type': 'grading', 'total': grading_result.metrics.total_documents, 'relevant': grading_result.metrics.relevant_count, 'ambiguous': grading_result.metrics.ambiguous_count})}\n\n"
 
-            relevant_docs = [
-                doc
-                for doc, grade in zip(retrieval_result.results, grading_result.grades)
-                if grade.relevant
-            ]
-            sources = relevant_docs if relevant_docs else []
+            relevant_count = grading_result.metrics.relevant_count
+            ambiguous_count = grading_result.metrics.ambiguous_count
+
+            if relevant_count >= 3:
+                sources = [
+                    doc
+                    for doc, grade in zip(retrieval_result.results, grading_result.grades)
+                    if grade.status == "RELEVANT"
+                ]
+            elif relevant_count > 0:
+                sources = [
+                    doc
+                    for doc, grade in zip(retrieval_result.results, grading_result.grades)
+                    if grade.status in ("RELEVANT", "AMBIGUOUS")
+                ]
+            elif ambiguous_count > 0:
+                sources = [
+                    doc
+                    for doc, grade in zip(retrieval_result.results, grading_result.grades)
+                    if grade.status == "AMBIGUOUS"
+                ]
+            else:
+                sources = []
 
         # CRAG: Self-Reflection
         if (
@@ -197,12 +215,16 @@ async def stream_query(
                 ],
                 top_k=len(sources),
             )
+            from .orchestrator_service import autocut_scores
+
             threshold = config.settings.reranking_score_threshold
             top_n = config.settings.reranking_top_n
+            autocut_n = autocut_scores(rerank_result.reranked_scores, sensitivity=0.15)
+            effective_n = max(2, min(autocut_n, top_n))
             filtered = []
             for i, doc in enumerate(rerank_result.reranked_docs):
                 score = rerank_result.reranked_scores[i]
-                if score >= threshold and len(filtered) < top_n:
+                if score >= threshold and len(filtered) < effective_n:
                     orig = next((s for s in sources if s.id == doc["id"]), None)
                     if orig:
                         filtered.append(

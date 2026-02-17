@@ -120,6 +120,8 @@ class TestCRAGIntegration:
         grading_metrics = GradingMetrics(
             total_documents=3,
             relevant_count=2,
+            ambiguous_count=0,
+            irrelevant_count=1,
             relevant_percentage=66.67,
             avg_score=0.75,
             total_latency_ms=150.0,
@@ -131,6 +133,7 @@ class TestCRAGIntegration:
                 GradeResult(
                     doc_id="gdpr_article_6",
                     relevant=True,
+                    status="RELEVANT",
                     reason="Direct match for GDPR question",
                     score=0.9,
                     confidence=0.8,
@@ -139,6 +142,7 @@ class TestCRAGIntegration:
                 GradeResult(
                     doc_id="unrelated_tax_doc",
                     relevant=False,
+                    status="IRRELEVANT",
                     reason="About tax, not GDPR",
                     score=0.1,
                     confidence=0.9,
@@ -147,6 +151,7 @@ class TestCRAGIntegration:
                 GradeResult(
                     doc_id="gdpr_recital_1",
                     relevant=True,
+                    status="RELEVANT",
                     reason="Direct match for GDPR question",
                     score=0.85,
                     confidence=0.8,
@@ -322,6 +327,8 @@ class TestCRAGIntegration:
         grading_metrics = GradingMetrics(
             total_documents=1,
             relevant_count=0,
+            ambiguous_count=0,
+            irrelevant_count=1,
             relevant_percentage=0.0,
             avg_score=0.1,
             total_latency_ms=50.0,
@@ -333,6 +340,7 @@ class TestCRAGIntegration:
                 GradeResult(
                     doc_id="tax_doc",
                     relevant=False,
+                    status="IRRELEVANT",
                     reason="About taxes, not weather",
                     score=0.1,
                     confidence=0.9,

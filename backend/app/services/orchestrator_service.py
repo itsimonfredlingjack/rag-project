@@ -39,6 +39,18 @@ from .intent_classifier import QueryIntent
 logger = get_logger(__name__)
 
 
+def autocut_scores(scores: list[float], sensitivity: float = 0.15) -> int:
+    """Find the optimal cutoff point in a sorted descending score list via gap detection."""
+    if len(scores) <= 1:
+        return len(scores)
+    threshold = sensitivity * scores[0] if scores[0] > 0 else sensitivity
+    for i in range(1, len(scores)):
+        gap = scores[i - 1] - scores[i]
+        if gap > threshold:
+            return i
+    return len(scores)
+
+
 from .rag_models import (  # noqa: E402
     ANSWER_CONTRACTS,  # noqa: F401 - re-exported for backward compatibility
     RAGPipelineMetrics,
@@ -394,14 +406,16 @@ class OrchestratorService(BaseService):
 
                 reranking_ms = (time.perf_counter() - rerank_start) * 1000
 
-                # Apply score threshold and top-N filtering
+                # Apply score threshold, autocut, and top-N filtering
                 score_threshold = self.config.settings.reranking_score_threshold
                 top_n = self.config.settings.reranking_top_n
+                autocut_n = autocut_scores(rerank_result.reranked_scores, sensitivity=0.15)
+                effective_n = max(2, min(autocut_n, top_n))
 
                 filtered_sources = []
                 for i, doc in enumerate(rerank_result.reranked_docs):
                     rerank_score = rerank_result.reranked_scores[i]
-                    if rerank_score >= score_threshold and len(filtered_sources) < top_n:
+                    if rerank_score >= score_threshold and len(filtered_sources) < effective_n:
                         # Find the original source to preserve all metadata
                         original = next((s for s in sources if s.id == doc["id"]), None)
                         if original:
@@ -422,6 +436,7 @@ class OrchestratorService(BaseService):
                 reasoning_steps.append(
                     f"Reranked {len(sources)} → {len(filtered_sources)} sources "
                     f"(threshold={score_threshold}, top_n={top_n}, "
+                    f"autocut={autocut_n}, effective_n={effective_n}, "
                     f"top_score={rerank_result.reranked_scores[0] if rerank_result.reranked_scores else 0:.4f}, "
                     f"latency={reranking_ms:.1f}ms)"
                 )
