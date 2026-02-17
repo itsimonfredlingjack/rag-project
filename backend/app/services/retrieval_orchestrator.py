@@ -584,6 +584,8 @@ class RetrievalOrchestrator:
         reranker_model_name: Optional[str] = None,
         cutover_enforce_jina_collections: bool = False,
         cutover_allowed_fallback_collections: Optional[List[str]] = None,
+        query_expansion_confidence_gate: bool = True,
+        query_expansion_confidence_threshold: float = 0.5,
     ):
         self.client = chromadb_client
         self.embed_fn = embedding_function
@@ -601,6 +603,8 @@ class RetrievalOrchestrator:
         self._query_expansion_service = query_expansion_service
         self._query_expansion_enabled = query_expansion_enabled
         self._query_expansion_count = query_expansion_count
+        self._query_expansion_confidence_gate = query_expansion_confidence_gate
+        self._query_expansion_confidence_threshold = query_expansion_confidence_threshold
         # EPR RAG-Fusion settings
         self._use_epr_fusion = use_epr_fusion
         self._epr_fusion_num_queries = epr_fusion_num_queries
@@ -1170,7 +1174,7 @@ class RetrievalOrchestrator:
         metrics.adaptive_used = True
 
         # Initialize confidence calculator
-        confidence_calc = ConfidenceCalculator()
+        confidence_calc = ConfidenceCalculator(rrf_k=self._rrf_k)
 
         # Get must_include tokens from rewriter (if available)
         must_include = []
@@ -1186,7 +1190,11 @@ class RetrievalOrchestrator:
             if rewrite_result.expanded_abbreviations:
                 logger.info(f"Adaptive search - expanded: {rewrite_result.expanded_abbreviations}")
 
-        llm_expansions = await self._get_llm_expansions(query, metrics)
+        # Defer LLM expansion: skip for Step A, only invoke during escalation (Step B+)
+        if self._query_expansion_confidence_gate:
+            llm_expansions = []
+        else:
+            llm_expansions = await self._get_llm_expansions(query, metrics)
         bm25_query_override = self._build_bm25_query(query, rewrite_result, llm_expansions)
         self._enforce_cutover_policy(collections or self._default_collections, metrics)
 
@@ -1233,6 +1241,11 @@ class RetrievalOrchestrator:
             final_signals = signals_a
         else:
             logger.info(f"Adaptive: Escalating from A ({reason})")
+
+            # Confidence too low — now invoke LLM expansion for escalation steps
+            if self._query_expansion_confidence_gate and not llm_expansions:
+                llm_expansions = await self._get_llm_expansions(query, metrics)
+                bm25_query_override = self._build_bm25_query(query, rewrite_result, llm_expansions)
 
             # === STEP B: increase k, search more collections ===
             escalation_path.append("B")
@@ -1893,7 +1906,11 @@ class RetrievalOrchestrator:
             # Single query fallback
             query_embeddings = [self.embed_fn([query])[0]]
 
-        llm_expansions = await self._get_llm_expansions(query, metrics)
+        # Gate LLM expansion: skip for initial pass when confidence gate is on
+        if self._query_expansion_confidence_gate:
+            llm_expansions = []
+        else:
+            llm_expansions = await self._get_llm_expansions(query, metrics)
 
         # BM25 search (runs in parallel with Pass 1 dense search)
         async def _epr_bm25_search():

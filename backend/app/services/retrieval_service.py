@@ -428,6 +428,10 @@ class RetrievalService(BaseService):
                     cutover_allowed_fallback_collections=(
                         self.config.cutover_allowed_fallback_collections
                     ),
+                    query_expansion_confidence_gate=(self.config.query_expansion_confidence_gate),
+                    query_expansion_confidence_threshold=(
+                        self.config.query_expansion_confidence_threshold
+                    ),
                 )
                 logger.info(
                     f"RetrievalOrchestrator initialized (bm25_weight={self.config.rrf_bm25_weight}, "

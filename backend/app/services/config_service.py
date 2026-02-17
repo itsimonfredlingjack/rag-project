@@ -109,6 +109,7 @@ class ConfigSettings(BaseSettings):
     reranking_top_k: int = 10
     reranking_score_threshold: float = 0.1  # Filter docs below this reranker score
     reranking_top_n: int = 5  # Max docs to pass to LLM after reranking
+    reranking_min_results: int = 3  # Minimum results to keep after reranking
 
     # Jail Warden v2
     jail_warden_enabled: bool = True
@@ -119,6 +120,8 @@ class ConfigSettings(BaseSettings):
     query_expansion_count: int = 3
     query_expansion_use_grammar: bool = True
     max_query_variants: int = 3
+    query_expansion_confidence_gate: bool = True
+    query_expansion_confidence_threshold: float = 0.5
 
     # Adaptive Retrieval
     adaptive_retrieval_enabled: bool = True
@@ -373,6 +376,14 @@ class ConfigService:
     @property
     def query_expansion_use_grammar(self) -> bool:
         return self._settings.query_expansion_use_grammar
+
+    @property
+    def query_expansion_confidence_gate(self) -> bool:
+        return self._settings.query_expansion_confidence_gate
+
+    @property
+    def query_expansion_confidence_threshold(self) -> float:
+        return self._settings.query_expansion_confidence_threshold
 
     @property
     def rrf_bm25_weight(self) -> float:
