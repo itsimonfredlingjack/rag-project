@@ -8,7 +8,7 @@ MODEL_PATH="models/Ministral-3-14B-Instruct-2512-Q4_K_M.gguf"
 DRAFT_PATH=""  # Speculative decoding disabled — Qwen draft incompatible with Ministral tokenizer
 BACKEND_PORT=8900
 LLM_PORT=8080
-FRONTEND_PORT=3001
+FRONTEND_PORT=3003
 LOG_DIR="logs"
 FRONTEND_DIR="apps/constitutional-retardedantigravity"
 

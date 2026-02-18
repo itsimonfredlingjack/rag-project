@@ -62,6 +62,16 @@ repos:
   #           node_modules/
   #         )
 
+  # Port consistency check
+  - repo: local
+    hooks:
+      - id: check-port-consistency
+        name: Check port consistency
+        entry: bash scripts/check_port_consistency.sh
+        language: system
+        files: '(start_system\.sh|status\.sh|config_service\.py|vite\.config\.ts|CLAUDE\.md)$'
+        pass_filenames: false
+
   # TypeScript/JavaScript - ESLint
   # Run: cd apps/<app> && npm run lint
   - repo: local
