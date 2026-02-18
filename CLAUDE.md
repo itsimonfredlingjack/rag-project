@@ -80,7 +80,7 @@ API-docs: `http://localhost:8900/docs` (Swagger) och `/redoc`.
 
 ```
 User Query → Frontend → POST /api/constitutional/agent/query/stream
-  → OrchestratorService (~950 rader, central koordinator)
+  → OrchestratorService (~1020 rader, central koordinator)
     → IntentClassifier (klassificerar frågetyp)
     → QueryRewriter (omskrivning/expansion)
     → RetrievalOrchestrator (Fas 1-4, adaptiv eskalering)
@@ -88,7 +88,7 @@ User Query → Frontend → POST /api/constitutional/agent/query/stream
       → BM25Service (sparse keyword search)
       → RAGFusion (multi-query + RRF-merge)
     → RerankingService (Jina cross-encoder)
-    → GraderService (Qwen 0.5B, binär relevansgradering)
+    → GraderService (Ministral-3-14B, 3-vägs relevansgradering)
     → LLMService → llama-server (Ministral-3-14B-Instruct-2512)
     → GuardrailService (Jail Warden v2, blockerar hallucinationer i EVIDENCE)
     → CriticService (Critic-Revise loop)
@@ -100,7 +100,7 @@ Tre frågelägen:
 - **ASSIST** (temp 0.4): Guidat med källor som kontext
 - **CHAT** (temp 0.7): Konversationellt
 
-### Services (`backend/app/services/`, 30 moduler)
+### Services (`backend/app/services/`, 33 moduler)
 
 | Service | Ansvar |
 |---------|--------|
@@ -110,7 +110,7 @@ Tre frågelägen:
 | `llm_service.py` | llama-server integration med streaming |
 | `embedding_service.py` | Jina v3 embeddings (asymmetrisk) |
 | `reranking_service.py` | Jina cross-encoder reranking |
-| `grader_service.py` | Dokumentrelevans (Qwen 0.5B) |
+| `grader_service.py` | 3-vägs dokumentrelevans (RELEVANT/AMBIGUOUS/IRRELEVANT) |
 | `graph_service.py` | LangGraph state machine för CRAG |
 | `guardrail_service.py` | Hallucinationsdetektion |
 | `intent_classifier.py` | Frågetypklassificering |
@@ -134,6 +134,9 @@ Tre frågelägen:
 | `query_processor_service.py` | Frågebearbetning |
 | `rag_models.py` | Datamodeller |
 | `base_service.py` | Bas-klass för services |
+| `parent_store_service.py` | SFS parent-child chunk-hantering |
+| `query_expansion_service.py` | LLM-baserad query-expansion |
+| `reference_extractor.py` | Extrahering av laghänvisningar |
 
 Services är singletons via `get_*_service()` factory-funktioner.
 
@@ -146,7 +149,7 @@ React 19 + Vite 7 + TypeScript 5.9 + Three.js (React Three Fiber/Drei) + Tailwin
 - `src/components/3d/` — Three.js 3D-komponenter (Substrate, SourceViewer3D, ConnectorLogic)
 - `src/components/ui/` — UI-komponenter (TrustHull, HeroSection, ChatView, QueryBar, SourcesPanel, PipelineVisualizer, AnswerWithCitations, ConfidenceBadge m.fl.)
 
-31 komponenter totalt.
+25 TSX-filer (23 komponenter + App.tsx + main.tsx).
 
 ### API routes
 
@@ -185,13 +188,13 @@ Conventional commits: `feat(scope): description`, `fix(scope): description`, etc
 
 ## Data
 
-- **ChromaDB**: `chromadb_data/` (~37GB, exkluderat från git)
+- **ChromaDB**: `chromadb_data/` (~57GB, exkluderat från git)
 - **Collections** (alla suffixade `_jina_v3_1024`): `swedish_gov_docs` (304K), `riksdag_documents_p1` (230K), `sfs_lagtext`, `procedural_guides`, DiVA-collections (829K)
 - **Totalt**: 1.37M+ dokument (538K juridiska/myndighets + 829K DiVA-forskning)
 - **Embeddings**: jinaai/jina-embeddings-v3 (1024 dim, CC-BY-NC-4.0)
 - **Reranker**: jinaai/jina-reranker-v2-base-multilingual
 - **LLM**: Ministral-3-14B-Instruct-2512-Q4_K_M.gguf via llama-server port 8080
-- **Grading-modell**: Qwen2.5-0.5B-Instruct-Q8_0.gguf
+- **Grading-modell**: Ministral-3-14B-Instruct-2512 (samma som primär LLM)
 - **Fallback-modell**: Ministral-3-14B (samma som primary, ingen separat fallback)
 - **CRAG**: Aktiverat i .env (grading + self-reflection)
 
