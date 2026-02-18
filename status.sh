@@ -86,9 +86,9 @@ echo ""
 # FRONTEND STATUS
 # ============================================================
 echo -e "${CYAN}[FRONTEND]${NC}"
-if curl -s http://localhost:3000 > /dev/null 2>&1; then
-    echo -e "  ${GREEN}✓${NC} Frontend körs på port 3000"
-    echo "    Öppna: http://localhost:3000"
+if curl -s http://localhost:3003 > /dev/null 2>&1; then
+    echo -e "  ${GREEN}✓${NC} Frontend körs på port 3003"
+    echo "    Öppna: http://localhost:3003"
 else
     echo -e "  ${RED}✕${NC} Frontend körs INTE"
     echo "    Starta med: systemctl --user start simons-ai-frontend"

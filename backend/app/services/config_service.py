@@ -142,7 +142,7 @@ class ConfigSettings(BaseSettings):
     epr_use_rag_fusion: bool = True
     epr_fusion_num_queries: int = 3
 
-    # BM25 hybrid search — disabled by default to reduce RAM (~3-4GB index)
+    # BM25 hybrid search — disabled by default (FTS5-based, disk-backed, low RAM overhead)
     bm25_enabled: bool = False
     bm25_index_path: str = ""  # Override FTS5 DB path; empty = default
 
@@ -164,15 +164,13 @@ class ConfigSettings(BaseSettings):
 
     # CORS
     cors_origins: list[str] = [
+        "http://localhost:3003",
+        "http://127.0.0.1:3003",
+        "http://192.168.86.32:3003",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://192.168.86.32:3000",
         "http://localhost:5174",
         "http://127.0.0.1:5174",
-        "http://localhost:5175",
-        "http://127.0.0.1:5175",
         "http://localhost:8000",
         "http://127.0.0.1:8000",
     ]
