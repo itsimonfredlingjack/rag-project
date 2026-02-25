@@ -19,8 +19,38 @@ logger = get_logger(__name__)
 
 # ── Source Context Formatting ───────────────────────────────────────
 
-# Reserve ~8K for system prompt + response in 32K context window
-MAX_CONTEXT_TOKENS = 24_000
+# Swedish/Mistral tokenization: ~3 chars per token (more conservative than English ~4)
+# Compound words like "yttrandefrihetsgrundlagen" tokenize into many subwords
+CHARS_PER_TOKEN_ESTIMATE = 3
+
+# Default fallback context budget (conservative for 8K window)
+# Callers should use calculate_source_budget() for dynamic calculation
+_DEFAULT_MAX_CONTEXT_TOKENS = 4_000
+
+
+def estimate_tokens(text: str) -> int:
+    """Estimate token count for Swedish/legal text with Mistral tokenizer."""
+    return len(text) // CHARS_PER_TOKEN_ESTIMATE
+
+
+def calculate_source_budget(
+    context_window: int = 8192,
+    system_prompt_overhead: int = 3000,
+    response_reserve: int = 1024,
+) -> int:
+    """
+    Calculate available token budget for source context.
+
+    Args:
+        context_window: Total model context window in tokens
+        system_prompt_overhead: Estimated system prompt size in tokens
+        response_reserve: Tokens reserved for LLM response
+
+    Returns:
+        Available tokens for source context (minimum 500)
+    """
+    budget = context_window - system_prompt_overhead - response_reserve
+    return max(500, budget)
 
 
 def _format_sfs_annotations(source: SearchResult) -> str:
@@ -65,14 +95,24 @@ def _format_sfs_annotations(source: SearchResult) -> str:
     return " | ".join(annotations) if annotations else ""
 
 
-def build_llm_context(sources: List[SearchResult]) -> str:
+def build_llm_context(sources: List[SearchResult], max_context_tokens: Optional[int] = None) -> str:
     """
     Build LLM context from retrieved sources.
 
     Formats sources with metadata and relevance scores.
     Includes SFS structural annotations (stycke count, cross-refs, amendments).
-    Truncates when approximate token count exceeds MAX_CONTEXT_TOKENS.
+    Truncates when approximate token count exceeds budget.
+
+    Args:
+        sources: Retrieved search results
+        max_context_tokens: Token budget for context. If None, uses conservative default.
+            Callers should use calculate_source_budget() to compute this from the
+            actual context window size.
     """
+    token_budget = (
+        max_context_tokens if max_context_tokens is not None else _DEFAULT_MAX_CONTEXT_TOKENS
+    )
+
     if not sources:
         return "Inga relevanta källor hittades i korpusen."
 
@@ -96,13 +136,13 @@ def build_llm_context(sources: List[SearchResult]) -> str:
             f"{sfs_annotations}\n"
             f"{source.snippet}"
         )
-        part_tokens = len(part) // 4  # rough chars-to-tokens estimate
+        part_tokens = estimate_tokens(part)
 
-        if estimated_tokens + part_tokens > MAX_CONTEXT_TOKENS:
+        if estimated_tokens + part_tokens > token_budget:
             dropped_count = len(sources) - i + 1
             logger.warning(
                 f"Context truncated: dropped {dropped_count} sources "
-                f"(~{estimated_tokens} tokens, limit {MAX_CONTEXT_TOKENS})"
+                f"(~{estimated_tokens} tokens, limit {token_budget})"
             )
             break
 

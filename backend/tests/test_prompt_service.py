@@ -34,6 +34,7 @@ def _source(
     s.snippet = snippet
     s.score = score
     s.doc_type = doc_type
+    s._metadata = None  # Prevent MagicMock auto-attr from breaking SFS annotation logic
     return s
 
 

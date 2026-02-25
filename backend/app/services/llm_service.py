@@ -5,7 +5,9 @@ Handles all LLM interactions with streaming and model fallback
 
 import asyncio
 import json
+import time
 from dataclasses import dataclass
+from enum import Enum
 from functools import lru_cache
 from typing import AsyncGenerator, List, Optional
 
@@ -21,6 +23,72 @@ from .base_service import BaseService
 from .config_service import ConfigService, get_config_service
 
 logger = get_logger(__name__)
+
+
+# ── Circuit Breaker ───────────────────────────────────────────────
+
+
+class CircuitState(str, Enum):
+    CLOSED = "closed"  # Normal operation
+    OPEN = "open"  # Failing, fast-reject requests
+    HALF_OPEN = "half_open"  # Testing if service recovered
+
+
+class CircuitBreaker:
+    """
+    Simple circuit breaker for LLM service.
+
+    Transitions:
+        CLOSED → OPEN: After `failure_threshold` consecutive failures
+        OPEN → HALF_OPEN: After `recovery_timeout` seconds
+        HALF_OPEN → CLOSED: On first success
+        HALF_OPEN → OPEN: On first failure
+    """
+
+    def __init__(
+        self,
+        failure_threshold: int = 3,
+        recovery_timeout: float = 30.0,
+    ):
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self._state = CircuitState.CLOSED
+        self._failure_count = 0
+        self._last_failure_time: float = 0.0
+
+    @property
+    def state(self) -> CircuitState:
+        if self._state == CircuitState.OPEN:
+            # Check if recovery timeout has elapsed
+            if time.monotonic() - self._last_failure_time >= self.recovery_timeout:
+                self._state = CircuitState.HALF_OPEN
+                logger.info("Circuit breaker → HALF_OPEN (recovery timeout elapsed)")
+        return self._state
+
+    def record_success(self) -> None:
+        if self._state == CircuitState.HALF_OPEN:
+            logger.info("Circuit breaker → CLOSED (service recovered)")
+        self._state = CircuitState.CLOSED
+        self._failure_count = 0
+
+    def record_failure(self) -> None:
+        self._failure_count += 1
+        self._last_failure_time = time.monotonic()
+
+        if self._state == CircuitState.HALF_OPEN:
+            self._state = CircuitState.OPEN
+            logger.warning("Circuit breaker → OPEN (failed during half-open probe)")
+        elif self._failure_count >= self.failure_threshold:
+            self._state = CircuitState.OPEN
+            logger.warning(f"Circuit breaker → OPEN (consecutive failures: {self._failure_count})")
+
+    def check(self) -> None:
+        """Raise LLMConnectionError if circuit is open."""
+        if self.state == CircuitState.OPEN:
+            raise LLMConnectionError(
+                f"Circuit breaker is OPEN — LLM service unavailable. "
+                f"Retrying in {self.recovery_timeout:.0f}s."
+            )
 
 
 @dataclass
@@ -147,6 +215,7 @@ class LLMService(BaseService):
         super().__init__(config)
         self._client: Optional[httpx.AsyncClient] = None
         self._config: LLMConfig = self._build_default_config()
+        self._circuit_breaker = CircuitBreaker(failure_threshold=3, recovery_timeout=30.0)
         self.logger.info(f"LLM Service initialized (primary: {self._config.primary_model})")
 
     def _build_default_config(self) -> LLMConfig:
@@ -408,6 +477,9 @@ class LLMService(BaseService):
         if self._client is None:
             raise LLMConnectionError("LLM client is not initialized")
 
+        # Circuit breaker: fast-fail if service is known to be down
+        self._circuit_breaker.check()
+
         # Use provided model or default
         model_to_use = model or self._config.primary_model
 
@@ -534,6 +606,7 @@ class LLMService(BaseService):
                             )
 
                             # Final yield with stats
+                            self._circuit_breaker.record_success()
                             yield "", stats
                             break
                 else:
@@ -576,14 +649,17 @@ class LLMService(BaseService):
                             )
 
                             # Final yield with stats
+                            self._circuit_breaker.record_success()
                             yield "", stats
                             break
 
         except httpx.TimeoutException as e:
+            self._circuit_breaker.record_failure()
             self.logger.error(f"LLM request timed out: {e}")
             raise LLMTimeoutError("Request timed out") from e
 
         except httpx.ConnectError as e:
+            self._circuit_breaker.record_failure()
             self.logger.error(f"LLM connection failed: {e}")
             raise LLMConnectionError("Cannot connect to LLM server") from e
 
