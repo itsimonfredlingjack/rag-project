@@ -31,6 +31,10 @@ class GenerationResult:
     critic_ms: float = 0.0
     critic_ok: bool = False
     sources_cleared: bool = False  # True if critic forced source clearing
+    faithfulness_score: float = 0.0
+    faithfulness_ms: float = 0.0
+    faithfulness_claims_total: int = 0
+    faithfulness_claims_supported: int = 0
 
 
 async def process_structured_output(
@@ -39,6 +43,7 @@ async def process_structured_output(
     structured_output_service: Any,
     llm_service: Any,
     critic_service: Optional[Any],
+    faithfulness_service: Optional[Any] = None,
     full_answer: str,
     mode: ResponseMode,
     question: str,
@@ -122,6 +127,35 @@ async def process_structured_output(
         critic_ok = result["critic_ok"]
         sources_cleared = result["sources_cleared"]
 
+    # Post-generation faithfulness scoring
+    faithfulness_score = 0.0
+    faithfulness_ms = 0.0
+    faithfulness_claims_total = 0
+    faithfulness_claims_supported = 0
+
+    if faithfulness_service and sources and full_answer and mode != ResponseMode.CHAT:
+        try:
+            faith_result = await faithfulness_service.score_answer(
+                answer=full_answer,
+                sources=sources,
+                question=question,
+                mode=mode.value,
+            )
+            faithfulness_score = faith_result.overall_score
+            faithfulness_ms = faith_result.latency_ms
+            faithfulness_claims_total = faith_result.total_claims
+            faithfulness_claims_supported = faith_result.supported_claims
+
+            if faith_result.unsupported_claims > 0:
+                reasoning_steps.append(
+                    f"Faithfulness: {faith_result.supported_claims}/{faith_result.total_claims} "
+                    f"claims supported (score: {faithfulness_score:.2f}, "
+                    f"latency: {faithfulness_ms:.1f}ms)"
+                )
+        except Exception as e:
+            logger.warning(f"Faithfulness scoring failed: {e}")
+            reasoning_steps.append(f"Faithfulness scoring failed: {str(e)[:100]}")
+
     # Log metrics
     if config.structured_output_effective_enabled and mode != ResponseMode.CHAT:
         logger.info(
@@ -141,6 +175,10 @@ async def process_structured_output(
         critic_ms=critic_ms,
         critic_ok=critic_ok,
         sources_cleared=sources_cleared,
+        faithfulness_score=faithfulness_score,
+        faithfulness_ms=faithfulness_ms,
+        faithfulness_claims_total=faithfulness_claims_total,
+        faithfulness_claims_supported=faithfulness_claims_supported,
     )
 
 
@@ -379,8 +417,22 @@ async def _critic_revise_loop(
             candidate_json=current_json, mode=mode.value, sources_context=sources_context
         )
 
+        # Audit: Log each critique evaluation with error details
         if feedback.ok:
+            logger.info(
+                f"Critic audit: attempt={revision_count + 1}/{max_revisions}, "
+                f"mode={mode.value}, verdict=OK, "
+                f"latency_ms={feedback.latency_ms:.1f}"
+            )
             break
+        else:
+            logger.warning(
+                f"Critic audit: attempt={revision_count + 1}/{max_revisions}, "
+                f"mode={mode.value}, verdict=FAIL, "
+                f"errors={feedback.fel}, "
+                f"action={feedback.atgard}, "
+                f"latency_ms={feedback.latency_ms:.1f}"
+            )
 
         if revision_count < max_revisions - 1:
             revised_json = await critic.revise(
@@ -393,7 +445,15 @@ async def _critic_revise_loop(
                 if "svar" in revised_data:
                     full_answer = revised_data["svar"]
                 revision_count += 1
+                logger.info(
+                    f"Critic audit: revision {revision_count} applied, "
+                    f"mode={mode.value}, json_valid=True"
+                )
             except json.JSONDecodeError:
+                logger.warning(
+                    f"Critic audit: revision {revision_count + 1} produced invalid JSON, "
+                    f"mode={mode.value}, aborting revisions"
+                )
                 break
         else:
             revision_count += 1
@@ -403,12 +463,16 @@ async def _critic_revise_loop(
     critic_ok = feedback.ok if feedback else False
 
     logger.info(
-        f"Critic: mode={mode.value}, revisions={revision_count}, "
+        f"Critic summary: mode={mode.value}, revisions={revision_count}, "
         f"ok={critic_ok}, latency_ms={critic_ms:.1f}"
     )
 
     # Enforce fallback when critic still fails
     if feedback and not feedback.ok and revision_count >= max_revisions:
+        logger.warning(
+            f"Critic audit: FALLBACK triggered — max_revisions={max_revisions} exhausted, "
+            f"mode={mode.value}, final_errors={feedback.fel}"
+        )
         if mode == ResponseMode.EVIDENCE:
             refusal_text = getattr(
                 config.settings,

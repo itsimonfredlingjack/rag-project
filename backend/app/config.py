@@ -34,10 +34,6 @@ class Settings(BaseSettings):
     crag_enable_self_reflection: bool = False
     crag_grade_threshold: float = 0.15
 
-    # Backwards compatibility for typo "CAG" (Maps to CONST_CAG_...)
-    cag_enabled: bool = False
-    cag_enable_self_reflection: bool = False
-
     # CORS - explicit origins needed when allow_credentials=True
     cors_origins: list[str] = [
         "http://localhost:5173",

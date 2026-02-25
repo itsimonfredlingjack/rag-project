@@ -371,6 +371,111 @@ class IntentClassifier:
         return self.INTENT_COLLECTIONS.get(intent, self.INTENT_COLLECTIONS[QueryIntent.UNKNOWN])
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# LLM-BASED INTENT CLASSIFICATION (P3-23 — fallback for ambiguous queries)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Prompt for zero-shot LLM intent classification
+_LLM_INTENT_PROMPT = """Du är en klassificerare för svenska juridiska frågor.
+
+Klassificera frågan nedan i EXAKT en av dessa kategorier:
+- legal_text: Frågor om specifika lagar, paragrafer, rättigheter
+- parliament_trace: Frågor om riksdagsprocesser, utskott, voteringar
+- policy_arguments: Frågor om politiska argument, partiers ståndpunkter
+- research: Frågor om forskning, evidens, akademiska studier
+- practical: Praktiska "hur gör man"-frågor om myndighetskontakt
+- smalltalk: Hälsningar, off-topic, icke-juridiska frågor
+
+Svara med BARA kategorinamnet, inget annat.
+
+Fråga: {query}
+Kategori:"""
+
+# Mapping from LLM response text to QueryIntent
+_LLM_INTENT_MAP = {
+    "legal_text": QueryIntent.LEGAL_TEXT,
+    "parliament_trace": QueryIntent.PARLIAMENT_TRACE,
+    "policy_arguments": QueryIntent.POLICY_ARGUMENTS,
+    "research": QueryIntent.RESEARCH_SYNTHESIS,
+    "practical": QueryIntent.PRACTICAL_PROCESS,
+    "smalltalk": QueryIntent.SMALLTALK,
+}
+
+
+async def llm_classify_intent(
+    query: str,
+    llm_service,
+    timeout_seconds: float = 5.0,
+) -> Optional[IntentResult]:
+    """
+    LLM-based zero-shot intent classification for ambiguous queries.
+
+    Called as a fallback when rule-based classification returns UNKNOWN
+    or low confidence. Uses the same LLM used for generation.
+
+    Feature-flagged: only called when the orchestrator opts in.
+
+    Args:
+        query: User query in Swedish
+        llm_service: LLM service instance with chat_stream() method
+        timeout_seconds: Max time for LLM classification
+
+    Returns:
+        IntentResult if classification succeeds, None on failure/timeout
+    """
+    import asyncio
+    import time
+
+    start = time.perf_counter()
+
+    try:
+        prompt = _LLM_INTENT_PROMPT.format(query=query)
+        messages = [{"role": "user", "content": prompt}]
+
+        response_text = ""
+        async for chunk in llm_service.chat_stream(
+            messages=messages,
+            temperature=0.0,
+            max_tokens=20,
+        ):
+            response_text += chunk
+            # Short-circuit: we only need one word
+            if len(response_text.strip()) > 3:
+                break
+
+        # Parse the response
+        category = response_text.strip().lower().split()[0] if response_text.strip() else ""
+        # Strip trailing punctuation
+        category = category.rstrip(".,;:")
+
+        intent = _LLM_INTENT_MAP.get(category)
+        if intent is None:
+            logger.info(f"LLM intent: unrecognized category '{category}' for query: {query[:50]}")
+            return None
+
+        classifier = get_intent_classifier()
+        latency_ms = (time.perf_counter() - start) * 1000
+
+        logger.info(
+            f"LLM intent: classified as {intent.value} "
+            f"(raw='{category}', latency={latency_ms:.0f}ms)"
+        )
+
+        return IntentResult(
+            intent=intent,
+            confidence=0.70,  # LLM classification gets moderate confidence
+            matched_patterns=[f"llm:{category}"],
+            suggested_collections=classifier.get_collections_for_intent(intent),
+        )
+
+    except asyncio.TimeoutError:
+        logger.warning(f"LLM intent classification timed out after {timeout_seconds}s")
+        return None
+    except Exception as e:
+        logger.warning(f"LLM intent classification failed: {e}")
+        return None
+
+
 # Singleton instance
 _classifier_instance: Optional[IntentClassifier] = None
 

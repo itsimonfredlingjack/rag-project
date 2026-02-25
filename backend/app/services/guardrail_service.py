@@ -1,12 +1,17 @@
 """
 Guardrail Service - Jail Warden v2
-Post-processing service for legal term corrections and security validation
+Post-processing service for legal term corrections and security validation.
+
+Security patterns are loaded from built-in defaults, optionally supplemented
+by an external JSON file for dynamic pattern updates without code changes.
 """
 
+import json
 import re
 from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache
+from pathlib import Path
 from typing import List, Optional, Tuple
 
 from ..core.exceptions import SecurityViolationError
@@ -342,12 +347,65 @@ class GuardrailService(BaseService):
         self._compile_patterns()
         logger.info("Guardrail Service initialized")
 
+    def _load_external_patterns(self) -> dict:
+        """
+        Load supplementary security patterns from external JSON config.
+
+        Looks for patterns file at:
+          1. Config setting: security_patterns_path
+          2. Default: backend/data/security_patterns.json
+
+        Returns:
+            Dict of pattern lists keyed by category name, or empty dict if not found.
+            Supported keys: injection_patterns, probing_patterns, execution_patterns,
+            self_harm_patterns, csam_patterns, legal_whitelist_patterns,
+            output_leakage_patterns (list of [pattern, label] pairs)
+        """
+        patterns_path = getattr(self.config.settings, "security_patterns_path", None)
+        if not patterns_path:
+            # Default path relative to backend/
+            default_path = Path(__file__).parent.parent.parent / "data" / "security_patterns.json"
+            if not default_path.exists():
+                return {}
+            patterns_path = str(default_path)
+
+        try:
+            path = Path(patterns_path)
+            if not path.exists():
+                return {}
+
+            with open(path, encoding="utf-8") as f:
+                external = json.load(f)
+
+            if not isinstance(external, dict):
+                logger.warning(f"External security patterns invalid format: {patterns_path}")
+                return {}
+
+            count = sum(len(v) for v in external.values() if isinstance(v, list))
+            logger.info(f"Loaded {count} external security patterns from {patterns_path}")
+            return external
+
+        except Exception as e:
+            logger.warning(f"Failed to load external security patterns: {e}")
+            return {}
+
     def _compile_patterns(self) -> None:
         """
         Compile regex patterns for better performance.
         Pre-compiles security, citation, harmful content, and leakage patterns.
+
+        Merges built-in defaults with any external patterns loaded from JSON config.
         """
-        self._security_patterns = [re.compile(p, re.IGNORECASE) for p in self.SECURITY_PATTERNS]
+        # Load external supplementary patterns
+        ext = self._load_external_patterns()
+
+        # Merge built-in + external patterns
+        injection = self.INJECTION_PATTERNS + ext.get("injection_patterns", [])
+        probing = self.PROBING_PATTERNS + ext.get("probing_patterns", [])
+        execution = self.EXECUTION_PATTERNS + ext.get("execution_patterns", [])
+        all_security = injection + probing + execution
+
+        self._security_patterns = [re.compile(p, re.IGNORECASE) for p in all_security]
         self._citation_patterns = [re.compile(p) for p in self.CITATION_PATTERNS]
 
         # Compile term correction patterns (case-insensitive)
@@ -361,12 +419,14 @@ class GuardrailService(BaseService):
                 "confidence": correction_data["confidence"],
             }
 
-        # Compile harmful content patterns
-        self._self_harm_patterns = [re.compile(p, re.IGNORECASE) for p in self.SELF_HARM_PATTERNS]
-        self._csam_patterns = [re.compile(p, re.IGNORECASE) for p in self.CSAM_PATTERNS]
-        self._legal_whitelist_patterns = [
-            re.compile(p, re.IGNORECASE) for p in self.LEGAL_WHITELIST_PATTERNS
-        ]
+        # Compile harmful content patterns (merge with external)
+        self_harm = self.SELF_HARM_PATTERNS + ext.get("self_harm_patterns", [])
+        csam = self.CSAM_PATTERNS + ext.get("csam_patterns", [])
+        whitelist = self.LEGAL_WHITELIST_PATTERNS + ext.get("legal_whitelist_patterns", [])
+
+        self._self_harm_patterns = [re.compile(p, re.IGNORECASE) for p in self_harm]
+        self._csam_patterns = [re.compile(p, re.IGNORECASE) for p in csam]
+        self._legal_whitelist_patterns = [re.compile(p, re.IGNORECASE) for p in whitelist]
         self._action_verb_patterns = [
             re.compile(p, re.IGNORECASE) for p in self.ACTION_VERB_PATTERNS
         ]
@@ -375,9 +435,13 @@ class GuardrailService(BaseService):
             for cat, patterns in self.DANGEROUS_TOPIC_PATTERNS.items()
         }
 
-        # Compile output leakage patterns
+        # Compile output leakage patterns (merge with external)
+        leakage = list(self.OUTPUT_LEAKAGE_PATTERNS)
+        for item in ext.get("output_leakage_patterns", []):
+            if isinstance(item, list) and len(item) == 2:
+                leakage.append(tuple(item))
         self._output_leakage_patterns = [
-            (re.compile(p, re.IGNORECASE), label) for p, label in self.OUTPUT_LEAKAGE_PATTERNS
+            (re.compile(p, re.IGNORECASE), label) for p, label in leakage
         ]
 
     async def initialize(self) -> None:

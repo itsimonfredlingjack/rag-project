@@ -361,3 +361,102 @@ class TestIntentResult:
         assert r.confidence == 0.85
         assert r.matched_patterns == ["legal:test"]
         assert r.suggested_collections == ["sfs_lagtext_jina_v3_1024"]
+
+
+# ═══════════════════════════════════════════════════════════════════
+# LLM-BASED INTENT CLASSIFICATION (P3-23)
+# ═══════════════════════════════════════════════════════════════════
+
+
+class TestLLMIntentClassification:
+    """Tests for LLM-based fallback intent classification."""
+
+    @pytest.mark.asyncio
+    async def test_llm_classify_legal_text(self):
+        """LLM classifying a legal text query."""
+        from unittest.mock import MagicMock
+
+        from app.services.intent_classifier import llm_classify_intent
+
+        llm = MagicMock()
+
+        async def _mock_stream(**kwargs):
+            yield "legal_text"
+
+        llm.chat_stream = _mock_stream
+
+        result = await llm_classify_intent("Vad innebär lagen?", llm)
+        assert result is not None
+        assert result.intent == QueryIntent.LEGAL_TEXT
+        assert result.confidence == 0.70
+        assert "llm:legal_text" in result.matched_patterns
+
+    @pytest.mark.asyncio
+    async def test_llm_classify_practical(self):
+        """LLM classifying a practical query."""
+        from unittest.mock import MagicMock
+
+        from app.services.intent_classifier import llm_classify_intent
+
+        llm = MagicMock()
+
+        async def _mock_stream(**kwargs):
+            yield "practical"
+
+        llm.chat_stream = _mock_stream
+
+        result = await llm_classify_intent("Hur gör jag?", llm)
+        assert result is not None
+        assert result.intent == QueryIntent.PRACTICAL_PROCESS
+
+    @pytest.mark.asyncio
+    async def test_llm_classify_unknown_response(self):
+        """LLM returning unrecognized category returns None."""
+        from unittest.mock import MagicMock
+
+        from app.services.intent_classifier import llm_classify_intent
+
+        llm = MagicMock()
+
+        async def _mock_stream(**kwargs):
+            yield "something_random"
+
+        llm.chat_stream = _mock_stream
+
+        result = await llm_classify_intent("Test query", llm)
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_llm_classify_empty_response(self):
+        """LLM returning empty string returns None."""
+        from unittest.mock import MagicMock
+
+        from app.services.intent_classifier import llm_classify_intent
+
+        llm = MagicMock()
+
+        async def _mock_stream(**kwargs):
+            yield ""
+
+        llm.chat_stream = _mock_stream
+
+        result = await llm_classify_intent("Test query", llm)
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_llm_classify_exception_returns_none(self):
+        """LLM service exception returns None gracefully."""
+        from unittest.mock import MagicMock
+
+        from app.services.intent_classifier import llm_classify_intent
+
+        llm = MagicMock()
+
+        async def _mock_stream(**kwargs):
+            raise RuntimeError("LLM service down")
+            yield  # Make it a generator
+
+        llm.chat_stream = _mock_stream
+
+        result = await llm_classify_intent("Test query", llm)
+        assert result is None

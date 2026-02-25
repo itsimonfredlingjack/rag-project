@@ -158,6 +158,19 @@ class RAGPipelineMetrics:
     self_reflection_ms: float = 0.0
     rewrite_count: int = 0
 
+    # Faithfulness scoring
+    faithfulness_score: float = 0.0
+    faithfulness_ms: float = 0.0
+    faithfulness_claims_total: int = 0
+    faithfulness_claims_supported: int = 0
+
+    # Parent store (SFS kapitel context expansion)
+    parent_store_available: bool = False
+    parent_store_ms: float = 0.0
+    parent_store_parents_added: int = 0
+    parent_store_parents_requested: int = 0
+    parent_store_failed: bool = False
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-serializable dict"""
         return {
@@ -184,6 +197,13 @@ class RAGPipelineMetrics:
                 "model": self.model_used,
                 "latency_ms": round(self.llm_latency_ms, 2),
                 "tokens_per_second": round(self.tokens_per_second, 2),
+            },
+            "parent_store": {
+                "available": self.parent_store_available,
+                "latency_ms": round(self.parent_store_ms, 2),
+                "parents_added": self.parent_store_parents_added,
+                "parents_requested": self.parent_store_parents_requested,
+                "failed": self.parent_store_failed,
             },
         }
 

@@ -203,6 +203,16 @@ class ConfigSettings(BaseSettings):
     crag_max_concurrent_grading: int = 5  # Max parallel document grading
     crag_grade_timeout: float = 10.0  # Timeout per document grading in seconds
 
+    # Faithfulness scoring (post-generation claim verification)
+    faithfulness_enabled: bool = False  # Off by default — enable via CONST_FAITHFULNESS_ENABLED
+    faithfulness_threshold: float = 0.25  # Min overlap ratio to consider a claim supported
+
+    # Semantic critic (LLM-based quality revision)
+    critic_semantic_enabled: bool = False  # Off by default — uses GPU for LLM revision
+
+    # External security patterns (dynamic loading without code changes)
+    security_patterns_path: str = ""  # Path to JSON file, empty = use defaults only
+
 
 class ConfigService:
     """
