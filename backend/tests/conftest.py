@@ -122,9 +122,6 @@ def mock_config_settings():
     # CRAG settings
     settings.crag_enabled = False
     settings.crag_enable_self_reflection = False
-    settings.cag_enabled = False
-    settings.cag_enable_self_reflection = False
-
     # Reranking settings
     settings.reranking_enabled = False
     settings.reranking_score_threshold = 0.3

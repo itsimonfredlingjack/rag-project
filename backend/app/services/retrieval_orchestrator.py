@@ -24,9 +24,7 @@ import json
 import logging
 import re
 import time
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 # Phase 4: Confidence signals for adaptive retrieval
 from .confidence_signals import (
@@ -50,482 +48,42 @@ from .source_hierarchy import SourceHierarchy, SourceTier
 from .intent_classifier import IntentClassifier, QueryIntent
 from .intent_routing import get_routing_for_intent
 
+# Extracted modules (Sprint 2, P2-14) — re-exported for backward compatibility
+from .retrieval_models import (  # noqa: F401
+    RetrievalMetrics,
+    RetrievalResult,
+    RetrievalStrategy,
+    SearchResult,
+)
+from .parallel_retrieval import (  # noqa: F401
+    get_canonical_doc_id,
+    get_collection_with_fallback as _get_collection_with_fallback,
+    parallel_collection_search,
+    search_single_collection,
+)
+
 logger = logging.getLogger("constitutional.retrieval")
 
-# Pre-compiled regex for stripping re-index suffixes (_v2, _v3, etc.)
-_REINDEX_SUFFIX_RE = re.compile(r"_v\d+$")
-
-
-def get_canonical_doc_id(doc_id: str) -> str:
-    """
-    Normalize a document ID for deduplication.
-
-    Strips re-index suffixes (_v2/_v3), chunk indices (_chunk_N),
-    and numeric colon-suffixes (id:42) while preserving SFS numbers
-    like "2001:453_4_kap_1_§".
-
-    Args:
-        doc_id: Raw document ID from ChromaDB
-
-    Returns:
-        Canonical document ID for dedup comparison
-    """
-    canonical = _REINDEX_SUFFIX_RE.sub("", doc_id)
-    if "_chunk_" in canonical:
-        canonical = canonical.split("_chunk_")[0]
-    elif ":" in canonical:
-        # Only strip ":" suffix if the right side is purely numeric (chunk index)
-        # SFS IDs like "2001:453_4_kap_1_§" contain ":" as part of the number
-        parts = canonical.rsplit(":", 1)
-        if len(parts) == 2 and parts[1].isdigit():
-            canonical = parts[0]
-
-    if canonical != doc_id:
-        logger.debug(f"Canonical doc ID: '{doc_id}' → '{canonical}'")
-
-    return canonical
-
-
-def _get_collection_with_fallback(client, requested_name: str, emit_log: bool = True):
-    """
-    Resolve a collection with compatibility fallback for pre-reindex stores.
-
-    During migration, runtime may request *_jina_v3_1024 while the live ChromaDB
-    still contains *_bge_m3_1024. This fallback keeps retrieval functional until
-    re-indexing is completed.
-    """
-    candidates = [requested_name]
-    if requested_name.endswith("_jina_v3_1024"):
-        candidates.append(requested_name.replace("_jina_v3_1024", "_bge_m3_1024"))
-
-    last_error = None
-    for candidate in candidates:
-        try:
-            collection = client.get_collection(name=candidate)
-            if emit_log and candidate != requested_name:
-                logger.warning(
-                    "Collection fallback active: requested=%s resolved=%s",
-                    requested_name,
-                    candidate,
-                )
-            return candidate, collection
-        except Exception as exc:  # pragma: no cover - defensive path
-            last_error = exc
-
-    if emit_log:
-        logger.warning(f"Collection {requested_name} not found: {last_error}")
-    return None
-
 
 # ═══════════════════════════════════════════════════════════════════════════
-# METRICS & INSTRUMENTATION
+# DATA MODELS & UTILITIES — now in retrieval_models.py and parallel_retrieval.py
+# Re-exported above for backward compatibility.
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-@dataclass
-class RetrievalMetrics:
-    """Metrics for a single retrieval operation - designed for Phase 4 confidence."""
-
-    total_latency_ms: float = 0.0
-    dense_latency_ms: float = 0.0
-    bm25_latency_ms: float = 0.0
-
-    # Per-retriever results
-    dense_result_count: int = 0
-    bm25_result_count: int = 0
-
-    # Score distribution (for Phase 4 confidence)
-    top_score: float = 0.0
-    mean_score: float = 0.0
-    score_std: float = 0.0
-    score_entropy: float = 0.0
-
-    # Overlap metrics
-    doc_overlap_count: int = 0  # Docs found by both retrievers
-    unique_docs_total: int = 0
-
-    # Timeout tracking
-    dense_timeout: bool = False
-    bm25_timeout: bool = False
-
-    # Strategy used
-    strategy: str = "parallel_v1"
-
-    # Phase 2: Query rewriting metrics
-    rewrite_used: bool = False
-    rewrite_latency_ms: float = 0.0
-    original_query: str = ""
-    rewritten_query: str = ""
-    delta_topk_overlap: float = 0.0  # How different are rewritten results?
-
-    # Phase 3: RAG-Fusion metrics
-    fusion_used: bool = False
-    num_queries: int = 1
-    query_variants: List[str] = field(default_factory=list)
-    per_query_result_counts: List[int] = field(default_factory=list)
-    unique_docs_before_fusion: int = 0
-    unique_docs_after_fusion: int = 0
-    overlap_ratio: float = 0.0
-    fusion_gain: float = 0.0
-    rrf_latency_ms: float = 0.0
-    expansion_latency_ms: float = 0.0
-    llm_query_expansion_used: bool = False
-    llm_query_expansion_latency_ms: float = 0.0
-    llm_query_expansion_count: int = 0
-    llm_query_expansion_grammar_used: bool = False
-    llm_query_expansion_parsing_method: str = "none"
-    llm_query_expansions: List[str] = field(default_factory=list)
-
-    # Cutover guardrails (fail-closed once enforced)
-    cutover_enforced: bool = False
-    cutover_violation: bool = False
-    cutover_violation_collections: List[str] = field(default_factory=list)
-
-    # Phase 4: Adaptive retrieval metrics
-    adaptive_used: bool = False
-    confidence_signals: Optional[Dict] = None
-    escalation_path: List[str] = field(default_factory=list)
-    final_step: str = ""
-    fallback_triggered: bool = False
-    reason_codes: List[str] = field(default_factory=list)  # Decision trace for debugging
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to JSON-serializable dict for logging/API response."""
-        return {
-            "latency": {
-                "total_ms": round(self.total_latency_ms, 2),
-                "dense_ms": round(self.dense_latency_ms, 2),
-                "bm25_ms": round(self.bm25_latency_ms, 2),
-            },
-            "results": {
-                "dense_count": self.dense_result_count,
-                "bm25_count": self.bm25_result_count,
-                "overlap": self.doc_overlap_count,
-                "unique_total": self.unique_docs_total,
-            },
-            "scores": {
-                "top": round(self.top_score, 4),
-                "mean": round(self.mean_score, 4),
-                "std": round(self.score_std, 4),
-                "entropy": round(self.score_entropy, 4),
-            },
-            "timeouts": {
-                "dense": self.dense_timeout,
-                "bm25": self.bm25_timeout,
-            },
-            "strategy": self.strategy,
-            "rewrite": {
-                "used": self.rewrite_used,
-                "latency_ms": round(self.rewrite_latency_ms, 2),
-                "original_query": self.original_query,
-                "rewritten_query": self.rewritten_query,
-                "delta_topk_overlap": round(self.delta_topk_overlap, 4),
-            },
-            "fusion": {
-                "used": self.fusion_used,
-                "num_queries": self.num_queries,
-                "query_variants": self.query_variants,
-                "per_query_result_counts": self.per_query_result_counts,
-                "unique_docs_before": self.unique_docs_before_fusion,
-                "unique_docs_after": self.unique_docs_after_fusion,
-                "overlap_ratio": round(self.overlap_ratio, 4),
-                "fusion_gain": round(self.fusion_gain, 4),
-                "rrf_latency_ms": round(self.rrf_latency_ms, 2),
-                "expansion_latency_ms": round(self.expansion_latency_ms, 2),
-            },
-            "query_expansion": {
-                "used": self.llm_query_expansion_used,
-                "latency_ms": round(self.llm_query_expansion_latency_ms, 2),
-                "count": self.llm_query_expansion_count,
-                "grammar_used": self.llm_query_expansion_grammar_used,
-                "parsing_method": self.llm_query_expansion_parsing_method,
-                "queries": self.llm_query_expansions,
-            },
-            "cutover": {
-                "enforced": self.cutover_enforced,
-                "violation": self.cutover_violation,
-                "violation_collections": self.cutover_violation_collections,
-            },
-            "adaptive": {
-                "used": self.adaptive_used,
-                "signals": self.confidence_signals,
-                "escalation_path": self.escalation_path,
-                "final_step": self.final_step,
-                "fallback_triggered": self.fallback_triggered,
-                "reason_codes": self.reason_codes,  # Decision trace
-            },
-        }
+# The following classes/functions have been extracted to separate modules:
+# - RetrievalMetrics → retrieval_models.py
+# - SearchResult → retrieval_models.py
+# - RetrievalResult → retrieval_models.py
+# - RetrievalStrategy → retrieval_models.py
+# - get_canonical_doc_id() → parallel_retrieval.py
+# - _get_collection_with_fallback() → parallel_retrieval.py
+# - search_single_collection() → parallel_retrieval.py
+# - parallel_collection_search() → parallel_retrieval.py
 
 
-@dataclass
-class SearchResult:
-    """Individual search result with score and metadata."""
-
-    id: str
-    title: str
-    snippet: str
-    score: float
-    source: str
-    doc_type: Optional[str] = None
-    date: Optional[str] = None
-    retriever: str = "unknown"  # 'dense', 'bm25', or 'both'
-    tier: Optional[str] = None  # EPR: Source tier (A/B/C)
-
-
-@dataclass
-class RetrievalResult:
-    """Complete result from retrieval orchestrator."""
-
-    results: List[SearchResult]
-    metrics: RetrievalMetrics
-    success: bool = True
-    error: Optional[str] = None
-    intent: Optional[str] = None  # EPR: Classified query intent
-    routing_used: Optional[Dict] = None  # EPR: Routing config used
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# RETRIEVAL STRATEGIES
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-class RetrievalStrategy(Enum):
-    """Available retrieval strategies."""
-
-    LEGACY = "legacy"  # Original sequential search
-    PARALLEL_V1 = "parallel_v1"  # Phase 1: Parallel dense + collections
-    REWRITE_V1 = "rewrite_v1"  # Phase 2: Query rewriting + parallel search
-    RAG_FUSION = "rag_fusion"  # Phase 3
-    ADAPTIVE = "adaptive"  # Phase 4
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# PARALLEL COLLECTION SEARCH (PHASE 1)
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-async def search_single_collection(
-    collection,
-    query_embedding: List[float],
-    n_results: int,
-    where_filter: Optional[Dict] = None,
-    timeout_seconds: float = 5.0,
-) -> Tuple[List[Dict], float, bool]:
-    """
-    Search a single ChromaDB collection with timeout.
-
-    Returns:
-        Tuple of (results, latency_ms, timed_out)
-    """
-    start = time.perf_counter()
-    timed_out = False
-    results = []
-
-    try:
-        # Wrap synchronous ChromaDB call in executor for true async
-        loop = asyncio.get_event_loop()
-
-        def _query():
-            # OPTIMIZED: Fetch all fields (documents needed for snippets)
-            # Future optimization: Make this configurable to skip documents when only IDs needed
-            return collection.query(
-                query_embeddings=[query_embedding],
-                n_results=n_results,
-                where=where_filter if where_filter else None,
-                include=["metadatas", "documents", "distances"],
-            )
-
-        # Run with timeout
-        query_results = await asyncio.wait_for(
-            loop.run_in_executor(None, _query), timeout=timeout_seconds
-        )
-
-        # Parse results
-        if query_results and query_results.get("ids") and len(query_results["ids"]) > 0:
-            # Detect distance metric from collection metadata
-            space = collection.metadata.get("hnsw:space", "l2") if collection.metadata else "l2"
-
-            for i in range(len(query_results["ids"][0])):
-                doc_id = query_results["ids"][0][i]
-                metadata = (
-                    query_results["metadatas"][0][i] if query_results.get("metadatas") else {}
-                )
-                document = (
-                    query_results["documents"][0][i] if query_results.get("documents") else ""
-                )
-                distance = (
-                    query_results["distances"][0][i] if query_results.get("distances") else 1.0
-                )
-
-                # Convert distance to score (0-1, higher is better)
-                if space == "cosine":
-                    score = 1.0 - distance  # cosine distance -> similarity
-                elif space == "ip":
-                    score = distance  # inner product already similarity-like
-                else:  # l2
-                    score = 1.0 / (1.0 + distance)
-
-                # Use page_content from metadata if available (for contextual retrieval),
-                # otherwise fallback to document field
-                display_text = metadata.get("page_content", document)
-                snippet = display_text[:1200] + "..." if len(display_text) > 1200 else display_text
-
-                results.append(
-                    {
-                        "id": doc_id,
-                        "title": metadata.get("title", "Untitled"),
-                        "snippet": snippet,
-                        "score": score,
-                        "source": metadata.get("source", collection.name),
-                        "doc_type": metadata.get("doc_type"),
-                        "date": metadata.get("date"),
-                        "collection": collection.name,
-                        "_space": space,
-                    }
-                )
-
-    except asyncio.TimeoutError:
-        timed_out = True
-        logger.warning(f"Collection {collection.name} timed out after {timeout_seconds}s")
-    except Exception as e:
-        logger.error(f"Error searching {collection.name}: {e}")
-
-    latency_ms = (time.perf_counter() - start) * 1000
-    return results, latency_ms, timed_out
-
-
-async def parallel_collection_search(
-    client,
-    query_embedding: List[float],
-    collection_names: List[str],
-    n_results_per_collection: int = 10,
-    where_filter: Optional[Dict] = None,
-    timeout_seconds: float = 5.0,
-) -> Tuple[List[Dict], RetrievalMetrics]:
-    """
-    Search multiple collections in parallel with graceful degradation.
-
-    If any collection times out, we still return results from successful ones.
-    """
-    start_total = time.perf_counter()
-    metrics = RetrievalMetrics(strategy="parallel_v1")
-
-    # Get all collections
-    collections = []
-    for name in collection_names:
-        resolved = _get_collection_with_fallback(client, name)
-        if resolved is None:
-            continue
-        resolved_name, collection = resolved
-        collections.append((name, resolved_name, collection))
-
-    if not collections:
-        return [], metrics
-
-    # Create tasks for parallel execution
-    tasks = [
-        search_single_collection(
-            collection=coll,
-            query_embedding=query_embedding,
-            n_results=n_results_per_collection,
-            where_filter=where_filter,
-            timeout_seconds=timeout_seconds,
-        )
-        for _, _, coll in collections
-    ]
-
-    # Execute all in parallel
-    results_list = await asyncio.gather(*tasks, return_exceptions=True)
-
-    # Merge results
-    all_results = []
-    collection_latencies = []
-
-    for i, result in enumerate(results_list):
-        requested_name, resolved_name, _ = collections[i]
-        coll_name = resolved_name
-
-        if isinstance(result, Exception):
-            logger.error(
-                "Collection %s (requested as %s) failed: %s",
-                coll_name,
-                requested_name,
-                result,
-            )
-            continue
-
-        results, latency_ms, timed_out = result
-        collection_latencies.append(latency_ms)
-
-        if timed_out:
-            if "dense" in coll_name.lower() or "sfs" in coll_name.lower():
-                metrics.dense_timeout = True
-            else:
-                metrics.bm25_timeout = True
-        else:
-            all_results.extend(results)
-
-            # Track counts (simplified - assume first collection is "dense-like")
-            if i == 0:
-                metrics.dense_result_count = len(results)
-                metrics.dense_latency_ms = latency_ms
-            else:
-                metrics.bm25_result_count += len(results)
-                metrics.bm25_latency_ms = max(metrics.bm25_latency_ms, latency_ms)
-
-    # Calculate total latency (should be ~max, not sum, due to parallelism)
-    metrics.total_latency_ms = (time.perf_counter() - start_total) * 1000
-
-    # OPTIMIZED: Deduplicate by doc ID using set for O(1) lookup
-    seen_ids = {}  # Keep dict to track highest score
-    seen_set = set()  # Fast O(1) membership check
-    for r in all_results:
-        doc_id = r["id"]
-        if doc_id not in seen_set:
-            seen_set.add(doc_id)
-            seen_ids[doc_id] = r
-        elif r["score"] > seen_ids[doc_id]["score"]:
-            seen_ids[doc_id] = r
-
-    unique_results = list(seen_ids.values())
-    metrics.unique_docs_total = len(unique_results)
-
-    # Calculate overlap (docs found in multiple collections - approximate)
-    # This is a simplified calculation
-    total_before_dedup = len(all_results)
-    metrics.doc_overlap_count = total_before_dedup - len(unique_results)
-
-    # Sort by score (RRF would go here in Phase 3)
-    unique_results.sort(key=lambda x: x["score"], reverse=True)
-
-    # Calculate score statistics for Phase 4
-    if unique_results:
-        scores = [r["score"] for r in unique_results]
-        metrics.top_score = scores[0]
-        metrics.mean_score = sum(scores) / len(scores)
-
-        if len(scores) > 1:
-            mean = metrics.mean_score
-            variance = sum((s - mean) ** 2 for s in scores) / len(scores)
-            metrics.score_std = variance**0.5
-
-            # Simplified entropy (normalized)
-            # Higher entropy = more uniform distribution = less confident
-            if metrics.top_score > 0:
-                normalized_scores = [s / sum(scores) for s in scores]
-                import math
-
-                entropy = -sum(p * math.log(p + 1e-10) for p in normalized_scores if p > 0)
-                max_entropy = math.log(len(scores))
-                metrics.score_entropy = entropy / max_entropy if max_entropy > 0 else 0
-
-    logger.info(
-        f"Parallel search: {len(unique_results)} results in {metrics.total_latency_ms:.1f}ms "
-        f"(dense: {metrics.dense_latency_ms:.1f}ms, bm25: {metrics.bm25_latency_ms:.1f}ms)"
-    )
-
-    return unique_results, metrics
-
+# Sentinel to mark where the old inline definitions were (for git blame):
+_MODELS_EXTRACTED = True  # noqa: F841
 
 # ═══════════════════════════════════════════════════════════════════════════
 # MAIN ORCHESTRATOR
@@ -697,8 +255,7 @@ class RetrievalOrchestrator:
         """
         Enforce collection cutover policy.
 
-        When enabled, retrieval fails closed if requested Jina collections are resolved
-        via fallback (for example to *_bge_m3_1024) or are missing.
+        When enabled, retrieval fails closed if requested Jina collections are missing.
         """
         pairs = self._resolve_collection_pairs(requested_collections)
         violations: List[str] = []
@@ -1716,6 +1273,7 @@ class RetrievalOrchestrator:
     async def _expand_parent_context(
         self,
         results: List[SearchResult],
+        metrics: Optional[RetrievalMetrics] = None,
     ) -> List[SearchResult]:
         """
         Expand SFS results with kapitel-level parent context from SQLite store.
@@ -1731,10 +1289,13 @@ class RetrievalOrchestrator:
 
         Args:
             results: List of SearchResult objects
+            metrics: Optional RetrievalMetrics to record parent store stats
 
         Returns:
             Original results + parent context entries appended
         """
+        start = time.perf_counter()
+
         if not results:
             return results
 
@@ -1743,9 +1304,18 @@ class RetrievalOrchestrator:
 
             parent_service = get_parent_store_service()
         except Exception:
+            if metrics:
+                metrics.parent_store_failed = True
+                metrics.parent_store_ms = (time.perf_counter() - start) * 1000
             return results
 
-        if not parent_service.is_available():
+        available = parent_service.is_available()
+        if metrics:
+            metrics.parent_store_available = available
+
+        if not available:
+            if metrics:
+                metrics.parent_store_ms = (time.perf_counter() - start) * 1000
             return results
 
         # Collect SFS chunk IDs from results and parse into parent IDs
@@ -1758,9 +1328,13 @@ class RetrievalOrchestrator:
                 parent_id_set.add(parent_id)
 
         if not parent_id_set:
+            if metrics:
+                metrics.parent_store_ms = (time.perf_counter() - start) * 1000
             return results
 
         parent_ids = list(parent_id_set)
+        if metrics:
+            metrics.parent_store_parents_requested = len(parent_ids)
 
         try:
             loop = asyncio.get_event_loop()
@@ -1769,9 +1343,14 @@ class RetrievalOrchestrator:
             )
         except Exception as e:
             logger.warning(f"Parent context expansion failed: {e}")
+            if metrics:
+                metrics.parent_store_failed = True
+                metrics.parent_store_ms = (time.perf_counter() - start) * 1000
             return results
 
         if not parents:
+            if metrics:
+                metrics.parent_store_ms = (time.perf_counter() - start) * 1000
             return results
 
         # Deduplicate: skip parents that overlap with existing result IDs
@@ -1806,10 +1385,15 @@ class RetrievalOrchestrator:
             )
             added += 1
 
+        if metrics:
+            metrics.parent_store_parents_added = added
+            metrics.parent_store_ms = (time.perf_counter() - start) * 1000
+
         if added:
+            latency_str = f" ({metrics.parent_store_ms:.1f}ms)" if metrics else ""
             logger.info(
                 f"Parent context expansion: added {added} kapitel parents "
-                f"for {len(parent_ids)} parent IDs"
+                f"for {len(parent_ids)} parent IDs{latency_str}"
             )
 
         return results
@@ -2088,7 +1672,7 @@ class RetrievalOrchestrator:
         unique_results = await self._expand_sfs_context(unique_results)
 
         # Parent-child retrieval: append kapitel-level context for SFS results
-        unique_results = await self._expand_parent_context(unique_results)
+        unique_results = await self._expand_parent_context(unique_results, metrics=metrics)
 
         metrics.total_latency_ms = (time.perf_counter() - start_total) * 1000
         metrics.unique_docs_total = len(unique_results)
