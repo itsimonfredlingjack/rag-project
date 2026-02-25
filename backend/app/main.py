@@ -2,7 +2,7 @@
 Constitutional AI Backend - Main Application
 FastAPI server for Swedish legal document RAG system
 
-Run with: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+Run with: uvicorn app.main:app --reload --host 0.0.0.0 --port 8900
 """
 
 import asyncio
@@ -96,7 +96,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=settings.cors_allow_credentials,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-API-Key", "X-Request-ID"],
 )
 
@@ -200,7 +200,7 @@ async def root():
         "version": settings.app_version,
         "docs": "/docs",
         "constitutional": "/api/constitutional/health",
-        "harvest": "ws://localhost:8000/ws/harvest",
+        "harvest": f"ws://localhost:{settings.port}/ws/harvest",
     }
 
 

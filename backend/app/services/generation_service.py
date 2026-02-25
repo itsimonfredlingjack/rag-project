@@ -6,6 +6,7 @@ Handles structured output parsing with 3-attempt retry, truncation detection/ret
 and the critic→revise loop.
 """
 
+import asyncio
 import json
 import time
 from dataclasses import dataclass
@@ -182,8 +183,9 @@ async def _parse_with_retry(
     reasoning_steps.append(f"Structured output validation: FAILED attempt 1 ({err})")
     logger.warning(f"Structured output attempt 1 failed: {err}")
 
-    # Attempt 2: Retry with error-aware instruction
+    # Attempt 2: Retry with error-aware instruction (backoff: 1s)
     try:
+        await asyncio.sleep(1.0)  # Rate limit: avoid GPU overload from rapid retries
         retry_instruction = (
             f"Du returnerade ogiltig JSON med följande fel: {err}. "
             "Korrigera felet och returnera endast giltig JSON enligt schema. "
@@ -210,8 +212,9 @@ async def _parse_with_retry(
 
         reasoning_steps.append(f"Structured output validation: FAILED attempt 2 ({err2})")
 
-        # Attempt 3: JSON-only reformat
+        # Attempt 3: JSON-only reformat (backoff: 2s)
         try:
+            await asyncio.sleep(2.0)  # Rate limit: exponential backoff before final attempt
             reformat_messages = [
                 {
                     "role": "system",
@@ -284,6 +287,8 @@ async def _anti_truncation_retry(
             f"TRUNCATION DETECTED (attempt {retry_count}/{max_retries}): len={len(full_answer)}"
         )
         try:
+            # Rate limit: backoff before hitting GPU again (1s, 2s, 3s)
+            await asyncio.sleep(retry_count * 1.0)
             retry_messages = []
             if messages and messages[0].get("role") == "system":
                 retry_messages.append(messages[0])
@@ -297,7 +302,11 @@ async def _anti_truncation_retry(
 
             retry_config = dict(llm_config)
             retry_config["num_predict"] = 2000
-            retry_config["temperature"] = 0.4 + (retry_count * 0.15)
+            # Keep temperature at mode's configured value, capped at 0.4 to prevent
+            # hallucination from escalation. Previous logic (0.4 + 0.15*n) hit 0.85
+            # on attempt 3, which is counter to anti-hallucination goals.
+            base_temp = llm_config.get("temperature", 0.3)
+            retry_config["temperature"] = min(base_temp, 0.4)
 
             retry_answer = ""
             async for token, _ in llm_service.chat_stream(

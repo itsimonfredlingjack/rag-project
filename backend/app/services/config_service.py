@@ -32,7 +32,7 @@ class ConfigSettings(BaseSettings):
 
     # Server
     host: str = "0.0.0.0"
-    port: int = 8000
+    port: int = 8900
 
     # ChromaDB Configuration
     chromadb_path: str = "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/chromadb_data"
@@ -48,9 +48,7 @@ class ConfigSettings(BaseSettings):
     ]
 
     # Embedding Model (Jina v3, 1024 dim, asymmetric encoding)
-    # TODO(re-index): ALL ChromaDB collections must be re-indexed with Jina v3
-    # embed_document() before queries work. Old _bge_m3_1024 collections are
-    # incompatible — different vector space despite same dimensions.
+    # ChromaDB collections use Jina v3 embeddings (1024 dim, asymmetric encoding).
     embedding_model: str = "jinaai/jina-embeddings-v3"
     expected_embedding_dim: int = 1024
     embedding_collection_suffix: str = "_jina_v3_1024"
@@ -142,8 +140,9 @@ class ConfigSettings(BaseSettings):
     epr_use_rag_fusion: bool = True
     epr_fusion_num_queries: int = 3
 
-    # BM25 hybrid search — disabled by default (FTS5-based, disk-backed, low RAM overhead)
-    bm25_enabled: bool = False
+    # BM25 hybrid search — FTS5-based, disk-backed, low RAM overhead
+    # Enables hybrid dense+sparse retrieval with RRF fusion for exact-match recall
+    bm25_enabled: bool = True
     bm25_index_path: str = ""  # Override FTS5 DB path; empty = default
 
     # Cutover guardrails (fail-closed once migration is verified)
