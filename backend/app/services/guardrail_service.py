@@ -278,16 +278,18 @@ class GuardrailService(BaseService):
     ]
 
     OUTPUT_LEAKAGE_PATTERNS = [
-        # Port numbers
-        (r"\b(8080|8900|3001|3003|5173|5174|11434)\b", "port_number"),
+        # Port numbers — context-aware to avoid false positives on SFS numbers
+        # Match only when preceded by colon, "port", or URL-like context
+        (
+            r"(?:(?<=:)|(?<=port\s)|(?<=PORT\s))(8080|8900|3001|3003|5173|5174|11434)\b",
+            "port_number",
+        ),
         # Technology names (case-insensitive handled at compile time)
         (r"\bllama[- ]?server\b", "technology"),
         (r"\bllama\.cpp\b", "technology"),
         (r"\bchromadb\b", "technology"),
         (r"\bollama\b", "technology"),
         (r"\bministral[- ]?3\b", "technology"),
-        (r"\bbge[- ]?m3\b", "technology"),
-        (r"\bbge[- ]?reranker\b", "technology"),
         (r"\buvicorn\b", "technology"),
         (r"\bfastapi\b", "technology"),
         # Model filenames
@@ -296,7 +298,7 @@ class GuardrailService(BaseService):
         (r"/home/ai-server\S*", "file_path"),
         (r"/backend/\S*", "file_path"),
         (r"/app/services/\S*", "file_path"),
-        # Internal IPs
+        # Internal IPs (also covers localhost:PORT and 127.0.0.1:PORT)
         (r"192\.168\.\d+\.\d+", "internal_ip"),
         (r"10\.\d+\.\d+\.\d+", "internal_ip"),
         (r"127\.0\.0\.1(:\d+)?", "internal_ip"),

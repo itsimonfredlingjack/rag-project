@@ -50,10 +50,11 @@ def test_non_score_thresholds_unchanged():
 
 
 def test_compute_thresholds_k45_specific_value():
-    """Verify exact computed value for production k=45."""
+    """Verify at production k=45 (reference), base values are returned unchanged."""
     result = compute_thresholds(45.0)
-    expected_top_score_low = 0.050 * (31 / 46)
-    assert abs(result["top_score_low"] - expected_top_score_low) < 1e-10
+    # At reference k=45, scale factor = 1.0, so values match base thresholds
+    assert abs(result["top_score_low"] - _BASE_THRESHOLDS["top_score_low"]) < 1e-10
+    assert abs(result["margin_low"] - _BASE_THRESHOLDS["margin_low"]) < 1e-10
 
 
 # ── ConfidenceCalculator integration ─────────────────────────────────

@@ -24,16 +24,17 @@ from typing import Dict, List, Optional
 
 # Reference k value used for calibrating base thresholds.
 # All score-dependent thresholds were tuned at this k.
-_REFERENCE_K = 30
+# Updated to match production config (was 30, production uses 45).
+_REFERENCE_K = 45
 
-# Base thresholds - CALIBRATED for RRF scores at k=_REFERENCE_K (30)
-# RRF formula: 1/(k+rank), so top score at rank 1 = 1/31 ≈ 0.032
-# With 2 queries at rank 1: 2/31 ≈ 0.065, with 3: 3/31 ≈ 0.097
+# Base thresholds - CALIBRATED for RRF scores at k=_REFERENCE_K (45)
+# RRF formula: 1/(k+rank), so top score at rank 1 = 1/46 ≈ 0.0217
+# With 2 queries at rank 1: 2/46 ≈ 0.0435, with 3: 3/46 ≈ 0.0652
 _BASE_THRESHOLDS = {
-    "top_score_low": 0.050,  # Below this = weak top result (< rank 2 in any query)
-    "margin_low": 0.006,  # Below this = uncertain ranking (normalized margin)
-    "must_include_min": 0.5,  # Below this = missing key entities
-    "fusion_gain_low": 0.05,  # Below this = queries not adding value
+    "top_score_low": 0.034,  # Below this = weak top result (scaled from 0.050 at k=30)
+    "margin_low": 0.004,  # Below this = uncertain ranking (scaled from 0.006 at k=30)
+    "must_include_min": 0.5,  # Below this = missing key entities (ratio, k-invariant)
+    "fusion_gain_low": 0.05,  # Below this = queries not adding value (ratio, k-invariant)
     "overlap_high": 0.9,  # Above this + low scores = corpus lacks answer
     "near_duplicate_max": 0.7,  # Above this = too many duplicates
     "overall_confidence_low": 0.4,  # Below this = escalate
@@ -62,8 +63,8 @@ def compute_thresholds(rrf_k: float = _REFERENCE_K) -> Dict:
     return thresholds
 
 
-# Backward-compatible alias at reference k
-DEFAULT_THRESHOLDS = _BASE_THRESHOLDS
+# Default thresholds match production config (k=45)
+DEFAULT_THRESHOLDS = dict(_BASE_THRESHOLDS)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
