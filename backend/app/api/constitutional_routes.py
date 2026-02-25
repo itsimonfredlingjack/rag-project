@@ -16,9 +16,12 @@ from pydantic import BaseModel, Field
 
 # Import services
 from ..core.rate_limiter import limiter
+from ..services.config_service import get_config_service
 from ..services.orchestrator_service import OrchestratorService, get_orchestrator_service
 from ..services.rag_models import RAGResult
 from ..services.retrieval_service import RetrievalStrategy
+from ..services.sse_stream_service import SSEStreamService
+from ..services.stream_resumption_service import get_stream_resumption_service
 
 router = APIRouter(prefix="/api/constitutional", tags=["constitutional"])
 logger = logging.getLogger(__name__)
@@ -476,18 +479,18 @@ async def get_collections(
             if coll.name.startswith("test_"):
                 continue
             try:
-                result.append(
-                    CollectionInfo(
-                        name=coll.name,
-                        document_count=coll.count(),
-                        metadata_fields=list(coll.metadata.get("metadata_fields", []))
-                        if coll.metadata
-                        else [],
-                    )
-                )
+                count = coll.count()
             except Exception:
-                # Skip collections that fail to count (e.g. corrupted)
-                continue
+                count = -1  # Count unavailable (large collection timeout)
+            result.append(
+                CollectionInfo(
+                    name=coll.name,
+                    document_count=count,
+                    metadata_fields=list(coll.metadata.get("metadata_fields", []))
+                    if coll.metadata
+                    else [],
+                )
+            )
         return result
     except Exception as e:
         logger.warning(f"Failed to list collections: {e}")
@@ -674,6 +677,15 @@ async def agent_query_stream(
     # Convert history for OrchestratorService
     history = [{"role": msg.role, "content": msg.content} for msg in body.history or []]
 
+    # Build the event pipeline: generate → [resumption] → keepalive
+    cfg = get_config_service()
+    session_id: Optional[str] = None
+
+    # Pre-create session ID so it can be threaded into metadata events
+    if cfg.settings.stream_resumption_enabled:
+        resumption_svc = get_stream_resumption_service()
+        session_id = resumption_svc.create_session()
+
     # Stream via OrchestratorService
     async def generate():
         async for event in orchestrator.stream_query(
@@ -682,16 +694,82 @@ async def agent_query_stream(
             k=10,
             retrieval_strategy=retrieval_strategy,
             history=history,
+            stream_session_id=session_id,
         ):
             yield event
 
+    event_stream = generate()
+    response_headers = {
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",  # Disable nginx buffering
+    }
+
+    # Layer 1: Stream resumption (event buffering + id: fields)
+    if cfg.settings.stream_resumption_enabled and session_id:
+        event_stream = resumption_svc.wrap_with_resumption(event_stream, session_id)
+        response_headers["X-Stream-Session"] = session_id
+
+    # Layer 2: Keep-alive pings during idle periods
+    sse_svc = SSEStreamService()
+    event_stream = sse_svc.wrap_stream_with_keepalive(event_stream)
+
     return StreamingResponse(
-        generate(),
+        event_stream,
+        media_type="text/event-stream",
+        headers=response_headers,
+    )
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# STREAM RESUMPTION ENDPOINT
+# ═════════════════════════════════════════════════════════════════════════
+
+
+class StreamResumeRequest(BaseModel):
+    """Request body for resuming an interrupted SSE stream."""
+
+    session_id: str = Field(..., description="The stream session ID from X-Stream-Session header")
+    last_event_id: int = Field(..., ge=0, description="The last event ID the client received")
+
+
+@router.post("/agent/query/stream/resume")
+@limiter.limit("30/minute")
+async def agent_query_stream_resume(
+    request: Request,
+    body: StreamResumeRequest,
+):
+    """
+    Resume an interrupted SSE stream by replaying missed events.
+
+    Requires stream resumption to be enabled via CONST_STREAM_RESUMPTION_ENABLED.
+    Client provides the session_id (from X-Stream-Session header) and
+    last_event_id (from the last SSE `id:` field received before disconnect).
+
+    Returns SSE events missed since last_event_id.
+    """
+    import json
+
+    cfg = get_config_service()
+    if not cfg.settings.stream_resumption_enabled:
+        return StreamingResponse(
+            iter(
+                [
+                    f"data: {json.dumps({'type': 'error', 'message': 'Stream resumption is not enabled'})}\n\n"
+                ]
+            ),
+            status_code=404,
+            media_type="text/event-stream",
+        )
+
+    resumption_svc = get_stream_resumption_service()
+
+    return StreamingResponse(
+        resumption_svc.replay_missed_events(body.session_id, body.last_event_id),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",  # Disable nginx buffering
         },
     )
 

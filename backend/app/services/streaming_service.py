@@ -43,6 +43,7 @@ async def stream_query(
     k: int = 10,
     retrieval_strategy: RetrievalStrategy = RetrievalStrategy.ADAPTIVE,
     history: Optional[List[dict]] = None,
+    stream_session_id: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream RAG pipeline with Server-Sent Events.
@@ -286,7 +287,16 @@ async def stream_query(
             }
             for s in sources
         ]
-        yield f"data: {_json({'type': 'metadata', 'mode': response_mode.value, 'sources': sources_metadata, 'search_time_ms': retrieval_ms, 'evidence_level': evidence_level.value.upper()})}\n\n"
+        metadata_event = {
+            "type": "metadata",
+            "mode": response_mode.value,
+            "sources": sources_metadata,
+            "search_time_ms": retrieval_ms,
+            "evidence_level": evidence_level.value.upper(),
+        }
+        if stream_session_id:
+            metadata_event["stream_session_id"] = stream_session_id
+        yield f"data: {_json(metadata_event)}\n\n"
 
         yield f"data: {_json({'type': 'phase', 'phase': 'generation_start'})}\n\n"
 

@@ -15,6 +15,7 @@ from ..utils.logging import get_logger
 from .base_service import BaseService
 from .config_service import ConfigService, get_config_service
 from .embedding_service import get_embedding_service
+from .llm_service import get_llm_service
 
 logger = get_logger(__name__)
 
@@ -431,6 +432,17 @@ class RetrievalService(BaseService):
                     query_expansion_confidence_gate=(self.config.query_expansion_confidence_gate),
                     query_expansion_confidence_threshold=(
                         self.config.query_expansion_confidence_threshold
+                    ),
+                    # LLM intent fallback (zero-shot for ambiguous queries)
+                    llm_service=(
+                        get_llm_service(self.config)
+                        if self.config.settings.intent_llm_fallback_enabled
+                        else None
+                    ),
+                    intent_llm_fallback_enabled=(self.config.settings.intent_llm_fallback_enabled),
+                    intent_llm_fallback_timeout=(self.config.settings.intent_llm_fallback_timeout),
+                    intent_llm_fallback_confidence_threshold=(
+                        self.config.settings.intent_llm_fallback_confidence_threshold
                     ),
                 )
                 logger.info(

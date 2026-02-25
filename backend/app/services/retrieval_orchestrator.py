@@ -45,7 +45,7 @@ from .query_expansion_service import QueryExpansionService
 
 # EPR: Evidence Policy Routing (Phase 5)
 from .source_hierarchy import SourceHierarchy, SourceTier
-from .intent_classifier import IntentClassifier, QueryIntent
+from .intent_classifier import IntentClassifier, QueryIntent, llm_classify_intent
 from .intent_routing import get_routing_for_intent
 
 # Extracted modules (Sprint 2, P2-14) — re-exported for backward compatibility
@@ -144,6 +144,11 @@ class RetrievalOrchestrator:
         cutover_allowed_fallback_collections: Optional[List[str]] = None,
         query_expansion_confidence_gate: bool = True,
         query_expansion_confidence_threshold: float = 0.5,
+        # LLM intent fallback (zero-shot classification for ambiguous queries)
+        llm_service: Optional[Any] = None,
+        intent_llm_fallback_enabled: bool = False,
+        intent_llm_fallback_timeout: float = 3.0,
+        intent_llm_fallback_confidence_threshold: float = 0.50,
     ):
         self.client = chromadb_client
         self.embed_fn = embedding_function
@@ -172,6 +177,11 @@ class RetrievalOrchestrator:
         self._cutover_allowed_fallback_collections = {
             value.casefold() for value in (cutover_allowed_fallback_collections or [])
         }
+        # LLM intent fallback
+        self._llm_service = llm_service
+        self._intent_llm_fallback_enabled = intent_llm_fallback_enabled
+        self._intent_llm_fallback_timeout = intent_llm_fallback_timeout
+        self._intent_llm_fallback_confidence_threshold = intent_llm_fallback_confidence_threshold
 
     def _get_bm25_index_size_bytes(self) -> int:
         """Return on-disk BM25 index size in bytes (best-effort)."""
@@ -1436,13 +1446,41 @@ class RetrievalOrchestrator:
         intent_classifier = IntentClassifier()
         source_hierarchy = SourceHierarchy()
 
-        # Step 1: Classify query intent
+        # Step 1: Classify query intent (rule-based)
         intent_result = intent_classifier.classify(query)
         detected_intent = intent_result.intent
         logger.info(
             f"EPR: Classified intent={detected_intent.value} "
             f"(confidence={intent_result.confidence:.2f}, patterns={intent_result.matched_patterns})"
         )
+
+        # Step 1b: LLM intent fallback for low-confidence / ambiguous queries
+        if (
+            self._intent_llm_fallback_enabled
+            and self._llm_service
+            and intent_result.confidence < self._intent_llm_fallback_confidence_threshold
+        ):
+            try:
+                llm_intent = await asyncio.wait_for(
+                    llm_classify_intent(
+                        query, self._llm_service, self._intent_llm_fallback_timeout
+                    ),
+                    timeout=self._intent_llm_fallback_timeout + 1.0,
+                )
+                if llm_intent is not None:
+                    logger.info(
+                        f"EPR: LLM fallback upgraded intent "
+                        f"{intent_result.intent.value}→{llm_intent.intent.value} "
+                        f"(conf {intent_result.confidence:.2f}→{llm_intent.confidence:.2f})"
+                    )
+                    intent_result = llm_intent
+                    detected_intent = llm_intent.intent
+                else:
+                    logger.debug("EPR: LLM fallback returned None, keeping rule-based result")
+            except (asyncio.TimeoutError, Exception) as e:
+                logger.warning(
+                    f"EPR: LLM intent fallback failed ({type(e).__name__}), keeping rule-based result"
+                )
 
         # Step 2: Get routing configuration
         routing_config = get_routing_for_intent(detected_intent)

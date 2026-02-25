@@ -213,6 +213,16 @@ class ConfigSettings(BaseSettings):
     # External security patterns (dynamic loading without code changes)
     security_patterns_path: str = ""  # Path to JSON file, empty = use defaults only
 
+    # Stream Resumption — SSE event buffering for connection recovery
+    stream_resumption_enabled: bool = False  # Off by default — zero behavior change
+    stream_resumption_session_ttl: float = 300.0  # 5 min session buffer lifetime
+    stream_resumption_max_sessions: int = 100  # Max concurrent buffered sessions
+
+    # LLM Intent Fallback — zero-shot classification for ambiguous queries
+    intent_llm_fallback_enabled: bool = False  # Off by default — uses GPU for classification
+    intent_llm_fallback_timeout: float = 3.0  # Timeout for LLM classification call
+    intent_llm_fallback_confidence_threshold: float = 0.50  # Trigger when rule-based < this
+
 
 class ConfigService:
     """
