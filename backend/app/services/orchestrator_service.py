@@ -62,6 +62,7 @@ from .rag_models import (  # noqa: E402
 from .prompt_service import (  # noqa: E402
     build_llm_context as _build_llm_context_fn,
     build_system_prompt as _build_system_prompt_fn,
+    calculate_source_budget as _calculate_source_budget_fn,
     format_constitutional_examples as _format_constitutional_examples_fn,
     is_truncated_answer as _is_truncated_answer_fn,
     retrieve_constitutional_examples as _retrieve_constitutional_examples_fn,
@@ -262,7 +263,7 @@ class OrchestratorService(BaseService):
             k: Number of documents to retrieve
             retrieval_strategy: Retrieval strategy (parallel_v1, rewrite_v1, rag_fusion, adaptive)
             history: Conversation history for decontextualization
-            enable_reranking: Whether to use BGE reranking
+            enable_reranking: Whether to use Jina reranking
             enable_adaptive: Whether to use adaptive retrieval
             use_agent: If True, use LangGraph agentic flow instead of linear pipeline
 
@@ -471,17 +472,10 @@ class OrchestratorService(BaseService):
                 sources = filtered_sources
 
             # STEP 4: Build LLM context from sources
-            # Note: sources may have been filtered by CRAG and/or reranking already
-            if (
-                not (
-                    self.config.settings.crag_enabled
-                    and self.grader
-                    and resolved_mode != ResponseMode.CHAT
-                )
-                and reranking_ms == 0.0
-            ):
-                # Only set sources from retrieval if neither CRAG nor reranking processed them
-                sources = retrieval_result.results
+            # sources is already correct here:
+            #   - Line 360: initialized from retrieval_result.results
+            #   - Line 380: updated by CRAG (returns originals if CRAG disabled)
+            #   - Line 471: updated by reranking (only if reranking ran)
 
             # Extract source text for context
             context_text = self._build_llm_context(sources)
@@ -552,6 +546,8 @@ class OrchestratorService(BaseService):
             )
 
             # STEP 5.5 + 5A + 5B: Structured output, anti-truncation, critic→revise
+            # Build set of retrieved doc IDs for citation cross-validation
+            _retrieved_doc_ids = {s.id for s in sources if s.id}
             gen_result = await _process_structured_output_fn(
                 config=self.config,
                 structured_output_service=self.structured_output,
@@ -565,6 +561,7 @@ class OrchestratorService(BaseService):
                 sources=sources,
                 reasoning_steps=reasoning_steps,
                 create_fallback_fn=self._create_fallback_response,
+                retrieved_doc_ids=_retrieved_doc_ids,
             )
             full_answer = gen_result.answer
             structured_output_data = gen_result.structured_data
@@ -806,7 +803,18 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
 
     def _build_llm_context(self, sources) -> str:
         """Build LLM context from sources. Delegates to prompt_service."""
-        return _build_llm_context_fn(sources)
+        try:
+            context_window = int(getattr(self.config.settings, "gguf_context_window", 8192))
+            num_predict = int(getattr(self.config.settings, "mode_evidence_num_predict", 1024))
+        except (TypeError, ValueError):
+            context_window = 8192
+            num_predict = 1024
+        budget = _calculate_source_budget_fn(
+            context_window=context_window,
+            system_prompt_overhead=3000,
+            response_reserve=num_predict,
+        )
+        return _build_llm_context_fn(sources, max_context_tokens=budget)
 
     async def _retrieve_constitutional_examples(self, query: str, mode: str, k: int = 2):
         """Retrieve constitutional examples. Delegates to prompt_service."""

@@ -59,7 +59,10 @@ class StructuredOutputService(BaseService):
         self._mark_uninitialized()
 
     def validate_output(
-        self, json_output: Dict[str, Any], mode: str
+        self,
+        json_output: Dict[str, Any],
+        mode: str,
+        retrieved_doc_ids: Optional[set[str]] = None,
     ) -> tuple[bool, List[str], Optional[StructuredOutputSchema]]:
         """
         Validate structured output against schema and mode-specific rules.
@@ -67,6 +70,8 @@ class StructuredOutputService(BaseService):
         Args:
             json_output: LLM response as JSON
             mode: Response mode (EVIDENCE or ASSIST)
+            retrieved_doc_ids: Set of doc IDs from retrieval. If provided, citations
+                are cross-validated to detect fabricated references.
 
         Returns:
             Tuple of (is_valid, errors_list, validated_schema)
@@ -105,6 +110,25 @@ class StructuredOutputService(BaseService):
                     f"ASSIST mode: {len(validated.fakta_utan_kalla)} facts without sources "
                     "(allowed for general knowledge)"
                 )
+
+        # Step 3: Citation cross-validation against retrieved documents
+        if retrieved_doc_ids is not None and validated.kallor:
+            fabricated = []
+            for src in validated.kallor:
+                doc_id = src.get("doc_id", "")
+                if doc_id and doc_id not in retrieved_doc_ids:
+                    fabricated.append(doc_id)
+            if fabricated:
+                self.logger.warning(
+                    f"Citation cross-validation: {len(fabricated)} fabricated doc_id(s) "
+                    f"not in retrieved set: {fabricated[:5]}"
+                )
+                # Strip fabricated citations rather than failing validation
+                validated.kallor = [
+                    src
+                    for src in validated.kallor
+                    if src.get("doc_id", "") in retrieved_doc_ids or not src.get("doc_id")
+                ]
 
         is_valid = len(errors) == 0
 
