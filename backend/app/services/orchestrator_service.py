@@ -15,6 +15,7 @@ from ..utils.metrics import get_rag_metrics, log_structured_metric
 from .base_service import BaseService
 from .config_service import ConfigService, get_config_service
 from .critic_service import CriticService, get_critic_service
+from .faithfulness_service import FaithfulnessService, get_faithfulness_service
 from .grader_service import GraderService, get_grader_service
 from .guardrail_service import GuardrailService, WardenStatus, get_guardrail_service
 from .llm_service import LLMService, get_llm_service
@@ -115,9 +116,10 @@ class OrchestratorService(BaseService):
         guardrail: Optional[GuardrailService] = None,
         retrieval: Optional[RetrievalService] = None,
         reranker: Optional[RerankingService] = None,
-        structured_output: Optional[StructuredOutputService] = None,  # NEW
-        critic: Optional[CriticService] = None,  # NEW
-        grader: Optional[GraderService] = None,  # NEW
+        structured_output: Optional[StructuredOutputService] = None,
+        critic: Optional[CriticService] = None,
+        grader: Optional[GraderService] = None,
+        faithfulness: Optional[FaithfulnessService] = None,
     ):
         """
         Initialize Orchestrator Service.
@@ -129,9 +131,10 @@ class OrchestratorService(BaseService):
             guardrail: GuardrailService (optional, will create if not provided)
             retrieval: RetrievalService (optional, will create if not provided)
             reranker: RerankingService (optional, will create if not provided)
-            structured_output: StructuredOutputService (optional, will create if not provided)  # NEW
-            critic: CriticService (optional, will create if not provided)  # NEW
-            grader: GraderService (optional, will create if not provided)  # NEW
+            structured_output: StructuredOutputService (optional, will create if not provided)
+            critic: CriticService (optional, will create if not provided)
+            grader: GraderService (optional, will create if not provided)
+            faithfulness: FaithfulnessService (optional, will create if not provided)
         """
         super().__init__(config)
 
@@ -141,11 +144,12 @@ class OrchestratorService(BaseService):
         self.guardrail = guardrail or get_guardrail_service(config)
         self.retrieval = retrieval or get_retrieval_service(config)
         self.reranker = reranker or get_reranking_service(config)
-        self.structured_output = structured_output or get_structured_output_service(config)  # NEW
+        self.structured_output = structured_output or get_structured_output_service(config)
         # Only create critic service if explicitly provided (for backwards compatibility)
         self.critic = critic or get_critic_service(config, llm_service)
         # Only create grader service if explicitly provided (for backwards compatibility)
         self.grader = grader or get_grader_service(config)
+        self.faithfulness = faithfulness or get_faithfulness_service(config)
 
         # Initialize LangGraph agentic flow (lazy initialization)
         self.agent_app = None
@@ -384,6 +388,7 @@ class OrchestratorService(BaseService):
             relevant_count = crag_result.relevant_count
             self_reflection_ms = crag_result.self_reflection_ms
             thought_chain = crag_result.thought_chain
+            citation_plan = crag_result.citation_plan
             rewrite_count = crag_result.rewrite_count
 
             # STEP 3.7: Reranking BEFORE LLM generation (filter noise from context)
@@ -495,7 +500,7 @@ class OrchestratorService(BaseService):
             )
             examples_text = self._format_constitutional_examples(constitutional_examples)
 
-            # Build messages (inject thought_chain so LLM can use its own reflection)
+            # Build messages (inject thought_chain + citation_plan so LLM can use its reflection)
             system_prompt = self._build_system_prompt(
                 resolved_mode.value,
                 sources,
@@ -503,6 +508,7 @@ class OrchestratorService(BaseService):
                 structured_output_enabled=self.config.structured_output_effective_enabled,
                 user_query=question,
                 thought_chain=thought_chain,
+                citation_plan=citation_plan,
             )
             # Replace placeholder with actual examples
             system_prompt = system_prompt.replace("{{CONSTITUTIONAL_EXAMPLES}}", examples_text)
@@ -553,6 +559,7 @@ class OrchestratorService(BaseService):
                 structured_output_service=self.structured_output,
                 llm_service=self.llm_service,
                 critic_service=self.critic,
+                faithfulness_service=self.faithfulness,
                 full_answer=full_answer,
                 mode=mode,
                 question=question,
@@ -636,13 +643,17 @@ class OrchestratorService(BaseService):
                 critic_revision_count=critic_revision_count,  # NEW
                 critic_ms=0.0 if critic_revision_count == 0 else critic_ms,  # NEW
                 critic_ok=gen_result.critic_ok,  # NEW
-                crag_enabled=self.config.settings.crag_enabled,  # NEW
-                grade_count=grade_count,  # NEW
-                relevant_count=relevant_count,  # NEW
-                grade_ms=grade_ms,  # NEW
-                self_reflection_used=bool(thought_chain),  # NEW
-                self_reflection_ms=self_reflection_ms,  # NEW
-                rewrite_count=rewrite_count,  # NEW
+                crag_enabled=self.config.settings.crag_enabled,
+                grade_count=grade_count,
+                relevant_count=relevant_count,
+                grade_ms=grade_ms,
+                self_reflection_used=bool(thought_chain),
+                self_reflection_ms=self_reflection_ms,
+                rewrite_count=rewrite_count,
+                faithfulness_score=gen_result.faithfulness_score,
+                faithfulness_ms=gen_result.faithfulness_ms,
+                faithfulness_claims_total=gen_result.faithfulness_claims_total,
+                faithfulness_claims_supported=gen_result.faithfulness_claims_supported,
             )
 
             logger.info(
@@ -832,6 +843,7 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
         structured_output_enabled: bool = True,
         user_query=None,
         thought_chain=None,
+        citation_plan=None,
     ) -> str:
         """Build system prompt. Delegates to prompt_service."""
         return _build_system_prompt_fn(
@@ -841,6 +853,7 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
             structured_output_enabled=structured_output_enabled,
             user_query=user_query,
             thought_chain=thought_chain,
+            citation_plan=citation_plan,
         )
 
     async def stream_query(
@@ -850,6 +863,7 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
         k: int = 10,
         retrieval_strategy: RetrievalStrategy = RetrievalStrategy.ADAPTIVE,
         history: Optional[List[dict]] = None,
+        stream_session_id: Optional[str] = None,
     ) -> AsyncGenerator[str, None]:
         """Stream RAG pipeline with SSE. Delegates to streaming_service."""
         async for event in _stream_query_fn(
@@ -871,6 +885,7 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
             k=k,
             retrieval_strategy=retrieval_strategy,
             history=history,
+            stream_session_id=stream_session_id,
         ):
             yield event
 

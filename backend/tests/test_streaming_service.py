@@ -351,3 +351,46 @@ class TestErrorHandling:
         parsed = _parse_events(events)
 
         assert any(e["type"] == "error" for e in parsed)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Stream Session ID in Metadata
+# ═══════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.unit
+class TestStreamSessionId:
+    async def test_session_id_in_metadata_when_provided(self):
+        """Metadata event should include stream_session_id when passed."""
+        fx = _StreamFixture(mode=ResponseMode.ASSIST)
+        events = []
+        async for event in stream_query(
+            config=fx.config,
+            query_processor=fx.query_processor,
+            llm_service=fx.llm_service,
+            guardrail=fx.guardrail,
+            retrieval=fx.retrieval,
+            reranker=fx.reranker,
+            grader=fx.grader,
+            critic=fx.critic,
+            resolve_mode_fn=fx.resolve_mode_fn,
+            build_llm_context_fn=fx.build_llm_context_fn,
+            retrieve_examples_fn=fx.retrieve_examples_fn,
+            format_examples_fn=fx.format_examples_fn,
+            build_system_prompt_fn=fx.build_system_prompt_fn,
+            question="Vad säger RF?",
+            stream_session_id="test_session_abc",
+        ):
+            events.append(event)
+
+        parsed = _parse_events(events)
+        metadata = next(e for e in parsed if e["type"] == "metadata")
+        assert metadata["stream_session_id"] == "test_session_abc"
+
+    async def test_no_session_id_when_not_provided(self):
+        """Metadata event should NOT include stream_session_id when not passed."""
+        fx = _StreamFixture(mode=ResponseMode.ASSIST)
+        events = await fx.run()
+        parsed = _parse_events(events)
+        metadata = next(e for e in parsed if e["type"] == "metadata")
+        assert "stream_session_id" not in metadata
