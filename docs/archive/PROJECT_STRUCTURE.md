@@ -28,7 +28,7 @@
 │   └── requirements.txt
 │
 ├── 🟢 apps/
-│   └── 🟡 constitutional-retardedantigravity/   # DEN RIKTIGA FRONTENDEN!
+│   └── 🟡 konstitutionell-frontend/   # DEN RIKTIGA FRONTENDEN!
 │       ├── src/                        # React + TypeScript + Three.js
 │       ├── index.css                    # STIL: #E7E5E4 (gråvit bakgrund)
 │       └── package.json
@@ -61,7 +61,7 @@
 
 ## 🎨 GRÅVITA HEMSIDAN (FRONTEND)
 
-**Sökväg:** `apps/constitutional-retardedantigravity/`
+**Sökväg:** `apps/konstitutionell-frontend/`
 
 **Funktioner:**
 - **React + Vite + TypeScript**
@@ -76,7 +76,7 @@
 
 **Starta:**
 ```bash
-cd apps/constitutional-retardedantigravity
+cd apps/konstitutionell-frontend
 npm run dev
 # Port: 3001
 ```
@@ -208,7 +208,7 @@ systemctl --user start constitutional-ai-backend
 
 ### 2. Frontend (Gråvita hemsidan)
 ```bash
-cd apps/constitutional-retardedantigravity
+cd apps/konstitutionell-frontend
 npm run dev
 # Öppna: http://localhost:3001
 ```
@@ -245,7 +245,7 @@ ollama list
 
 ## ⚠️ KRITISKA REGLER
 
-1. **ANVÄND BARA DENNA FRONTEND:** `apps/constitutional-retardedantigravity/`
+1. **ANVÄND BARA DENNA FRONTEND:** `apps/konstitutionell-frontend/`
 2. **INTE STREAMLIT:** React + Three.js är den enda riktiga frontend
 3. **BACKEND PORT:** 8900 (NOT 8000)
 4. **DATA ÄR STORT:** `chromadb_data/` är 15GB+ - exkludera från git
@@ -259,11 +259,11 @@ ollama list
 1. 📖 Läs `AGENTS.md`
 2. 📖 Läs `.cursorrules`
 3. 📖 Läs `FRONTEND_README.md` (OM du ska jobba med frontend)
-4. 🔍 Kolla om frontend redan finns (JA: i `apps/constitutional-retardedantigravity/`)
+4. 🔍 Kolla om frontend redan finns (JA: i `apps/konstitutionell-frontend/`)
 
 **OM DU FÅR INSTRUKTION ATT SKAPA FRONTEND:**
 - ✅ STOPPA
-- ✅ Använd den riktiga appen: `apps/constitutional-retardedantigravity/`
+- ✅ Använd den riktiga appen: `apps/konstitutionell-frontend/`
 - ❌ Skapa INGA nya React-appar
 - ❌ Använd INTE Streamlit
 

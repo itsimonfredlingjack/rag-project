@@ -120,7 +120,7 @@ node_modules/
 !app/data/docs_qa_training.jsonl
 !app/data/eval_after_*.json
 
-# Felaktig frontend-mapp (använd /apps/constitutional-retardedantigravity/ istället)
+# Felaktig frontend-mapp (använd /apps/konstitutionell-frontend/ istället)
 frontend/
 tools/rag-tester/data/ratings.db
 apps/DONT_USE_DOCUMENTATION/

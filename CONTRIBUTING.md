@@ -7,7 +7,7 @@ Kodstil och bidragsguide.
 ```
 09_CONSTITUTIONAL-AI/
 ├── apps/
-│   └── constitutional-retardedantigravity/  # React + Vite + Three.js frontend
+│   └── konstitutionell-frontend/  # React + Vite + Three.js frontend
 ├── backend/                 # FastAPI backend (port 8900)
 │   ├── app/
 │   │   ├── api/             # API routes
@@ -102,7 +102,7 @@ from scrapers.base import BaseScraper
 - Konstanter: `UPPER_SNAKE_CASE`
 - Privata metoder: `_leading_underscore`
 
-## TypeScript/React (apps/constitutional-retardedantigravity/)
+## TypeScript/React (apps/konstitutionell-frontend/)
 
 ### Verktyg
 
@@ -197,7 +197,7 @@ ruff check --fix .
 ruff format .
 
 # Frontend
-cd apps/constitutional-retardedantigravity && npm run lint
+cd apps/konstitutionell-frontend && npm run lint
 ```
 
 ## Commits

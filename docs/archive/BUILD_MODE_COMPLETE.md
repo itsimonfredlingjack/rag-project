@@ -58,7 +58,7 @@
 - **Status**: ✅ CLEANED
 
 #### Kept Files (As Requested)
-- ✅ `apps/constitutional-retardedantigravity/` (experimental 3D app)
+- ✅ `apps/konstitutionell-frontend/` (experimental 3D app)
 - ✅ `apps/constitutional-gpt-database/` (experimental database app)
 - ✅ `apps/boverket_scraper.py` (main scraper)
 - ✅ `apps/bolagsverket_scraper.py` (separate purpose)

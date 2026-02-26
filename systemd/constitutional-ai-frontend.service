@@ -5,9 +5,9 @@ Wants=constitutional-ai-backend.service
 
 [Service]
 Type=simple
-WorkingDirectory=/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/apps/constitutional-retardedantigravity
+WorkingDirectory=/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/apps/konstitutionell-frontend
 Environment="PATH=/home/ai-server/.nvm/versions/node/v22.21.1/bin:/usr/local/bin:/usr/bin:/bin"
-ExecStart=/home/ai-server/.nvm/versions/node/v22.21.1/bin/npm run dev -- --host 0.0.0.0 --port 3003
+ExecStart=/home/ai-server/.nvm/versions/node/v22.21.1/bin/npm run preview -- --host 0.0.0.0 --port 3003
 Restart=always
 RestartSec=5
 StandardOutput=journal

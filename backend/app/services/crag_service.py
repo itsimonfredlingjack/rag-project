@@ -33,6 +33,7 @@ class CragResult:
     self_reflection_ms: float
     thought_chain: Optional[str]
     rewrite_count: int
+    citation_plan: Optional[List[str]] = None  # Document titles to cite (from self-reflection)
     early_return: bool = False
     result: Optional[RAGResult] = None
 
@@ -64,6 +65,7 @@ async def process_crag_grading(
     grade_ms = 0.0
     self_reflection_ms = 0.0
     thought_chain = None
+    citation_plan: Optional[List[str]] = None
     rewrite_count = 0
     grade_count = 0
     relevant_count = 0
@@ -221,6 +223,7 @@ async def process_crag_grading(
 
             self_reflection_ms = (time.perf_counter() - reflection_start) * 1000
             thought_chain = reflection.thought_process
+            citation_plan = reflection.citation_plan or []
 
             reasoning_steps.append(
                 f"Self-reflection generated in {self_reflection_ms:.1f}ms "
@@ -305,4 +308,5 @@ async def process_crag_grading(
         self_reflection_ms=self_reflection_ms,
         thought_chain=thought_chain,
         rewrite_count=rewrite_count,
+        citation_plan=citation_plan,
     )

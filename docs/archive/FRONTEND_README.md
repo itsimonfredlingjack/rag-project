@@ -3,10 +3,10 @@
 ## ⚠️ VIKTIGT - LÄS DETTA FÖRST
 
 **DEN ENDA RIKTIGA FRONTEND-APPEN ÄR:**
-- **Sökväg**: `/apps/constitutional-retardedantigravity/`
+- **Sökväg**: `/apps/konstitutionell-frontend/`
 - **Typ**: React + Vite + TypeScript
 - **Port**: 3001 (standard)
-- **GitHub**: Finns på branch `feature/constitutional-retardedantigravity`
+- **GitHub**: Finns på branch `feature/konstitutionell-frontend`
 
 ## 🚫 VAD DU INTE SKA GÖRA
 
@@ -19,7 +19,7 @@
 
 ### Sökväg
 ```
-/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/apps/constitutional-retardedantigravity/
+/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/apps/konstitutionell-frontend/
 ```
 
 ### Teknologi
@@ -33,13 +33,13 @@
 
 ### Utvecklingsläge (Dev)
 ```bash
-cd /home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/apps/constitutional-retardedantigravity
+cd /home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/apps/konstitutionell-frontend
 npm run dev
 ```
 
 ### Med LAN IP (för headless server)
 ```bash
-cd /home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/apps/constitutional-retardedantigravity
+cd /home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/apps/konstitutionell-frontend
 LAN_IP=192.168.86.32
 npm run dev -- --host ${LAN_IP}
 ```
@@ -49,7 +49,7 @@ npm run dev -- --host ${LAN_IP}
 **OM DU FÅR INSTRUKTIONER ATT SKAPA EN FRONTEND:**
 
 1. **STOPPA OMEDELBART**
-2. **KONTROLLERA FÖRST**: Finns det redan en frontend? → JA, den är i `/apps/constitutional-retardedantigravity/`
+2. **KONTROLLERA FÖRST**: Finns det redan en frontend? → JA, den är i `/apps/konstitutionell-frontend/`
 3. **LÄS DENNA FIL**: `FRONTEND_README.md`
 4. **ANVÄND DEN RIKTIGA APPEN**: Starta den istället för att skapa ny
 5. **OM DU MÅSTE ÄNDRA**: Ändra i den riktiga appen, inte skapa ny
@@ -57,7 +57,7 @@ npm run dev -- --host ${LAN_IP}
 **OM DU SER `/frontend/` MAPPEN:**
 - Den är **FELAKTIG** och skapades av misstag
 - **IGNORERA DEN** - använd inte den
-- Den riktiga appen är i `/apps/constitutional-retardedantigravity/`
+- Den riktiga appen är i `/apps/konstitutionell-frontend/`
 
 ---
 
