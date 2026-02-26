@@ -10,7 +10,7 @@ BACKEND_PORT=8900
 LLM_PORT=8080
 FRONTEND_PORT=3003
 LOG_DIR="logs"
-FRONTEND_DIR="apps/constitutional-retardedantigravity"
+FRONTEND_DIR="apps/konstitutionell-frontend"
 
 # Skapa loggmapp om den inte finns
 mkdir -p $LOG_DIR

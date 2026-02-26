@@ -8,6 +8,7 @@ retrieving constitutional examples (RetICL), and truncation detection.
 
 import json
 import re
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from ..utils.logging import get_logger
@@ -95,6 +96,44 @@ def _format_sfs_annotations(source: SearchResult) -> str:
     return " | ".join(annotations) if annotations else ""
 
 
+# ── Document Recency ────────────────────────────────────────────────
+
+# Documents older than this threshold get a recency warning
+_RECENCY_WARNING_YEARS = 3
+
+
+def _format_recency_warning(source_date: Optional[str]) -> str:
+    """
+    Check if a document date is old and return a recency warning string.
+
+    Supports date formats: YYYY-MM-DD, YYYY-MM, YYYY.
+    Returns empty string if date is recent, missing, or unparseable.
+    """
+    if not source_date:
+        return ""
+    try:
+        # Try common date formats
+        for fmt in ("%Y-%m-%d", "%Y-%m", "%Y"):
+            try:
+                doc_date = datetime.strptime(source_date.strip()[:10], fmt)
+                break
+            except ValueError:
+                continue
+        else:
+            return ""
+
+        age_days = (datetime.now() - doc_date).days
+        age_years = age_days / 365.25
+        if age_years >= _RECENCY_WARNING_YEARS:
+            return (
+                f" | ⚠️ OBS: Dokumentet är från {source_date[:4]} "
+                f"({age_years:.0f} år sedan). Lagtext kan ha ändrats."
+            )
+    except Exception:
+        pass
+    return ""
+
+
 def build_llm_context(sources: List[SearchResult], max_context_tokens: Optional[int] = None) -> str:
     """
     Build LLM context from retrieved sources.
@@ -131,8 +170,12 @@ def build_llm_context(sources: List[SearchResult], max_context_tokens: Optional[
             if sfs_annotations:
                 sfs_annotations = f"\n{sfs_annotations}"
 
+        # Document recency warning
+        recency_warning = _format_recency_warning(getattr(source, "date", None))
+
         part = (
             f"[Källa {i}: {source.title}] {priority_marker} | Relevans: {score:.2f}"
+            f"{recency_warning}"
             f"{sfs_annotations}\n"
             f"{source.snippet}"
         )
@@ -478,6 +521,7 @@ def build_system_prompt(
     structured_output_enabled: bool = True,
     user_query: Optional[str] = None,
     thought_chain: Optional[str] = None,
+    citation_plan: Optional[List[str]] = None,
 ) -> str:
     """
     Build system prompt based on response mode and structured output setting.
@@ -485,6 +529,8 @@ def build_system_prompt(
     Different prompts for CHAT/ASSIST/EVIDENCE modes.
     JSON schema instructions only included when structured_output_enabled=True.
     If thought_chain is provided, it is appended as internal reflection guidance.
+    If citation_plan is provided, it is appended as an explicit citation directive
+    (generated during self-reflection but injected separately for emphasis).
     """
     if mode == "evidence":
         prompt = "\n\n".join(
@@ -506,6 +552,13 @@ def build_system_prompt(
                 "\n\n=== INTERN REFLEKTION (Använd denna som vägledning) ===\n"
                 f"{thought_chain}\n"
                 "=== SLUT INTERN REFLEKTION ==="
+            )
+        if citation_plan:
+            plan_items = "\n".join(f"- {title}" for title in citation_plan)
+            prompt += (
+                "\n\n=== CITERINGSPLAN (Du MÅSTE citera dessa dokument om de finns bland källorna) ===\n"
+                f"{plan_items}\n"
+                "=== SLUT CITERINGSPLAN ==="
             )
         return prompt
 
@@ -529,6 +582,13 @@ def build_system_prompt(
                 "\n\n=== INTERN REFLEKTION (Använd denna som vägledning) ===\n"
                 f"{thought_chain}\n"
                 "=== SLUT INTERN REFLEKTION ==="
+            )
+        if citation_plan:
+            plan_items = "\n".join(f"- {title}" for title in citation_plan)
+            prompt += (
+                "\n\n=== CITERINGSPLAN (Prioritera att citera dessa dokument) ===\n"
+                f"{plan_items}\n"
+                "=== SLUT CITERINGSPLAN ==="
             )
         return prompt
 

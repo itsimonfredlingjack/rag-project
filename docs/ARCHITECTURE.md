@@ -531,7 +531,7 @@ Sprint 2 refactored the monolithic orchestrator_service.py (originally 2,517 lin
 ### Structure
 
 ```
-apps/constitutional-retardedantigravity/src/
+apps/konstitutionell-frontend/src/
 ├── App.tsx                    # Root component
 ├── components/
 │   ├── QueryBar.tsx          # User input
@@ -657,7 +657,7 @@ cd backend && pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8900
 
 # Frontend
-cd apps/constitutional-retardedantigravity
+cd apps/konstitutionell-frontend
 npm install && npm run dev
 ```
 

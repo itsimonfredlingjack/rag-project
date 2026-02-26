@@ -4,7 +4,7 @@ Instruktioner för Claude Code i detta repository.
 
 ## Projektöversikt
 
-Constitutional AI är ett RAG-system för svenska myndighetsdokument (1.37M+ dokument: 538K juridiska/myndighets + 829K DiVA-forskning). ChromaDB med Jina Embeddings v3 (1024 dim, asymmetrisk encoding) för semantisk sökning, llama-server (llama.cpp) för lokal LLM-inferens, FastAPI backend på port 8900, React+Vite+Three.js frontend på port 3001.
+Constitutional AI är ett RAG-system för svenska myndighetsdokument (1.37M+ dokument: 538K juridiska/myndighets + 829K DiVA-forskning). ChromaDB med Jina Embeddings v3 (1024 dim, asymmetrisk encoding) för semantisk sökning, llama-server (llama.cpp) för lokal LLM-inferens, FastAPI backend på port 8900, React+Vite+Three.js frontend på port 3003.
 
 Fristående git-repo i `AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/`.
 
@@ -35,14 +35,14 @@ ruff check --fix .
 ruff format .
 ```
 
-### Frontend (port 3001)
+### Frontend (port 3003)
 
-Enda frontend: `apps/constitutional-retardedantigravity/`. Skapa aldrig nya frontend-appar.
+Enda frontend: `apps/konstitutionell-frontend/`. Skapa aldrig nya frontend-appar.
 
 ```bash
-cd apps/constitutional-retardedantigravity
+cd apps/konstitutionell-frontend
 npm install
-npm run dev       # dev server :3001
+npm run dev       # dev server :3003
 npm run build     # tsc -b && vite build
 npm run lint      # eslint
 ```
@@ -111,7 +111,7 @@ Tre frågelägen:
 | `embedding_service.py` | Jina v3 embeddings (asymmetrisk) |
 | `reranking_service.py` | Jina cross-encoder reranking |
 | `grader_service.py` | 3-vägs dokumentrelevans (RELEVANT/AMBIGUOUS/IRRELEVANT) |
-| `graph_service.py` | LangGraph state machine för CRAG |
+| `graph_service.py` | LangGraph agentiskt flöde (retrieval→grading→generation) |
 | `guardrail_service.py` | Hallucinationsdetektion |
 | `intent_classifier.py` | Frågetypklassificering |
 | `intent_routing.py` | Intent→collection-mappning |
@@ -140,7 +140,7 @@ Tre frågelägen:
 
 Services är singletons via `get_*_service()` factory-funktioner.
 
-### Frontend (`apps/constitutional-retardedantigravity/`)
+### Frontend (`apps/konstitutionell-frontend/`)
 
 React 19 + Vite 7 + TypeScript 5.9 + Three.js (React Three Fiber/Drei) + Tailwind CSS 4 + Zustand 5.
 

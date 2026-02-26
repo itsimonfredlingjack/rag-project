@@ -70,7 +70,7 @@ if [ -f "$FILE" ]; then
 fi
 
 # --- Check vite.config.ts ---
-FILE="$REPO_ROOT/apps/constitutional-retardedantigravity/vite.config.ts"
+FILE="$REPO_ROOT/apps/konstitutionell-frontend/vite.config.ts"
 if [ -f "$FILE" ]; then
     VAL=$(grep -oP 'port:\s*\K[0-9]+' "$FILE" 2>/dev/null || true)
     if [ -n "$VAL" ] && [ "$VAL" != "$CANONICAL_FRONTEND" ]; then

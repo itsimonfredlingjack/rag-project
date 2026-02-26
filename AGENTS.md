@@ -6,7 +6,7 @@ pipelines for scraping, indexing, and evaluation.
 
 - `backend/`: API and RAG orchestration (`backend/app/` for runtime code,
   `backend/tests/` for backend-focused tests).
-- `apps/constitutional-retardedantigravity/`: React 19 + TypeScript frontend.
+- `apps/konstitutionell-frontend/`: React 19 + TypeScript frontend.
 - `scrapers/`: Source collection scripts (`myndigheter/`, `kommuner/`,
   `media/`).
 - `indexers/`: ChromaDB indexing and ingestion utilities.
@@ -17,8 +17,8 @@ pipelines for scraping, indexing, and evaluation.
 Use these commands from the repository root unless noted otherwise.
 
 - Backend dev server: `cd backend && uvicorn app.main:app --host 0.0.0.0 --port 8900`
-- Frontend dev server: `cd apps/constitutional-retardedantigravity && npm install && npm run dev`
-- Frontend production build: `cd apps/constitutional-retardedantigravity && npm run build`
+- Frontend dev server: `cd apps/konstitutionell-frontend && npm install && npm run dev`
+- Frontend production build: `cd apps/konstitutionell-frontend && npm run build`
 - Python lint/format: `ruff check .`, `ruff check --fix .`, `ruff format .`
 - Backend tests (fast path): `cd backend && pytest tests/ -v -m "not integration and not ollama and not slow"`
 - Full local stack: `docker compose up`

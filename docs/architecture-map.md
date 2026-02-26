@@ -23,7 +23,7 @@
 │   │   └── utils/                     # Logging, metrics
 │   └── venv/                          # Python virtualenv (with installed packages)
 ├── apps/
-│   └── constitutional-retardedantigravity/  # React+TypeScript frontend
+│   └── konstitutionell-frontend/  # React+TypeScript frontend
 │       ├── src/
 │       │   ├── App.tsx                # Root component
 │       │   ├── components/            # UI components (3695 TS/TSX files across project)
@@ -410,7 +410,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8900
 
 # Start frontend
-cd apps/constitutional-retardedantigravity
+cd apps/konstitutionell-frontend
 npm install
 npm run dev  # Vite dev server on :5173
 ```
@@ -506,7 +506,7 @@ App.tsx (root)
 | `backend/app/services/retrieval_orchestrator.py` | Multi-strategy retrieval | Retrieval team |
 | `backend/app/api/constitutional_routes.py` | Query & health endpoints | API team |
 | `backend/app/api/document_routes.py` | Document CRUD endpoints | Data team |
-| `apps/constitutional-retardedantigravity/src/App.tsx` | Frontend root | UI team |
+| `apps/konstitutionell-frontend/src/App.tsx` | Frontend root | UI team |
 | `backend/app/config.py` | Environment settings | DevOps |
 | `docs/` | Architecture & decision logs | Team |
 

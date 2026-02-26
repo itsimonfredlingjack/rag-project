@@ -291,7 +291,7 @@ class TestOutputLeakageSanitized:
             "Tillgänglig på localhost:8080",
             "Modellen heter model.gguf",
             "Vi kör ministral-3 som LLM",
-            "Embeddings via bge-m3",
+            "Embeddings via ministral-3",
         ],
     )
     def test_leakage_sanitized(self, guardrail, leak):

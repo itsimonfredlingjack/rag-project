@@ -6,9 +6,9 @@ Minimize 'use client', favor Server Components.
 ## ⚠️ KRITISK FRONTEND-VARNING
 
 **DEN ENDA RIKTIGA FRONTEND-APPEN ÄR:**
-- Sökväg: `/apps/constitutional-retardedantigravity/`
+- Sökväg: `/apps/konstitutionell-frontend/`
 - Typ: React + Vite + TypeScript
-- Port: 3001
+- Port: 3003
 
 **ALDRIG:**
 - Skapa nya frontend-appar (det finns redan en färdig designad)
@@ -19,6 +19,6 @@ Minimize 'use client', favor Server Components.
 **OM DU FÅR INSTRUKTIONER ATT SKAPA FRONTEND:**
 1. STOPPA OMEDELBART
 2. Läs `FRONTEND_README.md` först
-3. Använd den riktiga appen i `/apps/constitutional-retardedantigravity/`
+3. Använd den riktiga appen i `/apps/konstitutionell-frontend/`
 
 **Läs alltid `FRONTEND_README.md` innan du gör något med frontend!**

@@ -281,7 +281,7 @@ async def stream_query(
             {
                 "id": s.id,
                 "title": s.title,
-                "score": s.score,
+                "score": float(s.score),  # Ensure Python float (reranker may return numpy float32)
                 "doc_type": s.doc_type,
                 "source": s.source,
             }
