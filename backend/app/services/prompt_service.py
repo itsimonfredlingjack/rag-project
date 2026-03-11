@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 
 # ── Source Context Formatting ───────────────────────────────────────
 
-# Swedish/Mistral tokenization: ~3 chars per token (more conservative than English ~4)
+# Swedish tokenization: ~3 chars per token (more conservative than English ~4)
 # Compound words like "yttrandefrihetsgrundlagen" tokenize into many subwords
 CHARS_PER_TOKEN_ESTIMATE = 3
 
@@ -30,7 +30,7 @@ _DEFAULT_MAX_CONTEXT_TOKENS = 4_000
 
 
 def estimate_tokens(text: str) -> int:
-    """Estimate token count for Swedish/legal text with Mistral tokenizer."""
+    """Estimate token count for Swedish/legal text."""
     return len(text) // CHARS_PER_TOKEN_ESTIMATE
 
 

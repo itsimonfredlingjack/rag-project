@@ -290,8 +290,8 @@ class TestOutputLeakageSanitized:
             "Intern IP: 192.168.1.100",
             "Tillgänglig på localhost:8080",
             "Modellen heter model.gguf",
-            "Vi kör ministral-3 som LLM",
-            "Embeddings via ministral-3",
+            "Vi kör qwen3.5 som LLM",
+            "Embeddings via qwen-3.5",
         ],
     )
     def test_leakage_sanitized(self, guardrail, leak):

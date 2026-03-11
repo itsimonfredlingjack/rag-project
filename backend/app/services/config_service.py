@@ -54,17 +54,17 @@ class ConfigSettings(BaseSettings):
     embedding_collection_suffix: str = "_jina_v3_1024"
 
     # LLM Configuration (Constitutional AI)
-    constitutional_model: str = "Ministral-3-14B-Instruct-2512-Q4_K_M.gguf"
+    constitutional_model: str = "qwen3.5:9b"
     # Intentionally same as primary — no separate fallback model downloaded
-    constitutional_fallback: str = "Ministral-3-14B-Instruct-2512-Q4_K_M.gguf"
+    constitutional_fallback: str = "qwen3.5:9b"
     llm_timeout: float = 60.0
 
-    # LLM Base URL (OpenAI-compatible llama-server)
-    llm_base_url: str = "http://localhost:8080/v1"
-    llama_server_base_url: str = "http://localhost:8080/v1"
-    llama_server_enabled: bool = True
+    # LLM Base URL (Ollama, OpenAI-compatible)
+    llm_base_url: str = "http://localhost:11434"
+    llama_server_base_url: str = "http://localhost:11434"
+    llama_server_enabled: bool = False
     llama_server_timeout: float = 120.0
-    gguf_primary_model: str = "Ministral-3-14B-Instruct-2512-Q4_K_M.gguf"
+    gguf_primary_model: str = "qwen3.5:9b"
     gguf_context_window: int = 8192
 
     # Response Modes
@@ -84,12 +84,12 @@ class ConfigSettings(BaseSettings):
     mode_chat_num_predict: int = 512
 
     # Search Configuration
-    default_search_limit: int = 10
+    default_search_limit: int = 15
     max_search_limit: int = 100
     search_timeout: float = 5.0
 
     # RAG Similarity Threshold (replaces RAG_SIMILARITY_THRESHOLD env var)
-    score_threshold: float = 0.35
+    score_threshold: float = 0.25
 
     # Per-collection retrieval timeouts (seconds)
     retrieval_timeout_default: float = 5.0
@@ -106,7 +106,7 @@ class ConfigSettings(BaseSettings):
     reranking_enabled: bool = True
     reranking_top_k: int = 10
     reranking_score_threshold: float = 0.1  # Filter docs below this reranker score
-    reranking_top_n: int = 5  # Max docs to pass to LLM after reranking
+    reranking_top_n: int = 8  # Max docs to pass to LLM after reranking
     reranking_min_results: int = 3  # Minimum results to keep after reranking
 
     # Jail Warden v2
@@ -196,9 +196,7 @@ class ConfigSettings(BaseSettings):
     crag_enabled: bool = True  # Enabled - filters irrelevant docs before LLM generation
     crag_grade_threshold: float = 0.15  # Relevance threshold (lowered for better edge-case recall)
     crag_max_rewrite_attempts: int = 2  # Max query rewrite attempts if no relevant docs
-    crag_grader_model: str = (
-        "Ministral-3-14B-Instruct-2512-Q4_K_M.gguf"  # Same as primary — single model setup
-    )
+    crag_grader_model: str = "qwen3.5:9b"  # Same as primary — single model setup
     crag_enable_self_reflection: bool = False  # Chain of Thought before answering
     crag_max_concurrent_grading: int = 5  # Max parallel document grading
     crag_grade_timeout: float = 10.0  # Timeout per document grading in seconds

@@ -87,9 +87,7 @@ class CriticService(BaseService):
 
         # Configuration for self-reflection
         self.reflection_enabled = getattr(config.settings, "crag_enable_self_reflection", False)
-        self.reflection_model = getattr(
-            config.settings, "crag_grader_model", "Ministral-3-14B-Instruct-2512-Q4_K_M.gguf"
-        )
+        self.reflection_model = getattr(config.settings, "crag_grader_model", "qwen3.5:9b")
         self.reflection_timeout = getattr(config.settings, "crag_reflection_timeout", 15.0)
 
         # Semantic critic configuration (LLM-based)
@@ -259,42 +257,88 @@ EXEMPEL PÅ SVAR:
   "confidence": 0.9
 }}"""
 
+    @staticmethod
+    def _parse_bool(value: object) -> bool:
+        """Safely parse a boolean that might be a string like 'false'."""
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.lower() in ("true", "yes", "ja", "1")
+        if isinstance(value, (int, float)):
+            return bool(value)
+        return False
+
+    def _regex_extract_reflection(self, text: str) -> Optional[dict]:
+        """Extract reflection fields via regex when JSON parsing fails."""
+        import re
+
+        result: dict = {}
+
+        match = re.search(r'"has_sufficient_evidence"\s*:\s*(true|false)', text, re.IGNORECASE)
+        if match:
+            result["has_sufficient_evidence"] = match.group(1).lower() == "true"
+
+        match = re.search(r'"constitutional_compliance"\s*:\s*(true|false)', text, re.IGNORECASE)
+        if match:
+            result["constitutional_compliance"] = match.group(1).lower() == "true"
+
+        match = re.search(r'"confidence"\s*:\s*([\d.]+)', text)
+        if match:
+            result["confidence"] = float(match.group(1))
+
+        match = re.search(r'"thought_process"\s*:\s*"([^"]*)"', text)
+        if match:
+            result["thought_process"] = match.group(1)
+
+        return result if result else None
+
     def _parse_reflection_response(
         self, response: str, sources: List[SearchResult]
     ) -> CriticReflection:
         """
         Parse self-reflection response and create CriticReflection.
 
-        Args:
-            response: Raw LLM response
-            sources: Available sources for context
-
-        Returns:
-            CriticReflection with parsed data
+        Uses three-tier parsing: JSON → regex fallback → plaintext detection.
         """
         try:
-            # Clean response - extract JSON
             response = response.strip()
+            parsed = None
 
-            # Find JSON in response
+            # Attempt 1: Standard JSON extraction
             start_idx = response.find("{")
             end_idx = response.rfind("}") + 1
+            if start_idx != -1 and end_idx > start_idx:
+                json_str = response[start_idx:end_idx]
+                try:
+                    parsed = json.loads(json_str)
+                except json.JSONDecodeError:
+                    self.logger.debug(f"JSON parse failed, raw: {json_str[:200]!r}")
 
-            if start_idx == -1 or end_idx == 0:
-                raise ValueError("No JSON found in response")
+            # Attempt 2: Regex fallback for key fields
+            if parsed is None:
+                self.logger.debug(f"No valid JSON, trying regex. Raw: {response[:300]!r}")
+                parsed = self._regex_extract_reflection(response)
 
-            json_str = response[start_idx:end_idx]
-            parsed = json.loads(json_str)
+            # Attempt 3: Plaintext yes/no detection
+            if parsed is None:
+                response_lower = response.lower().strip()
+                if response_lower in ("no", "nej", "false", "ingen"):
+                    parsed = {"has_sufficient_evidence": False, "confidence": 0.3}
+                elif response_lower in ("yes", "ja", "true"):
+                    parsed = {"has_sufficient_evidence": True, "confidence": 0.5}
 
-            # Extract fields with defaults
+            if parsed is None:
+                raise ValueError(f"Could not parse reflection from: {response[:100]}")
+
+            # Extract fields with safe boolean parsing
             thought_process = str(parsed.get("thought_process", "Ingen tankekedja genererad"))
-            has_sufficient_evidence = bool(parsed.get("has_sufficient_evidence", False))
+            has_sufficient_evidence = self._parse_bool(parsed.get("has_sufficient_evidence", False))
             missing_evidence = parsed.get("missing_evidence", [])
             citation_plan = parsed.get("citation_plan", [])
-            constitutional_compliance = bool(parsed.get("constitutional_compliance", True))
+            constitutional_compliance = self._parse_bool(
+                parsed.get("constitutional_compliance", True)
+            )
             confidence = float(parsed.get("confidence", 0.5))
-
-            # Ensure confidence is in valid range
             confidence = max(0.0, min(1.0, confidence))
 
             # Validate against actual sources
@@ -315,10 +359,11 @@ EXEMPEL PÅ SVAR:
 
         except (json.JSONDecodeError, ValueError, KeyError) as e:
             self.logger.warning(f"Failed to parse reflection response: {e}")
+            self.logger.debug(f"Raw reflection response: {response[:500]!r}")
 
             # Return conservative fallback
             return CriticReflection(
-                thought_process=f"Kunde inte tolka reflektion: {str(e)[:50]}",
+                thought_process=f"Kunde inte tolka reflektion: {str(e)[:100]}",
                 has_sufficient_evidence=len(sources) > 0,
                 missing_evidence=["Reflektion misslyckades"],
                 citation_plan=[],
