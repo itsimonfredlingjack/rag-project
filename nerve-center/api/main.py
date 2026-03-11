@@ -410,7 +410,7 @@ async def get_system_metrics() -> SystemMetrics:
 # ============================================================================
 
 # Required models for Constitutional AI
-REQUIRED_MODELS = ["ministral-3:14b", "nomic-embed-text:latest"]
+REQUIRED_MODELS = ["qwen3.5:9b", "nomic-embed-text:latest"]
 VOICE_MODELS = ["fcole90/ai-sweden-gpt-sw3:6.7b", "gpt-sw3:6.7b"]  # Optional
 
 
@@ -741,7 +741,7 @@ async def get_agent_loop_status() -> AgentLoopStatus:
         )
 
     # If no models loaded, assist is degraded
-    brain_model_ok = any(m.loaded for m in models if "ministral" in m.name.lower())
+    brain_model_ok = any(m.loaded for m in models if "qwen" in m.name.lower())
     if not brain_model_ok:
         assist = ComponentHealth(
             name="assist", status="error", message="BRAIN model not available", last_check=now

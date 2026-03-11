@@ -295,6 +295,7 @@ class GuardrailService(BaseService):
         (r"\bchromadb\b", "technology"),
         (r"\bollama\b", "technology"),
         (r"\bministral[- ]?3\b", "technology"),
+        (r"\bqwen[- ]?3\.?5?\b", "technology"),
         (r"\buvicorn\b", "technology"),
         (r"\bfastapi\b", "technology"),
         # Model filenames
@@ -877,6 +878,7 @@ class GuardrailService(BaseService):
         # Step 2: Apply term corrections
         corrections_result = self.apply_corrections(text)
         corrected_text = corrections_result.corrected_text
+        citation_issues: list = []
 
         # Step 3: Validate citations (for evidence mode)
         if mode.lower() == "evidence":
@@ -895,6 +897,23 @@ class GuardrailService(BaseService):
                     )
 
                 self.logger.warning(f"Citation validation issues: {citation_issues}")
+
+            # Step 3b: Check that EVIDENCE answer actually contains citations
+            has_any_citation = any(
+                pattern.search(corrected_text) for pattern in self._citation_patterns
+            )
+            if not has_any_citation and len(corrected_text.strip()) > 100:
+                corrections_result.corrections.append(
+                    Correction(
+                        original_term="[no_citations]",
+                        corrected_term="[evidence_without_citations]",
+                        correction_type="missing_citations_in_evidence",
+                        confidence=0.95,
+                    )
+                )
+                self.logger.warning(
+                    "EVIDENCE mode answer has no citations — possible hallucination"
+                )
 
         # Step 4: Check for security violations in response (for chat mode)
         has_violations = False  # Initialize for chat mode check

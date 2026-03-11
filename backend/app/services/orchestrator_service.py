@@ -95,7 +95,7 @@ class OrchestratorService(BaseService):
     1. Query classification (CHAT/ASSIST/EVIDENCE)
     2. Query decontextualization (from conversation history)
     3. Document retrieval (Phase 1-4 RetrievalOrchestrator)
-    4. LLM generation (Ministral 3 14B)
+    4. LLM generation (Qwen 3.5 9B)
     5. Guardrail validation (Jail Warden v2)
     6. Optional reranking (Jina cross-encoder)
 
@@ -475,6 +475,72 @@ class OrchestratorService(BaseService):
                     f"latency={reranking_ms:.1f}ms)"
                 )
                 sources = filtered_sources
+
+            # EVIDENCE mode guard: refuse if no sources survived pipeline
+            if resolved_mode == ResponseMode.EVIDENCE and not sources:
+                refusal_text = getattr(
+                    self.config.settings,
+                    "evidence_refusal_template",
+                    "Tyvärr kan jag inte besvara frågan utifrån de dokument som har "
+                    "hämtats. Underlag saknas för att ge ett källbaserat svar.",
+                )
+                total_ms = (time.perf_counter() - start_time) * 1000
+                reasoning_steps.append("EVIDENCE refusal: no sources after reranking")
+                return RAGResult(
+                    answer=refusal_text,
+                    sources=[],
+                    reasoning_steps=reasoning_steps,
+                    metrics=RAGPipelineMetrics(
+                        query_classification_ms=query_classification_ms,
+                        decontextualization_ms=decontextualization_ms,
+                        retrieval_ms=retrieval_ms,
+                        reranking_ms=reranking_ms,
+                        total_pipeline_ms=total_ms,
+                        mode=resolved_mode.value,
+                        saknas_underlag=True,
+                    ),
+                    mode=resolved_mode,
+                    guardrail_status=WardenStatus.UNCHANGED,
+                    evidence_level="NONE",
+                    success=True,
+                    thought_chain=thought_chain,
+                )
+
+            # EVIDENCE mode: refuse if ALL sources have very low quality
+            if (
+                resolved_mode == ResponseMode.EVIDENCE
+                and sources
+                and all(s.score < 0.15 for s in sources)
+            ):
+                refusal_text = getattr(
+                    self.config.settings,
+                    "evidence_refusal_template",
+                    "Tyvärr kan jag inte besvara frågan utifrån de dokument som har "
+                    "hämtats. Underlag saknas för att ge ett källbaserat svar.",
+                )
+                total_ms = (time.perf_counter() - start_time) * 1000
+                reasoning_steps.append(
+                    f"EVIDENCE refusal: all {len(sources)} sources below 0.15 quality threshold"
+                )
+                return RAGResult(
+                    answer=refusal_text,
+                    sources=[],
+                    reasoning_steps=reasoning_steps,
+                    metrics=RAGPipelineMetrics(
+                        query_classification_ms=query_classification_ms,
+                        decontextualization_ms=decontextualization_ms,
+                        retrieval_ms=retrieval_ms,
+                        reranking_ms=reranking_ms,
+                        total_pipeline_ms=total_ms,
+                        mode=resolved_mode.value,
+                        saknas_underlag=True,
+                    ),
+                    mode=resolved_mode,
+                    guardrail_status=WardenStatus.UNCHANGED,
+                    evidence_level="NONE",
+                    success=True,
+                    thought_chain=thought_chain,
+                )
 
             # STEP 4: Build LLM context from sources
             # sources is already correct here:

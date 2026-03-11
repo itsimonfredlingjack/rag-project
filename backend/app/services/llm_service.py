@@ -525,7 +525,16 @@ class LLMService(BaseService):
                 "messages": messages,
                 "stream": True,
                 "options": model_options,
+                # Disable Qwen 3.5 thinking mode for deterministic RAG output.
+                # Thinking wastes tokens on internal CoT, producing empty content
+                # for low num_predict budgets (grading, critic).
+                "think": config_override.get("think", False) if config_override else False,
             }
+
+            # Enforce JSON output when GBNF grammar is requested (Ollama uses
+            # format:"json" instead of GBNF grammar constraints)
+            if config_override and config_override.get("grammar"):
+                payload["format"] = "json"
 
         stats = StreamStats(start_time=0.0, model_used=model_to_use)
 

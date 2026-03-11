@@ -1,6 +1,6 @@
 """
 Grader Service - Document Relevance Assessment for CRAG
-Uses primary LLM (Ministral-3-14B) to grade retrieved documents
+Uses primary LLM (Qwen 3.5 9B) to grade retrieved documents
 
 CRAG Component: Grade Node
 Purpose: Filter out irrelevant documents before generation to prevent
@@ -118,7 +118,7 @@ class GraderService(BaseService):
     Grader Service - Document Relevance Assessment for CRAG.
 
     Features:
-    - Uses primary LLM (Ministral-3-14B) for relevance assessment
+    - Uses primary LLM (Qwen 3.5 9B) for relevance assessment
     - Parallel grading of multiple documents
     - Configurable relevance threshold
     - Timeout protection and error handling
@@ -149,9 +149,7 @@ class GraderService(BaseService):
 
         # Configuration
         self.grade_threshold = getattr(config.settings, "crag_grade_threshold", 0.3)
-        self.grader_model = getattr(
-            config.settings, "crag_grader_model", "Ministral-3-14B-Instruct-2512-Q4_K_M.gguf"
-        )
+        self.grader_model = getattr(config.settings, "crag_grader_model", "qwen3.5:9b")
         self.max_concurrent = getattr(config.settings, "crag_max_concurrent_grading", 5)
         self.grade_timeout = getattr(config.settings, "crag_grade_timeout", 10.0)
 
