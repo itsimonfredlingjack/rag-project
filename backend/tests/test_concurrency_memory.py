@@ -551,12 +551,12 @@ class TestHttpxClientLifecycle:
         from app.services.llm_service import LLMService
 
         config = MagicMock()
-        config.llm_base_url = "http://localhost:8080/v1"
+        config.llm_base_url = "http://localhost:11434"
         config.ollama_base_url = "http://localhost:11434"
         config.ollama_timeout_seconds = 10
         config.constitutional_model = "test-model"
         config.settings = MagicMock()
-        config.settings.llm_base_url = "http://localhost:8080/v1"
+        config.settings.llm_base_url = "http://localhost:11434"
 
         svc = LLMService.__new__(LLMService)
         svc.config = config

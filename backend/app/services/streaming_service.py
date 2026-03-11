@@ -40,7 +40,7 @@ async def stream_query(
     build_system_prompt_fn,
     question: str,
     mode: Optional[str] = "auto",
-    k: int = 10,
+    k: int = 15,
     retrieval_strategy: RetrievalStrategy = RetrievalStrategy.ADAPTIVE,
     history: Optional[List[dict]] = None,
     stream_session_id: Optional[str] = None,
@@ -281,6 +281,7 @@ async def stream_query(
             {
                 "id": s.id,
                 "title": s.title,
+                "snippet": (s.snippet[:500] if s.snippet else ""),
                 "score": float(s.score),  # Ensure Python float (reranker may return numpy float32)
                 "doc_type": s.doc_type,
                 "source": s.source,

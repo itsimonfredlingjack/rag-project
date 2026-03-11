@@ -110,7 +110,7 @@ def mock_config_settings():
     settings.default_collections = ["test_collection"]
     settings.embedding_model = "jinaai/jina-embeddings-v3"
     settings.expected_embedding_dim = 1024
-    settings.llm_base_url = "http://localhost:8080/v1"
+    settings.llm_base_url = "http://localhost:11434"
     settings.llm_timeout = 5.0
     settings.constitutional_model = "test-model"
     settings.cors_origins = ["http://localhost:3000"]

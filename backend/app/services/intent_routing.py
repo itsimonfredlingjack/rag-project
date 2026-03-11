@@ -75,9 +75,9 @@ INTENT_ROUTING = {
             "riksdag_documents_p1_jina_v3_1024",
             "swedish_gov_docs_jina_v3_1024",
         ],
-        support=[],
-        secondary=["diva_research_jina_v3_1024"],
-        secondary_budget=2,
+        support=["diva_research_jina_v3_1024"],
+        secondary=[],
+        secondary_budget=0,
     ),
     # EDGE cases - same routing as LEGAL_TEXT
     QueryIntent.EDGE_ABBREVIATION: IntentRoutingConfig(

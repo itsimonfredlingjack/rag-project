@@ -227,6 +227,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       error: null,
       timestamp: now,
       lastStageChangeTimestamp: now,
+      searchTimeMs: null,
+      totalTimeMs: null,
     };
 
     set((state) => ({
@@ -371,6 +373,10 @@ export const useAppStore = create<AppState>((set, get) => ({
                     get().updateQueryResult(queryResultId, {
                       evidenceLevel: data.evidence_level,
                     });
+                  if (data.search_time_ms != null)
+                    get().updateQueryResult(queryResultId, {
+                      searchTimeMs: data.search_time_ms,
+                    });
                   updateStageWithDelay(() => {
                     const active = get().queries.find(
                       (q) => q.id === queryResultId,
@@ -491,6 +497,26 @@ export const useAppStore = create<AppState>((set, get) => ({
 
                 case "corrections": {
                   clearGradingWatchdog();
+                  // Flush pending token buffer BEFORE applying correction
+                  // to prevent race condition where RAF flush appends stale
+                  // tokens after corrected_text replaces the answer
+                  if (tokenBuffer.length > 0) {
+                    const remaining = tokenBuffer.join("");
+                    tokenBuffer = [];
+                    const cur = get().queries.find(
+                      (q) => q.id === queryResultId,
+                    );
+                    if (cur)
+                      get().updateQueryResult(queryResultId, {
+                        answer: cur.answer + remaining,
+                      });
+                  }
+                  if (rafId !== null) {
+                    cancelAnimationFrame(rafId);
+                    rafId = null;
+                  }
+                  flushCallback = null;
+
                   const active = get().queries.find(
                     (q) => q.id === queryResultId,
                   );
@@ -507,10 +533,10 @@ export const useAppStore = create<AppState>((set, get) => ({
                       ].slice(-MAX),
                     });
                   if (data.corrected_text) {
-                    const cur = get().queries.find(
+                    const corrCur = get().queries.find(
                       (q) => q.id === queryResultId,
                     );
-                    if (cur)
+                    if (corrCur)
                       get().updateQueryResult(queryResultId, {
                         answer: data.corrected_text,
                       });
@@ -544,6 +570,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                       get().updateQueryResult(queryResultId, {
                         searchStage: "complete",
                         pipelineStage: "idle",
+                        totalTimeMs: data.total_time_ms ?? null,
                         pipelineLog: [
                           ...active.pipelineLog,
                           {
