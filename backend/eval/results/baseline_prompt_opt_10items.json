@@ -1,0 +1,103 @@
+{
+  "summary": {
+    "dataset_version": "v1",
+    "total_items": 60,
+    "evaluated_items": 10,
+    "failed_items": 0,
+    "total_latency_ms": 1503624.1
+  },
+  "aggregate_metrics": {
+    "answer_relevancy": 0.3883,
+    "faithfulness": 0.2308,
+    "context_precision": 0.2875,
+    "context_recall": 0.3117,
+    "citation_accuracy": 1.0,
+    "fragment_coverage": 0.35,
+    "composite_score": 0.3087
+  },
+  "violations": {
+    "forbidden_fragments": 0,
+    "modal_verb_failures": 0,
+    "scope_failures": 0
+  },
+  "breakdowns": {
+    "by_mode": {
+      "assist": {
+        "count": 4,
+        "avg_composite": 0.5068,
+        "avg_faithfulness": 0.3396,
+        "avg_relevancy": 0.7083,
+        "avg_fragment_coverage": 0.4583
+      },
+      "evidence": {
+        "count": 6,
+        "avg_composite": 0.1767,
+        "avg_faithfulness": 0.1583,
+        "avg_relevancy": 0.175,
+        "avg_fragment_coverage": 0.2778
+      }
+    },
+    "by_intent": {
+      "legal_text": {
+        "count": 7,
+        "avg_composite": 0.2525,
+        "avg_faithfulness": 0.1988,
+        "avg_relevancy": 0.2929,
+        "avg_fragment_coverage": 0.3333
+      },
+      "parliament_trace": {
+        "count": 1,
+        "avg_composite": 0.4675,
+        "avg_faithfulness": 0.25,
+        "avg_relevancy": 1.0,
+        "avg_fragment_coverage": 0.0
+      },
+      "policy_arguments": {
+        "count": 1,
+        "avg_composite": 0.3742,
+        "avg_faithfulness": 0.303,
+        "avg_relevancy": 0.3333,
+        "avg_fragment_coverage": 0.6667
+      },
+      "research": {
+        "count": 1,
+        "avg_composite": 0.4778,
+        "avg_faithfulness": 0.3634,
+        "avg_relevancy": 0.5,
+        "avg_fragment_coverage": 0.5
+      }
+    },
+    "by_difficulty": {
+      "easy": {
+        "count": 3,
+        "avg_composite": 0.3033,
+        "avg_faithfulness": 0.3167,
+        "avg_relevancy": 0.2833,
+        "avg_fragment_coverage": 0.3333
+      },
+      "hard": {
+        "count": 3,
+        "avg_composite": 0.3173,
+        "avg_faithfulness": 0.2222,
+        "avg_relevancy": 0.3444,
+        "avg_fragment_coverage": 0.5
+      },
+      "medium": {
+        "count": 4,
+        "avg_composite": 0.3063,
+        "avg_faithfulness": 0.173,
+        "avg_relevancy": 0.5,
+        "avg_fragment_coverage": 0.25
+      }
+    }
+  },
+  "metadata": {
+    "timestamp": "2026-03-11T10:38:57.983369",
+    "api_base": "http://localhost:8900/api/constitutional",
+    "filters": {
+      "mode": null,
+      "difficulty": null,
+      "limit": 10
+    }
+  }
+}
