@@ -27,9 +27,11 @@ def _source(
     snippet="Test content.",
     score=0.85,
     doc_type="proposition",
+    id="test_doc_001",
 ):
     """Create a mock SearchResult."""
     s = MagicMock()
+    s.id = id
     s.title = title
     s.snippet = snippet
     s.score = score
@@ -87,28 +89,29 @@ class TestBuildLLMContext:
 
 @pytest.mark.unit
 class TestBuildSystemPrompt:
-    def test_evidence_contains_identity_block(self):
+    def test_evidence_contains_identity(self):
         prompt = build_system_prompt("evidence", [], "context")
-        assert "SYSTEMIDENTITET" in prompt
+        assert "Konstitutionell AI" in prompt
+        assert "ALDRIG ändras" in prompt
 
     def test_evidence_contains_grounding_evidence(self):
         prompt = build_system_prompt("evidence", [], "context")
         assert "CITERA ORDAGRANT" in prompt
 
-    def test_evidence_contains_procedural_evidence(self):
+    def test_evidence_contains_procedural_rules(self):
         prompt = build_system_prompt("evidence", [], "context")
-        assert "PROCEDURKONTROLL" in prompt
+        assert "Proceduella" in prompt
 
     def test_evidence_structured_output_json(self):
         prompt = build_system_prompt("evidence", [], "context", structured_output_enabled=True)
-        assert "strikt JSON" in prompt
+        assert "giltig JSON" in prompt
         assert '"svar"' in prompt
 
     def test_evidence_text_instruction_when_no_structured(self):
         prompt = build_system_prompt("evidence", [], "context", structured_output_enabled=False)
         assert "Spekulera aldrig" in prompt
         # Should NOT contain the JSON schema instruction block
-        assert "strikt JSON" not in prompt
+        assert "giltig JSON" not in prompt
 
     def test_evidence_has_examples_placeholder(self):
         prompt = build_system_prompt("evidence", [], "context")
@@ -123,9 +126,9 @@ class TestBuildSystemPrompt:
         # ASSIST uses _GROUNDING_ASSIST which has "CITERA DIREKT"
         assert "CITERA DIREKT" in prompt
 
-    def test_assist_contains_procedural_assist(self):
+    def test_assist_contains_procedural_rules(self):
         prompt = build_system_prompt("assist", [], "context")
-        assert "PROCEDURKONTROLL" in prompt or "PROCESS" in prompt
+        assert "Proceduella" in prompt or "myndigheter.se" in prompt
 
     def test_assist_has_examples_placeholder(self):
         prompt = build_system_prompt("assist", [], "context")
