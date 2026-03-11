@@ -1,10 +1,14 @@
 """
 Reranking Service - Jina Reranker v2 Cross-Encoder Wrapper
-Wrapper for Jina reranker-v2-base-multilingual cross-encoder model
+Wrapper for Jina reranker-v2-base-multilingual cross-encoder model.
+
+GPU-accelerated (fp16) when CUDA available — fits alongside Ollama LLM in VRAM.
+Reranker ~0.3GB fp16 + Qwen 3.5 9B ~6.6GB = ~6.9GB / 12GB RTX 4070.
 """
 
 import asyncio
 import gc
+import os
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import List, Optional, Tuple
@@ -19,6 +23,16 @@ from .config_service import ConfigService, get_config_service
 logger = get_logger(__name__)
 
 
+def _resolve_device(requested: str) -> str:
+    """Resolve device string, falling back to CPU if CUDA unavailable."""
+    if requested == "auto":
+        return "cuda" if torch.cuda.is_available() else "cpu"
+    if requested.startswith("cuda") and not torch.cuda.is_available():
+        logger.warning("CUDA requested but unavailable — falling back to CPU")
+        return "cpu"
+    return requested
+
+
 @dataclass
 class RerankingConfig:
     """
@@ -27,8 +41,8 @@ class RerankingConfig:
 
     model: str = "jinaai/jina-reranker-v2-base-multilingual"
     max_length: int = 1024  # Jina supports 1024 tokens (upgraded from 512)
-    batch_size: int = 16
-    device: str = "cpu"  # GPU exclusively reserved for LLM
+    batch_size: int = 8  # Smaller batches for GPU memory efficiency
+    device: str = "auto"  # auto = CUDA if available, else CPU
 
 
 @dataclass
@@ -57,14 +71,13 @@ class RerankingService(BaseService):
 
     Features:
     - Cross-encoder reranking (query, doc) pairs
-    - Batch processing for efficiency
-    - CPU-only (GPU reserved for LLM)
+    - GPU-accelerated with fp16 (falls back to CPU)
     - Scores are pre-normalized (0-1 range, no sigmoid needed)
 
     Model Info:
     - jinaai/jina-reranker-v2-base-multilingual (XLM-RoBERTa, 278M params)
-    - ~0.6GB RAM when loaded on CPU
-    - Latency: ~10-30ms per batch
+    - GPU fp16: ~0.3GB VRAM, ~1-3s for 14 docs
+    - CPU fp32: ~0.6GB RAM, ~90-100s for 14 docs
     - Max length: 1024 tokens
     - License: CC-BY-NC-4.0
     """
@@ -74,23 +87,18 @@ class RerankingService(BaseService):
     _model_config: Optional[RerankingConfig] = None
 
     def __init__(self, config: ConfigService):
-        """
-        Initialize Reranking Service.
-
-        Args:
-            config: ConfigService for configuration access
-        """
         super().__init__(config)
         self._model = None
         self._is_loaded = False
+        self._device = "cpu"
         self.logger.info(f"Reranking Service initialized (model: {config.reranking_model})")
 
     def _load_model(self) -> None:
         """
         Load Jina reranker model (lazy loading).
 
-        Only called on first reranking operation.
-        Always loads on CPU to keep GPU free for LLM.
+        Loads on GPU (fp16) if available, otherwise CPU (fp32).
+        Env var CONST_RERANKING_DEVICE overrides: "cpu", "cuda", "auto" (default).
         """
         if self._is_loaded:
             return
@@ -98,20 +106,55 @@ class RerankingService(BaseService):
         try:
             from sentence_transformers import CrossEncoder
 
-            self.logger.info(f"Loading Jina reranker model: {self.config.reranking_model}")
+            # Resolve device: env var > config > auto-detect
+            requested = os.environ.get(
+                "CONST_RERANKING_DEVICE",
+                self._model_config.device if self._model_config else "auto",
+            )
+            self._device = _resolve_device(requested)
+            use_fp16 = self._device.startswith("cuda")
+
+            self.logger.info(
+                f"Loading Jina reranker: {self.config.reranking_model} "
+                f"on {self._device} ({'fp16' if use_fp16 else 'fp32'})"
+            )
 
             self._model = CrossEncoder(
                 self.config.reranking_model,
                 max_length=1024,
-                device="cpu",
+                device=self._device,
                 trust_remote_code=True,
-                automodel_args={"torch_dtype": "auto"},
+                model_kwargs={"dtype": torch.float16 if use_fp16 else "auto"},
             )
             self._is_loaded = True
-            self.logger.info("Jina reranker model loaded on CPU (~0.6GB RAM)")
+
+            mem_info = ""
+            if use_fp16 and torch.cuda.is_available():
+                allocated = torch.cuda.memory_allocated() / 1024**2
+                mem_info = f", VRAM: {allocated:.0f}MB"
+            self.logger.info(f"Reranker loaded on {self._device}{mem_info}")
 
         except Exception as e:
-            self.logger.error(f"Failed to load reranker: {e}")
+            self.logger.error(f"Failed to load reranker on {self._device}: {e}")
+            # If GPU failed, retry on CPU
+            if self._device != "cpu":
+                self.logger.warning("Retrying reranker load on CPU...")
+                self._device = "cpu"
+                try:
+                    from sentence_transformers import CrossEncoder
+
+                    self._model = CrossEncoder(
+                        self.config.reranking_model,
+                        max_length=1024,
+                        device="cpu",
+                        trust_remote_code=True,
+                        model_kwargs={"dtype": "auto"},
+                    )
+                    self._is_loaded = True
+                    self.logger.info("Reranker loaded on CPU (fallback)")
+                    return
+                except Exception as e2:
+                    self.logger.error(f"CPU fallback also failed: {e2}")
             raise RerankingError(f"Failed to load reranker: {str(e)}")
 
     async def initialize(self) -> None:
@@ -121,12 +164,11 @@ class RerankingService(BaseService):
         Loads model config from ConfigService.
         Model is lazy-loaded on first reranking operation.
         """
-        # Load config
         self._model_config = RerankingConfig(
             model=self.config.reranking_model,
             max_length=1024,
-            batch_size=16,
-            device="cpu",
+            batch_size=8,
+            device=os.environ.get("CONST_RERANKING_DEVICE", "auto"),
         )
 
         self._mark_initialized()
@@ -142,16 +184,18 @@ class RerankingService(BaseService):
 
     async def close(self) -> None:
         """
-        Unload reranker model to free memory.
+        Unload reranker model to free memory (including GPU VRAM).
 
         Clears the singleton, so next rerank() will reload model.
         """
         if self._model is not None:
-            self.logger.info("Unloading Jina reranker model")
+            self.logger.info(f"Unloading Jina reranker model from {self._device}")
             del self._model
             self._model = None
             self._is_loaded = False
             gc.collect()
+            if self._device.startswith("cuda") and torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
         self._mark_uninitialized()
 
@@ -162,7 +206,7 @@ class RerankingService(BaseService):
         Raises:
             ServiceNotInitializedError: If service is not initialized
         """
-        super().ensure_initialized()
+        await super().ensure_initialized()
 
         # Lazy-load model if not already loaded
         if not self._is_loaded:
@@ -172,14 +216,15 @@ class RerankingService(BaseService):
         """
         Score (query, doc) pairs with torch.no_grad() and gc cleanup.
 
-        Args:
-            pairs: List of (query, document) tuples
-
-        Returns:
-            List of relevance scores
+        Uses autocast for fp16 on GPU for faster inference.
         """
+        device_type = "cuda" if self._device.startswith("cuda") else "cpu"
         with torch.no_grad():
-            scores = self._model.predict(pairs)
+            if device_type == "cuda":
+                with torch.amp.autocast(device_type="cuda"):
+                    scores = self._model.predict(pairs)
+            else:
+                scores = self._model.predict(pairs)
         gc.collect()
         return scores
 
@@ -322,12 +367,15 @@ class RerankingService(BaseService):
         Returns:
             Dictionary with model name, status, and configuration
         """
-        return {
+        info = {
             "model": self._model_config.model,
             "loaded": self._is_loaded,
             "max_length": self._model_config.max_length,
-            "device": self._model_config.device,
+            "device": self._device if self._is_loaded else self._model_config.device,
         }
+        if self._is_loaded and self._device.startswith("cuda") and torch.cuda.is_available():
+            info["vram_mb"] = round(torch.cuda.memory_allocated() / 1024**2)
+        return info
 
 
 # Dependency injection function for FastAPI
