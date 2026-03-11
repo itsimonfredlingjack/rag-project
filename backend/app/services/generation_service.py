@@ -80,6 +80,7 @@ async def process_structured_output(
             reasoning_steps=reasoning_steps,
             create_fallback_fn=create_fallback_fn,
             retrieved_doc_ids=retrieved_doc_ids,
+            retrieved_sources=sources,
         )
 
     structured_output_ms = (time.perf_counter() - structured_output_start) * 1000
@@ -194,6 +195,7 @@ async def _parse_with_retry(
     reasoning_steps: List[str],
     create_fallback_fn,
     retrieved_doc_ids: Optional[set] = None,
+    retrieved_sources: Optional[list] = None,
 ) -> Tuple[Optional[Dict], bool, str]:
     """3-attempt structured output parsing. Returns (data, parse_errors, answer)."""
 
@@ -201,7 +203,10 @@ async def _parse_with_retry(
         try:
             json_output = structured_output_service.parse_llm_json(text)
             is_valid, errors, schema = structured_output_service.validate_output(
-                json_output, mode.value, retrieved_doc_ids=retrieved_doc_ids
+                json_output,
+                mode.value,
+                retrieved_doc_ids=retrieved_doc_ids,
+                retrieved_sources=retrieved_sources,
             )
             if is_valid and schema:
                 return True, schema, None

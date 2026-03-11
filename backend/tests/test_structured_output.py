@@ -213,6 +213,111 @@ class TestStructuredOutputService:
         assert validated.svar == "Success on retry"
 
 
+class TestCitationResolution:
+    """Test citation cross-validation resolves model-generated doc_ids by title matching."""
+
+    def setup_method(self):
+        self.config_mock = Mock()
+        self.config_mock.settings.debug = False
+
+        with patch("app.services.structured_output_service.get_config_service") as mock_config:
+            mock_config.return_value = self.config_mock
+            self.service = StructuredOutputService(self.config_mock)
+
+    def _make_source(self, id, title):
+        s = Mock()
+        s.id = id
+        s.title = title
+        return s
+
+    def test_exact_match_passes_through(self):
+        """Valid doc_ids pass through unchanged."""
+        output = {
+            "mode": "EVIDENCE",
+            "saknas_underlag": False,
+            "svar": "Svar",
+            "kallor": [{"doc_id": "real_id_1", "chunk_id": "real_id_1", "citat": "text"}],
+            "fakta_utan_kalla": [],
+        }
+        sources = [self._make_source("real_id_1", "RF 2 kap.")]
+        ids = {"real_id_1"}
+
+        _, _, validated = self.service.validate_output(
+            output, "EVIDENCE", retrieved_doc_ids=ids, retrieved_sources=sources
+        )
+        assert len(validated.kallor) == 1
+        assert validated.kallor[0]["doc_id"] == "real_id_1"
+
+    def test_title_match_resolves_fabricated_id(self):
+        """Model-generated doc_id matching source title gets resolved to real ID."""
+        output = {
+            "mode": "EVIDENCE",
+            "saknas_underlag": False,
+            "svar": "Svar",
+            "kallor": [{"doc_id": "RF 2 kap.", "chunk_id": "RF 2 kap.", "citat": "text"}],
+            "fakta_utan_kalla": [],
+        }
+        sources = [self._make_source("sfs_1974_152_2kap", "RF 2 kap.")]
+        ids = {"sfs_1974_152_2kap"}
+
+        _, _, validated = self.service.validate_output(
+            output, "EVIDENCE", retrieved_doc_ids=ids, retrieved_sources=sources
+        )
+        assert len(validated.kallor) == 1
+        assert validated.kallor[0]["doc_id"] == "sfs_1974_152_2kap"
+
+    def test_partial_title_match_resolves(self):
+        """Partial title match resolves (e.g., 'RF 2 kap' in 'RF 2 kap. Grundläggande fri')."""
+        output = {
+            "mode": "EVIDENCE",
+            "saknas_underlag": False,
+            "svar": "Svar",
+            "kallor": [{"doc_id": "RF 2 kap", "chunk_id": "RF 2 kap", "citat": "text"}],
+            "fakta_utan_kalla": [],
+        }
+        sources = [
+            self._make_source("sfs_1974_152_2kap_1", "RF 2 kap. Grundläggande fri- och rättigheter")
+        ]
+        ids = {"sfs_1974_152_2kap_1"}
+
+        _, _, validated = self.service.validate_output(
+            output, "EVIDENCE", retrieved_doc_ids=ids, retrieved_sources=sources
+        )
+        assert len(validated.kallor) == 1
+        assert validated.kallor[0]["doc_id"] == "sfs_1974_152_2kap_1"
+
+    def test_truly_fabricated_stripped(self):
+        """Citations that can't be resolved are stripped."""
+        output = {
+            "mode": "EVIDENCE",
+            "saknas_underlag": False,
+            "svar": "Svar",
+            "kallor": [{"doc_id": "totally_made_up", "chunk_id": "x", "citat": "text"}],
+            "fakta_utan_kalla": [],
+        }
+        sources = [self._make_source("real_id_1", "RF 2 kap.")]
+        ids = {"real_id_1"}
+
+        _, _, validated = self.service.validate_output(
+            output, "EVIDENCE", retrieved_doc_ids=ids, retrieved_sources=sources
+        )
+        assert len(validated.kallor) == 0
+
+    def test_no_sources_param_strips_like_before(self):
+        """Without retrieved_sources, fabricated doc_ids are stripped (backwards compat)."""
+        output = {
+            "mode": "EVIDENCE",
+            "saknas_underlag": False,
+            "svar": "Svar",
+            "kallor": [{"doc_id": "fake_id", "chunk_id": "x", "citat": "text"}],
+            "fakta_utan_kalla": [],
+        }
+        ids = {"real_id_1"}
+
+        _, _, validated = self.service.validate_output(output, "EVIDENCE", retrieved_doc_ids=ids)
+        assert len(validated.kallor) == 0
+
+
 class TestSanitizeJsonControlChars:
     """Tests for _sanitize_json_control_chars and control-char handling in parse_llm_json."""
 

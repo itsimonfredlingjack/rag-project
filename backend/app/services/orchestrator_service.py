@@ -888,7 +888,7 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
             num_predict = 1024
         budget = _calculate_source_budget_fn(
             context_window=context_window,
-            system_prompt_overhead=3000,
+            system_prompt_overhead=1500,  # Optimized prompts: ~1200 tokens
             response_reserve=num_predict,
         )
         return _build_llm_context_fn(sources, max_context_tokens=budget)

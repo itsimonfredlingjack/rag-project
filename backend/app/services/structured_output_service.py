@@ -63,6 +63,7 @@ class StructuredOutputService(BaseService):
         json_output: Dict[str, Any],
         mode: str,
         retrieved_doc_ids: Optional[set[str]] = None,
+        retrieved_sources: Optional[list] = None,
     ) -> tuple[bool, List[str], Optional[StructuredOutputSchema]]:
         """
         Validate structured output against schema and mode-specific rules.
@@ -72,6 +73,8 @@ class StructuredOutputService(BaseService):
             mode: Response mode (EVIDENCE or ASSIST)
             retrieved_doc_ids: Set of doc IDs from retrieval. If provided, citations
                 are cross-validated to detect fabricated references.
+            retrieved_sources: Source objects from retrieval. If provided, used to
+                resolve fabricated doc_ids by matching titles.
 
         Returns:
             Tuple of (is_valid, errors_list, validated_schema)
@@ -111,24 +114,52 @@ class StructuredOutputService(BaseService):
                     "(allowed for general knowledge)"
                 )
 
-        # Step 3: Citation cross-validation against retrieved documents
+        # Step 3: Citation cross-validation and resolution
         if retrieved_doc_ids is not None and validated.kallor:
+            # Build title→id map for resolving model-generated doc_ids
+            title_to_id: dict[str, str] = {}
+            if retrieved_sources:
+                for s in retrieved_sources:
+                    title = getattr(s, "title", None)
+                    sid = getattr(s, "id", None)
+                    if title and sid:
+                        title_to_id[title.lower().strip()] = sid
+
+            resolved_kallor = []
+            resolved_count = 0
             fabricated = []
             for src in validated.kallor:
                 doc_id = src.get("doc_id", "")
-                if doc_id and doc_id not in retrieved_doc_ids:
+                if not doc_id or doc_id in retrieved_doc_ids:
+                    resolved_kallor.append(src)
+                    continue
+
+                # Try to resolve by title matching
+                resolved_id = None
+                doc_id_lower = doc_id.lower().strip()
+                for title, real_id in title_to_id.items():
+                    if doc_id_lower in title or title in doc_id_lower:
+                        resolved_id = real_id
+                        break
+
+                if resolved_id:
+                    src["doc_id"] = resolved_id
+                    src["chunk_id"] = resolved_id
+                    resolved_kallor.append(src)
+                    resolved_count += 1
+                else:
                     fabricated.append(doc_id)
+
+            if resolved_count:
+                self.logger.info(
+                    f"Citation resolution: resolved {resolved_count} doc_id(s) by title matching"
+                )
             if fabricated:
                 self.logger.warning(
-                    f"Citation cross-validation: {len(fabricated)} fabricated doc_id(s) "
-                    f"not in retrieved set: {fabricated[:5]}"
+                    f"Citation cross-validation: {len(fabricated)} unresolvable doc_id(s): "
+                    f"{fabricated[:5]}"
                 )
-                # Strip fabricated citations rather than failing validation
-                validated.kallor = [
-                    src
-                    for src in validated.kallor
-                    if src.get("doc_id", "") in retrieved_doc_ids or not src.get("doc_id")
-                ]
+            validated.kallor = resolved_kallor
 
         is_valid = len(errors) == 0
 

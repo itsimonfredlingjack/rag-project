@@ -164,9 +164,9 @@ class CriticService(BaseService):
             async for token, _ in self.llm_service.chat_stream(
                 messages=messages,
                 config_override={
-                    "temperature": 0.1,  # Low temperature for consistent reflection
+                    "temperature": 0.1,
                     "top_p": 0.9,
-                    "num_predict": 512,
+                    "num_predict": 256,  # JSON output is ~100 tokens, 256 is ample
                     "model": self.reflection_model,
                 },
             ):

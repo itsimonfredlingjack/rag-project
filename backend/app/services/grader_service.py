@@ -356,7 +356,7 @@ class GraderService(BaseService):
             messages = [
                 {
                     "role": "system",
-                    "content": "Du är en dokumentgraderare. Bedöm relevans med hög precision.",
+                    "content": "Du är en dokumentgraderare. Bedöm om dokumentet besvarar frågan. Svara med ENBART JSON.",
                 },
                 {"role": "user", "content": prompt},
             ]
