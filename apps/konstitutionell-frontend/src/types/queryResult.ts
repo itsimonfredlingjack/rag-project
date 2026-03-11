@@ -35,4 +35,6 @@ export interface QueryResult {
   error: string | null;
   timestamp: number;
   lastStageChangeTimestamp: number;
+  searchTimeMs: number | null;
+  totalTimeMs: number | null;
 }

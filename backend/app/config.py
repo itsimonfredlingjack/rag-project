@@ -21,8 +21,8 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8900
 
-    # LLM (llama-server, OpenAI-compatible)
-    llm_base_url: str = "http://localhost:8080/v1"
+    # LLM (Ollama)
+    llm_base_url: str = "http://localhost:11434"
 
     # Ollama (local)
     ollama_base_url: str = "http://localhost:11434"

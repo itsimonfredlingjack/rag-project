@@ -104,6 +104,12 @@ class IntentClassifier:
         r"\bsystematisk\s+översikt\b",
         r"\bforskningsresultat(en|et)?\b",
         r"\bvad\s+visar\s+forskning(en)?\b",
+        # Broader standalone research triggers
+        r"\bforskning(en)?\b",
+        r"\bpublikation(er|en)?\b",
+        r"\bvetenskaplig(a|t)?\b",
+        r"\bakademisk(a|t)?\b",
+        r"\bforskare?\b",
     ]
 
     # Procedural patterns (PRACTICAL_PROCESS, was PRAXIS)

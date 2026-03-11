@@ -142,13 +142,15 @@ class TestSmalltalkRouting:
 
 
 class TestUnknownRouting:
-    def test_has_diva_secondary(self):
+    def test_has_diva_support(self):
+        """DiVA is a support collection for UNKNOWN intent (broader coverage)."""
         cfg = get_routing_for_intent(QueryIntent.UNKNOWN)
-        assert "diva_research_jina_v3_1024" in cfg.secondary
+        assert "diva_research_jina_v3_1024" in cfg.support
 
-    def test_secondary_budget_2(self):
+    def test_no_secondary(self):
+        """UNKNOWN uses DiVA as support, not secondary."""
         cfg = get_routing_for_intent(QueryIntent.UNKNOWN)
-        assert cfg.secondary_budget == 2
+        assert cfg.secondary_budget == 0
 
     def test_has_broad_primary(self):
         cfg = get_routing_for_intent(QueryIntent.UNKNOWN)
@@ -224,8 +226,9 @@ class TestHasSecondaryRetrieval:
     def test_policy_arguments_true(self):
         assert has_secondary_retrieval(QueryIntent.POLICY_ARGUMENTS) is True
 
-    def test_unknown_true(self):
-        assert has_secondary_retrieval(QueryIntent.UNKNOWN) is True
+    def test_unknown_false(self):
+        """UNKNOWN now uses DiVA as support (not secondary), so no secondary retrieval."""
+        assert has_secondary_retrieval(QueryIntent.UNKNOWN) is False
 
     def test_legal_text_false(self):
         """LEGAL_TEXT has budget=0 → no secondary."""
