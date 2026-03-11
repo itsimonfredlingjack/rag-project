@@ -365,18 +365,18 @@
     },
     {
       "id": "G027",
-      "question": "Vad innebär RF 2 kap. 6 § om religionsfrihet?",
+      "question": "Vad innebär RF 2 kap. 1 § punkt 6 om religionsfrihet?",
       "mode": "evidence",
       "intent": "legal_text",
       "difficulty": "easy",
-      "answer_fragments": ["religionsfrihet", "trosbekännelse"],
+      "answer_fragments": ["religionsfrihet", "utöva sin religion"],
       "forbidden_fragments": [],
       "expected_sources": ["sfs"],
-      "expected_law_refs": ["RF 2 kap. 6 §"],
+      "expected_law_refs": ["RF 2 kap. 1 §"],
       "requires_verbatim_citation": true,
       "requires_modal_preservation": true,
       "category": "grundlag",
-      "notes": "Specific RF provision — direct citation test"
+      "notes": "RF 2 kap. 1 § p.6 — religionsfrihet (not 2:6 which is kroppslig integritet)"
     },
     {
       "id": "G028",
@@ -725,17 +725,17 @@
     },
     {
       "id": "G053",
-      "question": "Vad säger SFS 2001:453 4 kap. 1 § om folkbokföring?",
+      "question": "Vad säger folkbokföringslagen 4 kap. 1 § om folkbokföring?",
       "mode": "evidence",
       "intent": "legal_text",
       "difficulty": "hard",
       "answer_fragments": ["folkbokföring"],
       "forbidden_fragments": [],
       "expected_sources": ["sfs"],
-      "expected_law_refs": ["SFS 2001:453"],
+      "expected_law_refs": ["SFS 1991:481"],
       "requires_verbatim_citation": true,
       "category": "förvaltning",
-      "notes": "Specific SFS number test — verifies SFS ID handling with colon"
+      "notes": "Folkbokföringslagen (SFS 1991:481) — verifies SFS lookup by law name"
     },
     {
       "id": "G054",
