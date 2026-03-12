@@ -204,6 +204,26 @@ class EvalReport:
                 "by_intent": self.by_intent,
                 "by_difficulty": self.by_difficulty,
             },
+            "per_item_results": [
+                {
+                    "item_id": r.item_id,
+                    "question": r.question,
+                    "mode": r.mode,
+                    "intent": r.intent,
+                    "difficulty": r.difficulty,
+                    "composite_score": round(r.composite_score, 4),
+                    "answer_relevancy": round(r.answer_relevancy, 4),
+                    "faithfulness": round(r.faithfulness, 4),
+                    "context_precision": round(r.context_precision, 4),
+                    "context_recall": round(r.context_recall, 4),
+                    "citation_accuracy": round(r.citation_accuracy, 4),
+                    "fragment_coverage": round(r.fragment_coverage, 4),
+                    "num_sources": r.num_sources,
+                    "latency_ms": round(r.latency_ms, 1),
+                    "error": r.error,
+                }
+                for r in self.item_results
+            ],
         }
 
 

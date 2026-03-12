@@ -186,7 +186,7 @@ class ConfigSettings(BaseSettings):
     # Structured Output & Critic→Revise Loop (Constitutional AI)
     structured_output_enabled: bool = True
     critic_revise_enabled: bool = True  # Enabled for answer quality improvement
-    critic_max_revisions: int = 1  # Single revision pass for quality/latency balance
+    critic_max_revisions: int = 2  # Allow one revision attempt before fallback
     critic_temperature: float = 0.1
 
     # Refusal Template
@@ -464,12 +464,14 @@ class ConfigService:
                 "top_p": self._settings.mode_evidence_top_p,
                 "repeat_penalty": self._settings.mode_evidence_repeat_penalty,
                 "num_predict": self._settings.mode_evidence_num_predict,
+                "json_output": self._settings.structured_output_enabled,
             },
             "assist": {
                 "temperature": self._settings.mode_assist_temperature,
                 "top_p": self._settings.mode_assist_top_p,
                 "repeat_penalty": self._settings.mode_assist_repeat_penalty,
                 "num_predict": self._settings.mode_assist_num_predict,
+                "json_output": self._settings.structured_output_enabled,
             },
             "chat": {
                 "temperature": self._settings.mode_chat_temperature,

@@ -408,23 +408,18 @@ class GraderService(BaseService):
         Returns:
             Formatted prompt string
         """
-        return f"""Analysera dokumentet i relation till frågan. Svara med EXAKT ett JSON-objekt.
+        return f"""Bedöm dokumentet. Svara med JSON.
 
 FRÅGA: {query}
 
-DOKUMENT: {document.title} ({document.doc_type or "okänd"})
-{document.snippet[:500]}
+DOKUMENT ({document.doc_type or "okänd"}): {document.title}
+{document.snippet[:800]}
 
-Om dokumentet direkt besvarar eller stödjer frågan:
-{{"status":"RELEVANT","confidence":0.XX}}
+RELEVANT = dokumentet innehåller information som hjälper besvara frågan.
+AMBIGUOUS = oklart om dokumentet är användbart.
+IRRELEVANT = dokumentet handlar om annat.
 
-Om dokumentet är delvis relaterat men otillräckligt:
-{{"status":"AMBIGUOUS","confidence":0.XX}}
-
-Om dokumentet är irrelevant:
-{{"status":"IRRELEVANT","confidence":0.XX}}
-
-Confidence: 0.00 (helt osäker) till 1.00 (helt säker)."""
+Svara: {{"status":"RELEVANT","confidence":0.XX}} eller AMBIGUOUS eller IRRELEVANT."""
 
     def _parse_grading_response(self, doc_id: str, response: str, threshold: float) -> GradeResult:
         """

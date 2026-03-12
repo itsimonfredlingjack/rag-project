@@ -536,6 +536,10 @@ class LLMService(BaseService):
             if config_override and config_override.get("grammar"):
                 payload["format"] = "json"
 
+            # Force JSON output when explicitly requested (structured output modes)
+            if config_override and config_override.get("json_output"):
+                payload["format"] = "json"
+
         stats = StreamStats(start_time=0.0, model_used=model_to_use)
 
         try:

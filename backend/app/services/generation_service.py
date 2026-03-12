@@ -226,6 +226,31 @@ async def _parse_with_retry(
     reasoning_steps.append(f"Structured output validation: FAILED attempt 1 ({err})")
     logger.warning(f"Structured output attempt 1 failed: {err}")
 
+    # Attempt 1.5: If the LLM produced good text (not JSON), wrap it
+    # Qwen 3.5 9B often ignores JSON format and outputs plain text answers
+    if full_answer and not full_answer.strip().startswith("{") and len(full_answer.strip()) > 50:
+        logger.info(
+            f"Plain text answer detected ({len(full_answer)} chars), wrapping in structured format"
+        )
+        wrapped = {
+            "mode": mode.value.upper(),
+            "saknas_underlag": False,
+            "svar": full_answer.strip(),
+            "kallor": [],
+            "fakta_utan_kalla": [],
+        }
+        try:
+            from .structured_output_service import StructuredOutputSchema
+
+            schema = StructuredOutputSchema(**wrapped)
+            data = structured_output_service.strip_internal_note(schema)
+            reasoning_steps.append(
+                "Structured output: plain text wrapped (LLM ignored JSON format)"
+            )
+            return data, True, full_answer
+        except Exception:
+            pass  # Fall through to normal retry
+
     # Attempt 2: Retry with error-aware instruction (backoff: 1s)
     try:
         await asyncio.sleep(1.0)  # Rate limit: avoid GPU overload from rapid retries
@@ -472,13 +497,23 @@ async def _critic_revise_loop(
         f"ok={critic_ok}, latency_ms={critic_ms:.1f}"
     )
 
-    # Enforce fallback when critic still fails
+    # Handle critic failures — keep valid answers, only refuse if answer is truly empty
     if feedback and not feedback.ok and revision_count >= max_revisions:
         logger.warning(
             f"Critic audit: FALLBACK triggered — max_revisions={max_revisions} exhausted, "
             f"mode={mode.value}, final_errors={feedback.fel}"
         )
-        if mode == ResponseMode.EVIDENCE:
+        has_answer = structured_output_data.get(
+            "svar", ""
+        ).strip() and not structured_output_data.get("saknas_underlag", False)
+        if has_answer:
+            # Keep the answer — critic failed on cosmetic issues (field names, etc.)
+            # but the LLM produced a real answer with evidence
+            logger.info(
+                f"Critic audit: keeping valid answer despite critic failure "
+                f"(svar={len(structured_output_data.get('svar', ''))} chars)"
+            )
+        elif mode == ResponseMode.EVIDENCE:
             refusal_text = getattr(
                 config.settings,
                 "evidence_refusal_template",

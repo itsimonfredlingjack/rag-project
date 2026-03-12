@@ -364,117 +364,106 @@ class OrchestratorService(BaseService):
             # Initialize sources from retrieval result
             sources = retrieval_result.results
 
-            # STEP 3.5: CRAG (Corrective RAG) - Document Grading and Self-Reflection
-            crag_result = await self._process_crag_grading(
-                question=question,
-                search_query=search_query,
-                retrieval_result=retrieval_result,
-                resolved_mode=resolved_mode,
-                reasoning_steps=reasoning_steps,
-                start_time=start_time,
-                query_classification_ms=query_classification_ms,
-                decontextualization_ms=decontextualization_ms,
-                retrieval_ms=retrieval_ms,
-            )
-
-            # Early return if CRAG determined insufficient evidence
-            if crag_result.early_return:
-                return crag_result.result
-
-            # Extract CRAG results
-            sources = crag_result.sources
-            grade_ms = crag_result.grade_ms
-            grade_count = crag_result.grade_count
-            relevant_count = crag_result.relevant_count
-            self_reflection_ms = crag_result.self_reflection_ms
-            thought_chain = crag_result.thought_chain
-            citation_plan = crag_result.citation_plan
-            rewrite_count = crag_result.rewrite_count
-
-            # STEP 3.7: Reranking BEFORE LLM generation (filter noise from context)
+            # STEP 3.5: Reranking BEFORE CRAG grading
+            # Rerank first while GPU is free (before Ollama grading fills VRAM).
+            # This also reduces the number of docs that need expensive LLM grading.
             reranking_ms = 0.0
             if enable_reranking and self.reranker and resolved_mode != ResponseMode.CHAT:
                 rerank_start = time.perf_counter()
 
-                rerank_result = await self.reranker.rerank(
-                    query=search_query,
-                    documents=[
-                        {
-                            "id": s.id,
-                            "title": s.title,
-                            "snippet": s.snippet,
-                            "score": s.score,
-                        }
-                        for s in sources
-                    ],
-                    top_k=len(sources),
-                )
-
-                reranking_ms = (time.perf_counter() - rerank_start) * 1000
-
-                # Apply score threshold, autocut, and top-N filtering
-                score_threshold = self.config.settings.reranking_score_threshold
-                top_n = self.config.settings.reranking_top_n
-                autocut_n = autocut_scores(rerank_result.reranked_scores, sensitivity=0.15)
-                effective_n = max(2, min(autocut_n, top_n))
-
-                filtered_sources = []
-                for i, doc in enumerate(rerank_result.reranked_docs):
-                    rerank_score = rerank_result.reranked_scores[i]
-                    if rerank_score >= score_threshold and len(filtered_sources) < effective_n:
-                        # Find the original source to preserve all metadata
-                        original = next((s for s in sources if s.id == doc["id"]), None)
-                        if original:
-                            filtered_sources.append(
-                                SearchResult(
-                                    id=original.id,
-                                    title=original.title,
-                                    snippet=original.snippet,
-                                    score=rerank_score,
-                                    source=original.source,
-                                    doc_type=original.doc_type,
-                                    date=original.date,
-                                    retriever=original.retriever,
-                                    tier=original.tier,
-                                )
-                            )
-
-                # Minimum fallback: ensure at least N results survive reranking
-                min_results = self.config.settings.reranking_min_results
-                if len(filtered_sources) < min_results and rerank_result.reranked_docs:
-                    for i, doc in enumerate(rerank_result.reranked_docs):
-                        if len(filtered_sources) >= min_results:
-                            break
-                        if any(s.id == doc["id"] for s in filtered_sources):
-                            continue
-                        original = next((s for s in sources if s.id == doc["id"]), None)
-                        if original:
-                            filtered_sources.append(
-                                SearchResult(
-                                    id=original.id,
-                                    title=original.title,
-                                    snippet=original.snippet,
-                                    score=rerank_result.reranked_scores[i],
-                                    source=original.source,
-                                    doc_type=original.doc_type,
-                                    date=original.date,
-                                    retriever=original.retriever,
-                                    tier=original.tier,
-                                )
-                            )
-                    logger.warning(
-                        f"Reranking fallback: padded to {len(filtered_sources)} results "
-                        f"(min_results={min_results})"
+                try:
+                    # Limit reranking input to top 10 by retrieval score.
+                    # CPU reranking scales ~8s/doc; 10 docs ≈ 80s vs 19 docs ≈ 160s.
+                    rerank_input = sources[:10]
+                    rerank_result = await self.reranker.rerank(
+                        query=search_query,
+                        documents=[
+                            {
+                                "id": s.id,
+                                "title": s.title,
+                                "snippet": s.snippet,
+                                "score": s.score,
+                            }
+                            for s in rerank_input
+                        ],
+                        top_k=len(rerank_input),
                     )
 
-                reasoning_steps.append(
-                    f"Reranked {len(sources)} → {len(filtered_sources)} sources "
-                    f"(threshold={score_threshold}, top_n={top_n}, "
-                    f"autocut={autocut_n}, effective_n={effective_n}, "
-                    f"top_score={rerank_result.reranked_scores[0] if rerank_result.reranked_scores else 0:.4f}, "
-                    f"latency={reranking_ms:.1f}ms)"
-                )
-                sources = filtered_sources
+                    reranking_ms = (time.perf_counter() - rerank_start) * 1000
+
+                    # Apply score threshold, autocut, and top-N filtering
+                    score_threshold = self.config.settings.reranking_score_threshold
+                    top_n = self.config.settings.reranking_top_n
+                    autocut_n = autocut_scores(rerank_result.reranked_scores, sensitivity=0.15)
+                    effective_n = max(2, min(autocut_n, top_n))
+
+                    filtered_sources = []
+                    for i, doc in enumerate(rerank_result.reranked_docs):
+                        rerank_score = rerank_result.reranked_scores[i]
+                        if rerank_score >= score_threshold and len(filtered_sources) < effective_n:
+                            original = next((s for s in sources if s.id == doc["id"]), None)
+                            if original:
+                                filtered_sources.append(
+                                    SearchResult(
+                                        id=original.id,
+                                        title=original.title,
+                                        snippet=original.snippet,
+                                        score=rerank_score,
+                                        source=original.source,
+                                        doc_type=original.doc_type,
+                                        date=original.date,
+                                        retriever=original.retriever,
+                                        tier=original.tier,
+                                    )
+                                )
+
+                    # Minimum fallback: ensure at least N results survive reranking
+                    min_results = self.config.settings.reranking_min_results
+                    if len(filtered_sources) < min_results and rerank_result.reranked_docs:
+                        for i, doc in enumerate(rerank_result.reranked_docs):
+                            if len(filtered_sources) >= min_results:
+                                break
+                            if any(s.id == doc["id"] for s in filtered_sources):
+                                continue
+                            original = next((s for s in sources if s.id == doc["id"]), None)
+                            if original:
+                                filtered_sources.append(
+                                    SearchResult(
+                                        id=original.id,
+                                        title=original.title,
+                                        snippet=original.snippet,
+                                        score=rerank_result.reranked_scores[i],
+                                        source=original.source,
+                                        doc_type=original.doc_type,
+                                        date=original.date,
+                                        retriever=original.retriever,
+                                        tier=original.tier,
+                                    )
+                                )
+                        logger.warning(
+                            f"Reranking fallback: padded to {len(filtered_sources)} "
+                            f"results (min_results={min_results})"
+                        )
+
+                    reasoning_steps.append(
+                        f"Reranked {len(sources)} → {len(filtered_sources)} sources "
+                        f"(threshold={score_threshold}, top_n={top_n}, "
+                        f"autocut={autocut_n}, effective_n={effective_n}, "
+                        f"top_score={rerank_result.reranked_scores[0] if rerank_result.reranked_scores else 0:.4f}, "
+                        f"latency={reranking_ms:.1f}ms)"
+                    )
+                    sources = filtered_sources
+
+                except Exception as rerank_err:
+                    reranking_ms = (time.perf_counter() - rerank_start) * 1000
+                    logger.warning(
+                        f"Reranking failed, skipping: {rerank_err}. "
+                        f"Proceeding with {len(sources)} unranked sources."
+                    )
+                    reasoning_steps.append(
+                        f"Reranking skipped (error: {str(rerank_err)[:80]}), "
+                        f"using {len(sources)} sources without reranking"
+                    )
 
             # EVIDENCE mode guard: refuse if no sources survived pipeline
             if resolved_mode == ResponseMode.EVIDENCE and not sources:
@@ -542,11 +531,46 @@ class OrchestratorService(BaseService):
                     thought_chain=thought_chain,
                 )
 
+            # STEP 3.7: CRAG (Corrective RAG) - Grade reranked sources
+            # Runs after reranking so: (a) fewer docs to grade, (b) GPU is free for Ollama
+            grade_ms = 0.0
+            grade_count = 0
+            relevant_count = 0
+            self_reflection_ms = 0.0
+            thought_chain = None
+            citation_plan = None
+            rewrite_count = 0
+
+            # Update retrieval_result.results to use reranked sources for CRAG
+            retrieval_result.results = sources
+
+            crag_result = await self._process_crag_grading(
+                question=question,
+                search_query=search_query,
+                retrieval_result=retrieval_result,
+                resolved_mode=resolved_mode,
+                reasoning_steps=reasoning_steps,
+                start_time=start_time,
+                query_classification_ms=query_classification_ms,
+                decontextualization_ms=decontextualization_ms,
+                retrieval_ms=retrieval_ms,
+            )
+
+            # Early return if CRAG determined insufficient evidence
+            if crag_result.early_return:
+                return crag_result.result
+
+            # Extract CRAG results
+            sources = crag_result.sources
+            grade_ms = crag_result.grade_ms
+            grade_count = crag_result.grade_count
+            relevant_count = crag_result.relevant_count
+            self_reflection_ms = crag_result.self_reflection_ms
+            thought_chain = crag_result.thought_chain
+            citation_plan = crag_result.citation_plan
+            rewrite_count = crag_result.rewrite_count
+
             # STEP 4: Build LLM context from sources
-            # sources is already correct here:
-            #   - Line 360: initialized from retrieval_result.results
-            #   - Line 380: updated by CRAG (returns originals if CRAG disabled)
-            #   - Line 471: updated by reranking (only if reranking ran)
 
             # Extract source text for context
             context_text = self._build_llm_context(sources)
@@ -888,7 +912,7 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
             num_predict = 1024
         budget = _calculate_source_budget_fn(
             context_window=context_window,
-            system_prompt_overhead=1500,  # Optimized prompts: ~1200 tokens
+            system_prompt_overhead=2500,  # Role + rules + JSON instruction + reflection ~2500 tokens
             response_reserve=num_predict,
         )
         return _build_llm_context_fn(sources, max_context_tokens=budget)

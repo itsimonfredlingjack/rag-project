@@ -208,13 +208,15 @@ async def stream_query(
             and response_mode != ResponseMode.CHAT
             and sources
         ):
+            # Limit reranking input to top 10 by retrieval score (CPU: ~8s/doc)
+            rerank_input = sources[:10]
             rerank_result = await reranker.rerank(
                 query=search_query,
                 documents=[
                     {"id": s.id, "title": s.title, "snippet": s.snippet, "score": s.score}
-                    for s in sources
+                    for s in rerank_input
                 ],
-                top_k=len(sources),
+                top_k=len(rerank_input),
             )
             from .orchestrator_service import autocut_scores
 

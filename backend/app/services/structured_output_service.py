@@ -58,6 +58,111 @@ class StructuredOutputService(BaseService):
     async def close(self) -> None:
         self._mark_uninitialized()
 
+    @staticmethod
+    def _normalize_json_keys(data: Dict[str, Any], mode: str) -> Dict[str, Any]:
+        """
+        Normalize common LLM-generated key variants to the expected schema keys.
+
+        Qwen 3.5 9B sometimes invents its own keys (kort_svar, answer, sources, etc.)
+        instead of following the schema. This maps them to the correct fields.
+        """
+        normalized = dict(data)
+
+        # Map answer-like keys → svar
+        if "svar" not in normalized:
+            for key in (
+                "svaret",
+                "kort_svar",
+                "answer",
+                "response",
+                "detaljerad_förklaring",
+                "text",
+                "resultat",
+                "svar_text",
+            ):
+                if key in normalized:
+                    normalized["svar"] = normalized.pop(key)
+                    break
+
+        # Concatenate detailed explanation into svar if both exist
+        if "detaljerad_förklaring" in normalized and "svar" in normalized:
+            normalized["svar"] += "\n\n" + normalized.pop("detaljerad_förklaring")
+        elif "detaljerad_förklaring" in normalized:
+            normalized["svar"] = normalized.pop("detaljerad_förklaring")
+
+        # Map source-like keys → kallor
+        if "kallor" not in normalized:
+            for key in ("sources", "källor", "references", "refs"):
+                if key in normalized and isinstance(normalized[key], list):
+                    normalized["kallor"] = normalized.pop(key)
+                    break
+
+        # Ensure required fields have defaults
+        normalized.setdefault("mode", mode.upper())
+        normalized.setdefault("saknas_underlag", False)
+        normalized.setdefault("kallor", [])
+        normalized.setdefault("fakta_utan_kalla", [])
+
+        # Normalize inner kallor fields — Qwen 3.5 9B uses wrong field names and types
+        if "kallor" in normalized and isinstance(normalized["kallor"], list):
+            cleaned = []
+            for source in normalized["kallor"]:
+                if not isinstance(source, dict):
+                    continue
+                # Coerce all values to strings (LLM outputs int, null, etc.)
+                source = {k: str(v) if v is not None else "" for k, v in source.items()}
+                if "doc_id" not in source:
+                    for key in ("id", "source_id", "källa", "title", "titel", "namn"):
+                        if key in source:
+                            source["doc_id"] = source.pop(key)
+                            break
+                if "chunk_id" not in source:
+                    source["chunk_id"] = source.get("doc_id", "")
+                if "citat" not in source:
+                    for key in ("quote", "excerpt", "text", "snippet", "citat_text"):
+                        if key in source:
+                            source["citat"] = source.pop(key)
+                            break
+                if "loc" not in source:
+                    for key in (
+                        "location",
+                        "reference",
+                        "ref",
+                        "paragraf",
+                        "källa_ref",
+                        "lag",
+                        "url",
+                    ):
+                        if key in source:
+                            source["loc"] = source.pop(key)
+                            break
+                # Fill remaining missing fields with empty strings
+                source.setdefault("doc_id", "")
+                source.setdefault("chunk_id", "")
+                source.setdefault("citat", "")
+                source.setdefault("loc", "")
+                # Only keep known source fields
+                source = {
+                    k: source[k] for k in ("doc_id", "chunk_id", "citat", "loc") if k in source
+                }
+                cleaned.append(source)
+            normalized["kallor"] = cleaned
+
+        # Remove unexpected keys that would confuse Pydantic
+        known_keys = {
+            "mode",
+            "saknas_underlag",
+            "svar",
+            "kallor",
+            "fakta_utan_kalla",
+            "arbetsanteckning",
+        }
+        for key in list(normalized.keys()):
+            if key not in known_keys:
+                normalized.pop(key)
+
+        return normalized
+
     def validate_output(
         self,
         json_output: Dict[str, Any],
@@ -80,6 +185,9 @@ class StructuredOutputService(BaseService):
             Tuple of (is_valid, errors_list, validated_schema)
         """
         errors = []
+
+        # Step 0: Normalize LLM-generated keys to expected schema
+        json_output = self._normalize_json_keys(json_output, mode)
 
         # Step 1: Pydantic schema validation
         try:
