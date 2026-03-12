@@ -4,7 +4,7 @@ Instruktioner för Claude Code i detta repository.
 
 ## Projektöversikt
 
-Constitutional AI är ett RAG-system för svenska myndighetsdokument (1.37M+ dokument: 538K juridiska/myndighets + 829K DiVA-forskning). ChromaDB med Jina Embeddings v3 (1024 dim, asymmetrisk encoding) för semantisk sökning, Ollama (Qwen 3.5 9B) för lokal LLM-inferens, FastAPI backend på port 8900, React+Vite+Three.js frontend på port 3003.
+Constitutional AI är ett RAG-system för svenska myndighetsdokument (1.37M+ dokument: 538K juridiska/myndighets + 829K DiVA-forskning). ChromaDB med Jina Embeddings v3 (1024 dim, asymmetrisk encoding) för semantisk sökning, Ollama (Gemma 3 12B) för lokal LLM-inferens, FastAPI backend på port 8900, React+Vite+Three.js frontend på port 3003.
 
 Fristående git-repo i `AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/`.
 
@@ -88,8 +88,8 @@ User Query → Frontend → POST /api/constitutional/agent/query/stream
       → BM25Service (sparse keyword search)
       → RAGFusion (multi-query + RRF-merge)
     → RerankingService (Jina cross-encoder)
-    → GraderService (Qwen 3.5 9B, 3-vägs relevansgradering)
-    → LLMService → Ollama (Qwen 3.5 9B)
+    → GraderService (Gemma 3 12B, 3-vägs relevansgradering)
+    → LLMService → Ollama (Gemma 3 12B)
     → GuardrailService (Jail Warden v2, blockerar hallucinationer i EVIDENCE)
     → CriticService (Critic-Revise loop)
   → SSE streaming → Frontend
@@ -193,9 +193,9 @@ Conventional commits: `feat(scope): description`, `fix(scope): description`, etc
 - **Totalt**: 1.37M+ dokument (538K juridiska/myndighets + 829K DiVA-forskning)
 - **Embeddings**: jinaai/jina-embeddings-v3 (1024 dim, CC-BY-NC-4.0)
 - **Reranker**: jinaai/jina-reranker-v2-base-multilingual
-- **LLM**: Qwen 3.5 9B (Q4_K_M, 6.59GB) via Ollama port 11434
-- **Grading-modell**: Qwen 3.5 9B (samma som primär LLM)
-- **Fallback-modell**: Qwen 3.5 9B (samma som primary, ingen separat fallback)
+- **LLM**: Gemma 3 12B (Q4_K_M, 8.1GB) via Ollama port 11434
+- **Grading-modell**: Gemma 3 12B (samma som primär LLM)
+- **Fallback-modell**: Gemma 3 12B (samma som primary, ingen separat fallback)
 - **CRAG**: Aktiverat i .env (grading + self-reflection)
 
 ## Guardrails
