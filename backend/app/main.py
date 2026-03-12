@@ -21,6 +21,7 @@ from .api.document_routes import router as document_router
 from .config import settings
 from .core.error_handlers import register_exception_handlers
 from .core.rate_limiter import limiter, rate_limit_exceeded_handler
+from .chatgpt_app.server import mount_chatgpt_app
 from .middleware import RequestIDMiddleware
 from .services.orchestrator_service import get_orchestrator_service
 from .utils.logging import get_logger, setup_logging
@@ -41,6 +42,8 @@ async def lifespan(app: FastAPI):
     Application lifespan manager.
     Handles startup and shutdown events.
     """
+    mcp_session_context = None
+
     # Startup
     logger.info("=" * 60)
     logger.info(f"  {settings.app_name} v{settings.app_version}")
@@ -55,6 +58,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"❌ Failed to initialize services: {e}")
 
+    try:
+        mcp_server = getattr(app.state, "chatgpt_mcp_server", None)
+        if mcp_server is not None:
+            mcp_session_context = mcp_server.session_manager.run()
+            await mcp_session_context.__aenter__()
+            app.state.chatgpt_mcp_session_context = mcp_session_context
+            logger.info("✅ ChatGPT MCP server ONLINE at /mcp")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize ChatGPT MCP server: {e}")
+
     logger.info(f"Server starting on http://{settings.host}:{settings.port}")
     logger.info("=" * 60)
 
@@ -62,6 +75,12 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("Shutting down...")
+
+    if mcp_session_context is not None:
+        try:
+            await mcp_session_context.__aexit__(None, None, None)
+        except Exception as e:
+            logger.error(f"Error closing ChatGPT MCP server: {e}")
 
     # Close Orchestrator services
     try:
@@ -106,6 +125,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 # Include REST API routes
 app.include_router(constitutional_router)
 app.include_router(document_router)
+mount_chatgpt_app(app)
 
 # WebSocket endpoints
 app.websocket("/ws/harvest")(harvest_websocket)  # Constitutional AI: Live Harvest Progress
