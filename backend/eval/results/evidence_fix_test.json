@@ -1,0 +1,281 @@
+{
+  "results": [
+    {
+      "id": "G001",
+      "status": "PASS",
+      "saknas": false,
+      "sources": 3,
+      "evidence": "high",
+      "frag_score": 1.0,
+      "elapsed": 58.53011989593506
+    },
+    {
+      "id": "G002",
+      "status": "PASS",
+      "saknas": false,
+      "sources": 3,
+      "evidence": "high",
+      "frag_score": 1.0,
+      "elapsed": 61.4139666557312
+    },
+    {
+      "id": "G003",
+      "status": "FAIL",
+      "saknas": true,
+      "sources": 0,
+      "evidence": "NONE",
+      "frag_score": 0.3333333333333333,
+      "elapsed": 51.90453839302063
+    },
+    {
+      "id": "G005",
+      "status": "PASS",
+      "saknas": false,
+      "sources": 8,
+      "evidence": "medium",
+      "frag_score": 0.6666666666666666,
+      "elapsed": 61.79742932319641
+    },
+    {
+      "id": "G006",
+      "status": "PASS",
+      "saknas": false,
+      "sources": 4,
+      "evidence": "high",
+      "frag_score": 0.6666666666666666,
+      "elapsed": 56.267518281936646
+    },
+    {
+      "id": "G007",
+      "status": "PASS",
+      "saknas": false,
+      "sources": 8,
+      "evidence": "high",
+      "frag_score": 0.0,
+      "elapsed": 64.01531720161438
+    },
+    {
+      "id": "G015",
+      "status": "PASS",
+      "saknas": false,
+      "sources": 8,
+      "evidence": "high",
+      "frag_score": 0.0,
+      "elapsed": 54.10993409156799
+    },
+    {
+      "id": "G016",
+      "status": "FAIL",
+      "saknas": true,
+      "sources": 0,
+      "evidence": "NONE",
+      "frag_score": 0.0,
+      "elapsed": 50.56345009803772
+    },
+    {
+      "id": "G017",
+      "status": "PASS",
+      "saknas": false,
+      "sources": 3,
+      "evidence": "medium",
+      "frag_score": 1.0,
+      "elapsed": 33.15763878822327
+    },
+    {
+      "id": "G019",
+      "status": "PASS",
+      "saknas": false,
+      "sources": 3,
+      "evidence": "medium",
+      "frag_score": 0.3333333333333333,
+      "elapsed": 38.293224573135376
+    },
+    {
+      "id": "G020",
+      "status": "FAIL",
+      "saknas": true,
+      "sources": 0,
+      "evidence": "NONE",
+      "frag_score": 0.0,
+      "elapsed": 29.97388243675232
+    },
+    {
+      "id": "G022",
+      "status": "FAIL",
+      "saknas": true,
+      "sources": 0,
+      "evidence": "none",
+      "frag_score": 0.0,
+      "elapsed": 68.34774613380432
+    },
+    {
+      "id": "G024",
+      "status": "FAIL",
+      "saknas": true,
+      "sources": 0,
+      "evidence": "NONE",
+      "frag_score": 0.0,
+      "elapsed": 39.44601583480835
+    },
+    {
+      "id": "G027",
+      "status": "FAIL",
+      "saknas": true,
+      "sources": 0,
+      "evidence": "NONE",
+      "frag_score": 0.0,
+      "elapsed": 51.83990263938904
+    },
+    {
+      "id": "G029",
+      "status": "FAIL",
+      "saknas": true,
+      "sources": 0,
+      "evidence": "NONE",
+      "frag_score": 0.0,
+      "elapsed": 37.79947519302368
+    },
+    {
+      "id": "G031",
+      "status": "PASS",
+      "saknas": false,
+      "sources": 1,
+      "evidence": "none",
+      "frag_score": 0.3333333333333333,
+      "elapsed": 67.57446479797363
+    },
+    {
+      "id": "G033",
+      "status": "PASS",
+      "saknas": false,
+      "sources": 3,
+      "evidence": "medium",
+      "frag_score": 1.0,
+      "elapsed": 67.55463314056396
+    },
+    {
+      "id": "G034",
+      "status": "PASS",
+      "saknas": false,
+      "sources": 8,
+      "evidence": "medium",
+      "frag_score": 0.0,
+      "elapsed": 74.37239909172058
+    },
+    {
+      "id": "G037",
+      "status": "PASS",
+      "saknas": false,
+      "sources": 7,
+      "evidence": "medium",
+      "frag_score": 0.3333333333333333,
+      "elapsed": 66.46683144569397
+    },
+    {
+      "id": "G038",
+      "status": "FAIL",
+      "saknas": true,
+      "sources": 0,
+      "evidence": "NONE",
+      "frag_score": 0.0,
+      "elapsed": 54.107526540756226
+    },
+    {
+      "id": "G042",
+      "status": "PASS",
+      "saknas": false,
+      "sources": 3,
+      "evidence": "medium",
+      "frag_score": 0.0,
+      "elapsed": 53.54151153564453
+    },
+    {
+      "id": "G044",
+      "status": "PASS",
+      "saknas": false,
+      "sources": 3,
+      "evidence": "medium",
+      "frag_score": 0.0,
+      "elapsed": 59.04518914222717
+    },
+    {
+      "id": "G046",
+      "status": "FAIL",
+      "saknas": true,
+      "sources": 0,
+      "evidence": "NONE",
+      "frag_score": 0.0,
+      "elapsed": 46.77690625190735
+    },
+    {
+      "id": "G048",
+      "status": "PASS",
+      "saknas": false,
+      "sources": 3,
+      "evidence": "medium",
+      "frag_score": 0.0,
+      "elapsed": 56.697452545166016
+    },
+    {
+      "id": "G051",
+      "status": "PASS",
+      "saknas": false,
+      "sources": 3,
+      "evidence": "medium",
+      "frag_score": 1.0,
+      "elapsed": 83.25901055335999
+    },
+    {
+      "id": "G053",
+      "status": "FAIL",
+      "saknas": true,
+      "sources": 0,
+      "evidence": "NONE",
+      "frag_score": 0.0,
+      "elapsed": 59.52675771713257
+    },
+    {
+      "id": "G054",
+      "status": "FAIL",
+      "saknas": true,
+      "sources": 0,
+      "evidence": "NONE",
+      "frag_score": 0.0,
+      "elapsed": 46.40996336936951
+    },
+    {
+      "id": "G056",
+      "status": "PASS",
+      "saknas": false,
+      "sources": 5,
+      "evidence": "medium",
+      "frag_score": 1.0,
+      "elapsed": 46.60975122451782
+    },
+    {
+      "id": "G059",
+      "status": "PASS",
+      "saknas": false,
+      "sources": 3,
+      "evidence": "medium",
+      "frag_score": 1.0,
+      "elapsed": 51.714476346969604
+    },
+    {
+      "id": "G060",
+      "status": "FAIL",
+      "saknas": true,
+      "sources": 0,
+      "evidence": "NONE",
+      "frag_score": 0.0,
+      "elapsed": 68.61444616317749
+    }
+  ],
+  "summary": {
+    "passed": 18,
+    "failed": 12,
+    "errors": 0,
+    "avg_frag_score": 0.3222222222222222,
+    "total_time": 1659.7336497306824
+  }
+}

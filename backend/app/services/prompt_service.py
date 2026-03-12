@@ -42,16 +42,20 @@ def calculate_source_budget(
     """
     Calculate available token budget for source context.
 
+    Capped at 3000 tokens (~9K chars) to keep total system prompt under ~12K chars.
+    Qwen 3.5 9B + Ollama format:"json" stops constraining output when the
+    system prompt exceeds ~12-14K chars.
+
     Args:
         context_window: Total model context window in tokens
         system_prompt_overhead: Estimated system prompt size in tokens
         response_reserve: Tokens reserved for LLM response
 
     Returns:
-        Available tokens for source context (minimum 500)
+        Available tokens for source context (minimum 500, maximum 3000)
     """
     budget = context_window - system_prompt_overhead - response_reserve
-    return max(500, budget)
+    return max(500, min(budget, 3000))
 
 
 def _format_sfs_annotations(source: SearchResult) -> str:
@@ -382,7 +386,13 @@ Svara ENBART med giltig JSON (inga markdown-fences, inga kommentarer):
 - Använd \\n för radbrytning i strängar, ALDRIG rå radbrytning
 - EVIDENCE: "fakta_utan_kalla" alltid tom; saknas stöd → "saknas_underlag": true
 - ASSIST: Allmän kunskap utan källa → lista i "fakta_utan_kalla"
-- Slutför svaret fullständigt — avsluta aldrig med ":" utan innehåll"""
+- Slutför svaret fullständigt — avsluta aldrig med ":" utan innehåll
+"""
+
+# Short reminder appended AFTER sources to reinforce JSON output.
+# Qwen 3.5 9B ignores format:"json" when the system prompt exceeds ~12K chars.
+# The model attends most to prompt start and end, so this reminder is critical.
+_JSON_REMINDER = "\n\nVIKTIGT: Svara med giltig JSON. Börja med { och sluta med }."
 
 _TEXT_INSTRUCTION = """
 Saknar du stöd i dokumenten, svara att du saknar underlag. Spekulera aldrig. Var neutral och formell. Svara kortfattat på svenska."""
@@ -421,6 +431,8 @@ def build_system_prompt(
         if citation_plan:
             plan_items = "\n".join(f"- {title}" for title in citation_plan)
             prompt += f"\n\n=== CITERINGSPLAN (MÅSTE citera) ===\n{plan_items}\n=== SLUT ==="
+        if structured_output_enabled:
+            prompt += _JSON_REMINDER
         return prompt
 
     elif mode == "assist":
@@ -433,6 +445,8 @@ def build_system_prompt(
         if citation_plan:
             plan_items = "\n".join(f"- {title}" for title in citation_plan)
             prompt += f"\n\n=== CITERINGSPLAN (prioritera) ===\n{plan_items}\n=== SLUT ==="
+        if structured_output_enabled:
+            prompt += _JSON_REMINDER
         return prompt
 
     else:  # chat

@@ -161,8 +161,9 @@ class RerankingService(BaseService):
         """
         Initialize reranking service.
 
-        Loads model config from ConfigService.
-        Model is lazy-loaded on first reranking operation.
+        Loads model config and eagerly loads the model to claim GPU VRAM
+        before Ollama fills it during inference. Without eager loading,
+        the lazy load during a query races with Ollama for GPU memory.
         """
         self._model_config = RerankingConfig(
             model=self.config.reranking_model,
@@ -172,6 +173,25 @@ class RerankingService(BaseService):
         )
 
         self._mark_initialized()
+
+        # Eagerly load model and warm up to reserve GPU VRAM at startup.
+        # Both model weights AND inference buffers must be allocated before
+        # Ollama fills GPU memory during grading calls.
+        try:
+            self._load_model()
+            # Warm up: run dummy inference to allocate CUDA inference buffers
+            if self._device.startswith("cuda"):
+                # Use 20 pairs to allocate inference buffers matching production batch size
+                dummy_pairs = [("warmup query", f"warmup document {i} " * 50) for i in range(20)]
+                self._predict_pairs(dummy_pairs)
+                self.logger.info(
+                    f"Reranker pre-loaded and warmed up on {self._device} "
+                    f"(VRAM: {torch.cuda.memory_allocated() / 1024**2:.0f}MB)"
+                )
+            else:
+                self.logger.info("Reranker pre-loaded at startup (CPU)")
+        except Exception as e:
+            self.logger.warning(f"Reranker pre-load failed, will retry lazily: {e}")
 
     async def health_check(self) -> bool:
         """
@@ -216,17 +236,40 @@ class RerankingService(BaseService):
         """
         Score (query, doc) pairs with torch.no_grad() and gc cleanup.
 
-        Uses autocast for fp16 on GPU for faster inference.
+        Uses autocast for fp16 on GPU. Falls back to CPU inference
+        if CUDA OOM occurs (common when Ollama holds GPU memory).
         """
         device_type = "cuda" if self._device.startswith("cuda") else "cpu"
-        with torch.no_grad():
-            if device_type == "cuda":
-                with torch.amp.autocast(device_type="cuda"):
-                    scores = self._model.predict(pairs)
-            else:
+        if device_type == "cuda":
+            torch.cuda.empty_cache()
+            try:
+                with torch.no_grad():
+                    with torch.amp.autocast(device_type="cuda"):
+                        scores = self._model.predict(pairs)
+                gc.collect()
+                return scores
+            except (torch.cuda.OutOfMemoryError, RuntimeError) as e:
+                if "out of memory" in str(e).lower() or "CUDA" in str(e):
+                    self.logger.warning(
+                        f"CUDA OOM during inference ({len(pairs)} pairs), "
+                        f"falling back to CPU inference"
+                    )
+                    torch.cuda.empty_cache()
+                    gc.collect()
+                    # Move model to CPU temporarily for this inference
+                    self._model.model.cpu()
+                    with torch.no_grad():
+                        scores = self._model.predict(pairs)
+                    # Move model back to GPU
+                    self._model.model.cuda()
+                    gc.collect()
+                    return scores
+                raise
+        else:
+            with torch.no_grad():
                 scores = self._model.predict(pairs)
-        gc.collect()
-        return scores
+            gc.collect()
+            return scores
 
     async def rerank(
         self,

@@ -212,49 +212,31 @@ class CriticService(BaseService):
         """
         sources_text = "\n".join(
             [
-                f"[{i + 1}] {s.title} (score: {s.score:.2f})\n{s.snippet[:200]}..."
+                f"[{i + 1}] {s.title} (score: {s.score:.2f})\n{s.snippet[:500]}"
                 for i, s in enumerate(sources[:5])  # Limit to top 5 sources
             ]
         )
 
-        return f"""REFLEKTERA innan du svarar på följande fråga:
+        return f"""Bedöm om källorna räcker för att besvara frågan.
 
 FRÅGA: {query}
 SVARLÄGE: {mode.upper()}
-TILLGÄNGLIGA KÄLLOR ({len(sources)}):
+KÄLLOR ({len(sources)}):
 {sources_text if sources_text else "Inga källor hittades"}
 
-KONSTITUTIONELLA REGLER (Svenska förvaltningslagen):
-1. LEGALITET: Använd endast information som stöds av dokumenten
-2. TRANSPARENS: Alla påståenden måste ha källhänvisning
-3. OBJEKTIVITET: Var neutral, saklig och formell
-4. SERVICEKYLDIGHET: Var hjälpsam inom ramen för lagen
+REGLER:
+- has_sufficient_evidence = true om MINST EN källa innehåller relevant information.
+- has_sufficient_evidence = false BARA om ingen källa alls berör ämnet.
+- Var generös: partiell information räcker. Bättre att svara med det som finns.
 
-REFLEKTIONSFRÅGOR:
-1. Vilka dokument är relevanta för frågan? Varför?
-2. Finns det tillräckligt stöd i dokumenten för att ge ett rättssäkert svar?
-3. Hur ska jag strukturera svaret enligt konstitutionella regler?
-4. Vilka källor måste jag citera och hur?
-5. Måste jag avslå frågan om underlag saknas?
-
-Returnera endast giltig JSON:
+Returnera giltig JSON:
 {{
-  "thought_process": "Din tankekedja på svenska (max 200 ord)",
+  "thought_process": "Kort analys (max 100 ord)",
   "has_sufficient_evidence": true/false,
-  "missing_evidence": ["lista på vad som saknas"],
-  "citation_plan": ["vilka dokument som ska citera"],
-  "constitutional_compliance": true/false,
-  "confidence": 0.0-1.0
-}}
-
-EXEMPEL PÅ SVAR:
-{{
-  "thought_process": "Frågan handlar om GDPR artikel 6. Jag har 3 relevanta dokument som täcker detta. Tillräckligt stöd finns för att svara med källor.",
-  "has_sufficient_evidence": true,
   "missing_evidence": [],
-  "citation_plan": ["GDPR Article 6", "Dataskyddsförordningen"],
+  "citation_plan": ["källtitlar att citera"],
   "constitutional_compliance": true,
-  "confidence": 0.9
+  "confidence": 0.0-1.0
 }}"""
 
     @staticmethod
