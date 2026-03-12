@@ -54,9 +54,9 @@ class ConfigSettings(BaseSettings):
     embedding_collection_suffix: str = "_jina_v3_1024"
 
     # LLM Configuration (Constitutional AI)
-    constitutional_model: str = "qwen3.5:9b"
+    constitutional_model: str = "gemma3:12b"
     # Intentionally same as primary — no separate fallback model downloaded
-    constitutional_fallback: str = "qwen3.5:9b"
+    constitutional_fallback: str = "gemma3:12b"
     llm_timeout: float = 60.0
 
     # LLM Base URL (Ollama, OpenAI-compatible)
@@ -64,7 +64,7 @@ class ConfigSettings(BaseSettings):
     llama_server_base_url: str = "http://localhost:11434"
     llama_server_enabled: bool = False
     llama_server_timeout: float = 120.0
-    gguf_primary_model: str = "qwen3.5:9b"
+    gguf_primary_model: str = "gemma3:12b"
     gguf_context_window: int = 8192
 
     # Response Modes
@@ -196,7 +196,7 @@ class ConfigSettings(BaseSettings):
     crag_enabled: bool = True  # Enabled - filters irrelevant docs before LLM generation
     crag_grade_threshold: float = 0.15  # Relevance threshold (lowered for better edge-case recall)
     crag_max_rewrite_attempts: int = 2  # Max query rewrite attempts if no relevant docs
-    crag_grader_model: str = "qwen3.5:9b"  # Same as primary — single model setup
+    crag_grader_model: str = "gemma3:12b"  # Same as primary — single model setup
     crag_enable_self_reflection: bool = False  # Chain of Thought before answering
     crag_max_concurrent_grading: int = 5  # Max parallel document grading
     crag_grade_timeout: float = 10.0  # Timeout per document grading in seconds
