@@ -63,7 +63,7 @@ class StructuredOutputService(BaseService):
         """
         Normalize common LLM-generated key variants to the expected schema keys.
 
-        Qwen 3.5 9B sometimes invents its own keys (kort_svar, answer, sources, etc.)
+        LLMs sometimes invent their own keys (kort_svar, answer, sources, etc.)
         instead of following the schema. This maps them to the correct fields.
         """
         normalized = dict(data)
@@ -103,7 +103,7 @@ class StructuredOutputService(BaseService):
         normalized.setdefault("kallor", [])
         normalized.setdefault("fakta_utan_kalla", [])
 
-        # Normalize inner kallor fields — Qwen 3.5 9B uses wrong field names and types
+        # Normalize inner kallor fields — LLMs sometimes use wrong field names and types
         if "kallor" in normalized and isinstance(normalized["kallor"], list):
             cleaned = []
             for source in normalized["kallor"]:

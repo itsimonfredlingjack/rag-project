@@ -42,9 +42,8 @@ def calculate_source_budget(
     """
     Calculate available token budget for source context.
 
-    Capped at 3000 tokens (~9K chars) to keep total system prompt under ~12K chars.
-    Qwen 3.5 9B + Ollama format:"json" stops constraining output when the
-    system prompt exceeds ~12-14K chars.
+    Capped at 5000 tokens (~15K chars) to keep total system prompt manageable.
+    Gemma 3 12B has 128K native context so this cap is conservative.
 
     Args:
         context_window: Total model context window in tokens
@@ -52,10 +51,10 @@ def calculate_source_budget(
         response_reserve: Tokens reserved for LLM response
 
     Returns:
-        Available tokens for source context (minimum 500, maximum 3000)
+        Available tokens for source context (minimum 500, maximum 5000)
     """
     budget = context_window - system_prompt_overhead - response_reserve
-    return max(500, min(budget, 3000))
+    return max(500, min(budget, 5000))
 
 
 def _format_sfs_annotations(source: SearchResult) -> str:
@@ -329,8 +328,8 @@ def format_constitutional_examples(examples: List[Dict[str, Any]]) -> str:
 
 # ── System Prompt Builder ──────────────────────────────────────────
 #
-# Optimized for Qwen 3.5 9B (Q4_K_M) with 8K context window.
-# Design: ~1200 tokens instructions (down from ~3000) → more source context.
+# Optimized for Gemma 3 12B (Q4_K_M) with 128K context window.
+# Design: ~1200 tokens instructions → more source context.
 # Principles: one example > three paragraphs; primacy/recency for key rules.
 
 _ROLE_BLOCK = (
@@ -351,17 +350,19 @@ _ROLE_BLOCK = (
 _RULES_EVIDENCE = """=== SVARSREGLER (EVIDENCE) ===
 Svara ENBART utifrån källorna. Var neutral, saklig och formell.
 
-1. CITERA ORDAGRANT med citattecken: "Enligt [lag] [kap.] [§]: '[exakt citat]'"
-2. TOLKA ALDRIG juridik — "får" ≠ "ska", "kan" ≠ "måste", behåll exakt modalverb
-3. VILLKOR FÖRST — om källan säger "om X, då Y", inkludera alltid villkoret
-4. LISTA INTE MER än vad som finns i dokumenten
-5. LÄGG ALDRIG TILL förklaringar, tolkningar eller begrepp utanför källorna
-6. ERKÄNN LUCKOR — "Dokumenten anger inte..." när info saknas
-7. Proceduella frågor: citera vad källorna säger, erkänn om steg-för-steg saknas
-8. Saknar du underlag → "saknas_underlag": true, "svar": "Jag saknar underlag..."
+1. CITERA med exakta ord från dokumentet — kopiera hela meningar eller fraser med citattecken: "Enligt [lag] [kap.] [§]: '[exakt citat]'"
+2. ALDRIG parafrasera lagtext — använd EXAKT samma ord som i källan
+3. TOLKA ALDRIG juridik — "får" ≠ "ska", "kan" ≠ "måste", behåll exakt modalverb
+4. VILLKOR FÖRST — om källan säger "om X, då Y", inkludera alltid villkoret
+5. LISTA INTE MER än vad som finns i dokumenten
+6. LÄGG ALDRIG TILL förklaringar, tolkningar eller begrepp utanför källorna
+7. ERKÄNN LUCKOR — "Dokumenten anger inte..." när info saknas
+8. Inkludera ALL relevant information från källorna — utelämna inte viktiga detaljer, villkor eller paragrafer
+9. Proceduella frågor: citera vad källorna säger, erkänn om steg-för-steg saknas
+10. Saknar du underlag → "saknas_underlag": true, "svar": "Jag saknar underlag..."
 
 ✓ "Enligt RF 2 kap. 1 §: 'Var och en är gentemot det allmänna tillförsäkrad yttrandefrihet'"
-✗ "RF säger att alla har yttrandefrihet" (parafras)
+✗ "RF säger att alla har yttrandefrihet" (parafras — ALDRIG omformulera lagtext)
 ✗ "Myndigheten har 6 månader på sig" (tolkning av "får parten begära")"""
 
 _RULES_ASSIST = """=== SVARSREGLER (ASSIST) ===
@@ -384,13 +385,14 @@ Svara ENBART med giltig JSON (inga markdown-fences, inga kommentarer):
 - citat: ordagrant text från källan inom citattecken
 - loc: laghänvisning (t.ex. "RF 2 kap. 1 §")
 - Använd \\n för radbrytning i strängar, ALDRIG rå radbrytning
+- Inkludera ALL relevant information från källorna — utelämna inte viktiga detaljer, villkor eller paragrafer
 - EVIDENCE: "fakta_utan_kalla" alltid tom; saknas stöd → "saknas_underlag": true
 - ASSIST: Allmän kunskap utan källa → lista i "fakta_utan_kalla"
 - Slutför svaret fullständigt — avsluta aldrig med ":" utan innehåll
 """
 
 # Short reminder appended AFTER sources to reinforce JSON output.
-# Qwen 3.5 9B ignores format:"json" when the system prompt exceeds ~12K chars.
+# LLMs sometimes ignore format:"json" with long system prompts.
 # The model attends most to prompt start and end, so this reminder is critical.
 _JSON_REMINDER = "\n\nVIKTIGT: Svara med giltig JSON. Börja med { och sluta med }."
 

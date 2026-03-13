@@ -227,7 +227,7 @@ async def _parse_with_retry(
     logger.warning(f"Structured output attempt 1 failed: {err}")
 
     # Attempt 1.5: If the LLM produced good text (not JSON), wrap it
-    # Qwen 3.5 9B often ignores JSON format and outputs plain text answers
+    # LLMs sometimes ignore JSON format and output plain text answers
     if full_answer and not full_answer.strip().startswith("{") and len(full_answer.strip()) > 50:
         logger.info(
             f"Plain text answer detected ({len(full_answer)} chars), wrapping in structured format"
@@ -253,7 +253,7 @@ async def _parse_with_retry(
 
     # Attempt 2: Retry with error-aware instruction (backoff: 1s)
     try:
-        await asyncio.sleep(1.0)  # Rate limit: avoid GPU overload from rapid retries
+        await asyncio.sleep(0.3)  # Brief backoff before retry
         retry_instruction = (
             f"Du returnerade ogiltig JSON med följande fel: {err}. "
             "Korrigera felet och returnera endast giltig JSON enligt schema. "
@@ -336,7 +336,7 @@ async def _anti_truncation_retry(
     llm_config: dict,
     structured_output_data: Optional[Dict],
     reasoning_steps: List[str],
-    max_retries: int = 3,
+    max_retries: int = 1,
 ) -> str:
     """Retry LLM generation if answer appears truncated."""
     if not full_answer:
@@ -355,8 +355,8 @@ async def _anti_truncation_retry(
             f"TRUNCATION DETECTED (attempt {retry_count}/{max_retries}): len={len(full_answer)}"
         )
         try:
-            # Rate limit: backoff before hitting GPU again (1s, 2s, 3s)
-            await asyncio.sleep(retry_count * 1.0)
+            # Brief backoff before retry
+            await asyncio.sleep(0.5)
             retry_messages = []
             if messages and messages[0].get("role") == "system":
                 retry_messages.append(messages[0])

@@ -3,7 +3,7 @@ Reranking Service - Jina Reranker v2 Cross-Encoder Wrapper
 Wrapper for Jina reranker-v2-base-multilingual cross-encoder model.
 
 GPU-accelerated (fp16) when CUDA available — fits alongside Ollama LLM in VRAM.
-Reranker ~0.3GB fp16 + Qwen 3.5 9B ~6.6GB = ~6.9GB / 12GB RTX 4070.
+Reranker ~0.5GB fp16 + Gemma 3 12B ~8GB = ~8.5GB / 12GB RTX 4070.
 """
 
 import asyncio

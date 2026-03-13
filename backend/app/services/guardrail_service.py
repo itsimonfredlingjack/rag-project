@@ -296,6 +296,7 @@ class GuardrailService(BaseService):
         (r"\bollama\b", "technology"),
         (r"\bministral[- ]?3\b", "technology"),
         (r"\bqwen[- ]?3\.?5?\b", "technology"),
+        (r"\bgemma[- ]?3\b", "technology"),
         (r"\buvicorn\b", "technology"),
         (r"\bfastapi\b", "technology"),
         # Model filenames

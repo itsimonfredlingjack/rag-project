@@ -96,7 +96,7 @@ class TestBuildSystemPrompt:
 
     def test_evidence_contains_grounding_evidence(self):
         prompt = build_system_prompt("evidence", [], "context")
-        assert "CITERA ORDAGRANT" in prompt
+        assert "CITERA med exakta ord" in prompt
 
     def test_evidence_contains_procedural_rules(self):
         prompt = build_system_prompt("evidence", [], "context")

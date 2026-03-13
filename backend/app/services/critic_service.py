@@ -87,7 +87,7 @@ class CriticService(BaseService):
 
         # Configuration for self-reflection
         self.reflection_enabled = getattr(config.settings, "crag_enable_self_reflection", False)
-        self.reflection_model = getattr(config.settings, "crag_grader_model", "qwen3.5:9b")
+        self.reflection_model = getattr(config.settings, "crag_grader_model", "gemma3:12b")
         self.reflection_timeout = getattr(config.settings, "crag_reflection_timeout", 15.0)
 
         # Semantic critic configuration (LLM-based)

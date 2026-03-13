@@ -2,26 +2,27 @@
 
 > Dokumentation av modellparametrar, system prompts och best practices för prompt engineering
 
-**Senast uppdaterad:** 2026-02-12
+**Senast uppdaterad:** 2026-03-12
 
 ---
 
 ## Översikt
 
-Constitutional AI använder llama-server (llama.cpp) med lokala modeller för att svara på frågor baserat på en korpus med över 1.37M+ svenska dokument (538K legal/gov + 829K DiVA research).
+Constitutional AI använder Ollama med lokala modeller för att svara på frågor baserat på en korpus med över 1.37M+ svenska dokument (538K legal/gov + 829K DiVA research).
 
 ### Modeller
 
-- **Primär modell:** Ministral-3-14B-Instruct-2512-Q4_K_M.gguf via llama-server (port 8080)
-- **Fallback modell:** Samma som primär (ingen separat fallback-modell nedladdad)
-- **Grader-modell:** Ministral-3-14B-Instruct-2512-Q4_K_M.gguf (GBNF-styrd JSON-gradering)
-- **Draft-modell:** Ingen separat draft-modell i migration 2026
+- **Primär modell:** Gemma 3 12B (Q4_K_M, ~8GB) via Ollama (port 11434)
+- **Fallback modell:** Samma som primär (ingen separat fallback-modell)
+- **Grader-modell:** Gemma 3 12B (GBNF-styrd 3-vägs JSON-gradering: RELEVANT/AMBIGUOUS/IRRELEVANT)
+- **Draft-modell:** Ingen separat draft-modell
 - **Embedding modell:** jinaai/jina-embeddings-v3 (1024 dim, asymmetric LoRA, CC-BY-NC-4.0)
 - **Reranker:** jinaai/jina-reranker-v2-base-multilingual (XLM-RoBERTa, 278M params, CC-BY-NC-4.0)
 - **Vector DB:** ChromaDB
 - **CRAG:** Enabled (grading active, self-reflection disabled)
 - **Collections:** All suffixed with `_jina_v3_1024`
-- **Timeout:** 120 sekunder (llama-server timeout)
+- **Context window:** 16384 tokens (Gemma 3 supports 128K natively, capped for VRAM)
+- **Timeout:** 60 sekunder (Ollama timeout)
 
 ---
 
@@ -297,6 +298,48 @@ curl -X POST http://localhost:8900/api/constitutional/agent/query \
 
 ## Ändringshistorik
 
+### 2026-03-12 - Gemma 3 12B migration + quality/performance tuning
+
+**Model migration:** Qwen 3.5 9B → Gemma 3 12B (Q4_K_M, ~8GB via Ollama)
+
+| Change | Before | After | Rationale |
+|--------|--------|-------|-----------|
+| Primary model | Qwen 3.5 9B | Gemma 3 12B | Better Swedish, larger context |
+| Grader model | Qwen 3.5 9B | Gemma 3 12B | Single-model setup |
+| Runtime | llama-server | Ollama | Simpler deployment |
+| Context window | 8192 | 16384 | Gemma 3 128K native |
+| Source budget cap | 3000 tokens | 5000 tokens | More source context |
+| default_search_limit | 15 | 20 | More retrieval candidates |
+| reranking_top_n | 8 | 10 | More docs in final context |
+| rrf_bm25_weight | 1.2 | 1.5 | Favor exact legal term matches |
+| critic_max_revisions | 2 | 1 | Reduce latency |
+| anti-truncation retries | 3 | 1 | Gemma 3 produces longer outputs |
+
+**EVIDENCE mode fixes:**
+- CRAG soft pass: when grader finds 0 relevant + 0 ambiguous docs, pass top 3 reranked docs through instead of hard-refusing
+- Grading prompt: bias toward AMBIGUOUS over IRRELEVANT when uncertain; accept background info
+- Quality gate threshold: 0.15 → 0.05 (removed double-filter before CRAG)
+
+**Quality tuning:**
+- Strengthened verbatim citation rules in EVIDENCE prompt
+- Added completeness instruction: "Inkludera ALL relevant information"
+- Added negative example for paraphrase detection
+
+**Performance tuning:**
+- Grading num_predict: 32 → 24 (GBNF constrains to ~15-20 tokens)
+- Retry backoff: 1-3s → 0.3-0.5s
+- Critic max revisions: 2 → 1
+
+**Baseline eval (Qwen era, 2026-03-11):**
+
+| Metric | Value |
+|--------|-------|
+| Composite | 0.37 |
+| Faithfulness | 0.29 |
+| EVIDENCE composite | 0.22 |
+| EVIDENCE refusals | 16/30 |
+| Avg latency | 39s/query |
+
 ### 2025-12-15 - Första optimering
 - Förbättrade system prompts med referenser till korpusen
 - Lade till top_p och repeat_penalty parametrar
@@ -308,6 +351,6 @@ curl -X POST http://localhost:8900/api/constitutional/agent/query \
 
 ## Referenser
 
-- llama.cpp server API: https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md
-- Mistral AI: https://mistral.ai/
+- Ollama: https://ollama.ai/
+- Gemma 3: https://ai.google.dev/gemma
 - ChromaDB: https://www.trychroma.com/

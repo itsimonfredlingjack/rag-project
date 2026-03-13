@@ -106,7 +106,7 @@ def make_structured_json_response(mode="ASSIST"):
 class MockLLMStats:
     tokens_generated = 85
     total_duration_ms = 250.0
-    model_used = "qwen3.5:9b"
+    model_used = "gemma3:12b"
     tokens_per_second = 340.0
 
 

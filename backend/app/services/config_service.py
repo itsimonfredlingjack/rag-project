@@ -65,7 +65,7 @@ class ConfigSettings(BaseSettings):
     llama_server_enabled: bool = False
     llama_server_timeout: float = 120.0
     gguf_primary_model: str = "gemma3:12b"
-    gguf_context_window: int = 8192
+    gguf_context_window: int = 16384
 
     # Response Modes
     mode_evidence_temperature: float = 0.15
@@ -84,7 +84,7 @@ class ConfigSettings(BaseSettings):
     mode_chat_num_predict: int = 512
 
     # Search Configuration
-    default_search_limit: int = 15
+    default_search_limit: int = 20
     max_search_limit: int = 100
     search_timeout: float = 5.0
 
@@ -106,7 +106,7 @@ class ConfigSettings(BaseSettings):
     reranking_enabled: bool = True
     reranking_top_k: int = 10
     reranking_score_threshold: float = 0.1  # Filter docs below this reranker score
-    reranking_top_n: int = 8  # Max docs to pass to LLM after reranking
+    reranking_top_n: int = 10  # Max docs to pass to LLM after reranking
     reranking_min_results: int = 3  # Minimum results to keep after reranking
 
     # Jail Warden v2
@@ -130,7 +130,7 @@ class ConfigSettings(BaseSettings):
     # Hybrid Search & RRF Fusion
     # BM25 weight in RRF: 1.0 = equal weight, 1.2 = slightly favor exact legal terms
     # Higher values prioritize exact SFS matches over semantic similarity
-    rrf_bm25_weight: float = 1.2
+    rrf_bm25_weight: float = 1.5
 
     # RRF k constant: lower = top results dominate, higher = flatter distribution
     # k=60 is the original paper default, k=45 balances legal precision and recall
@@ -186,7 +186,7 @@ class ConfigSettings(BaseSettings):
     # Structured Output & Critic→Revise Loop (Constitutional AI)
     structured_output_enabled: bool = True
     critic_revise_enabled: bool = True  # Enabled for answer quality improvement
-    critic_max_revisions: int = 2  # Allow one revision attempt before fallback
+    critic_max_revisions: int = 1  # One revision attempt before fallback
     critic_temperature: float = 0.1
 
     # Refusal Template

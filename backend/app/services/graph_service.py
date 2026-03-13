@@ -225,7 +225,7 @@ async def grade_documents_node(state: GraphState) -> Dict[str, Any]:
 
 async def generate_node(state: GraphState) -> Dict[str, Any]:
     """
-    Generate Node - Generates LLM response using Qwen 3.5 9B.
+    Generate Node - Generates LLM response using Gemma 3 12B.
 
     Uses system prompt (EVIDENCE or ASSIST) based on config.
     Generates answer based only on filtered documents.

@@ -95,7 +95,7 @@ class OrchestratorService(BaseService):
     1. Query classification (CHAT/ASSIST/EVIDENCE)
     2. Query decontextualization (from conversation history)
     3. Document retrieval (Phase 1-4 RetrievalOrchestrator)
-    4. LLM generation (Qwen 3.5 9B)
+    4. LLM generation (Gemma 3 12B)
     5. Guardrail validation (Jail Warden v2)
     6. Optional reranking (Jina cross-encoder)
 
@@ -495,11 +495,11 @@ class OrchestratorService(BaseService):
                     thought_chain=thought_chain,
                 )
 
-            # EVIDENCE mode: refuse if ALL sources have very low quality
+            # EVIDENCE mode: refuse only if ALL sources have extremely low quality
             if (
                 resolved_mode == ResponseMode.EVIDENCE
                 and sources
-                and all(s.score < 0.15 for s in sources)
+                and all(s.score < 0.05 for s in sources)
             ):
                 refusal_text = getattr(
                     self.config.settings,
@@ -509,7 +509,7 @@ class OrchestratorService(BaseService):
                 )
                 total_ms = (time.perf_counter() - start_time) * 1000
                 reasoning_steps.append(
-                    f"EVIDENCE refusal: all {len(sources)} sources below 0.15 quality threshold"
+                    f"EVIDENCE refusal: all {len(sources)} sources below 0.05 quality threshold"
                 )
                 return RAGResult(
                     answer=refusal_text,

@@ -1,0 +1,61 @@
+{
+  "summary": {
+    "dataset_version": "v1",
+    "total_items": 60,
+    "evaluated_items": 1,
+    "failed_items": 2,
+    "total_latency_ms": 243297.1
+  },
+  "aggregate_metrics": {
+    "answer_relevancy": 0.0,
+    "faithfulness": 0.0,
+    "context_precision": 0.0,
+    "context_recall": 0.0,
+    "citation_accuracy": 1.0,
+    "fragment_coverage": 0.3333,
+    "composite_score": 0.05
+  },
+  "violations": {
+    "forbidden_fragments": 0,
+    "modal_verb_failures": 0,
+    "scope_failures": 0
+  },
+  "breakdowns": {
+    "by_mode": {
+      "evidence": {
+        "count": 1,
+        "avg_composite": 0.05,
+        "avg_faithfulness": 0.0,
+        "avg_relevancy": 0.0,
+        "avg_fragment_coverage": 0.3333
+      }
+    },
+    "by_intent": {
+      "legal_text": {
+        "count": 1,
+        "avg_composite": 0.05,
+        "avg_faithfulness": 0.0,
+        "avg_relevancy": 0.0,
+        "avg_fragment_coverage": 0.3333
+      }
+    },
+    "by_difficulty": {
+      "medium": {
+        "count": 1,
+        "avg_composite": 0.05,
+        "avg_faithfulness": 0.0,
+        "avg_relevancy": 0.0,
+        "avg_fragment_coverage": 0.3333
+      }
+    }
+  },
+  "metadata": {
+    "timestamp": "2026-03-11T10:12:16.235624",
+    "api_base": "http://localhost:8900/api/constitutional",
+    "filters": {
+      "mode": "evidence",
+      "difficulty": null,
+      "limit": 3
+    }
+  }
+}

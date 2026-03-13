@@ -112,7 +112,7 @@ Denna guide beskriver hur man strukturerar projektet för GitHub-publicering med
 - **Backend**: FastAPI (Python 3.14)
 - **Frontend**: React + TypeScript + Vite
 - **Vector DB**: ChromaDB (1.37M+ dokument: 538K legal/gov + 829K DiVA research)
-- **LLM**: Ministral-3-14B-Instruct-2512-Q4_K_M.gguf via llama-server (port 8080)
+- **LLM**: Gemma 3 12B-Q4_K_M.gguf via Ollama (port 11434)
 - **Embeddings**: jinaai/jina-embeddings-v3 (1024 dimensions)
 - **Reranker**: jinaai/jina-reranker-v2-base-multilingual
 
@@ -121,7 +121,7 @@ Denna guide beskriver hur man strukturerar projektet för GitHub-publicering med
 | Tjänst | Port | Status |
 |--------|------|--------|
 | Constitutional AI Backend | 8900 | 🟢 Active |
-| llama-server | 8080 | Running |
+| Ollama | 8080 | Running |
 | Ollama | 11434 | Optional (fallback) |
 
 ## API Endpoints
@@ -149,7 +149,7 @@ Skapa en fil som AI-modeller kan läsa först för att förstå projektet:
 Constitutional AI är ett RAG-system (Retrieval-Augmented Generation) för svenska myndighetsdokument med:
 - 1.37M+ dokument (538K legal/gov + 829K DiVA research)
 - ChromaDB som vector database
-- llama-server (llama.cpp) för lokal LLM-inferens med Ministral-3-14B-Instruct-2512
+- Ollama (Ollama) för lokal LLM-inferens med Gemma 3 12B
 - FastAPI backend + React frontend
 
 ## Viktiga Filer för AI-förståelse
@@ -181,7 +181,7 @@ Constitutional AI är ett RAG-system (Retrieval-Augmented Generation) för svens
 - `app/api/constitutional_routes.py` - API routes (550+ lines)
 - `app/services/orchestrator_service.py` - RAG orchestration
 - `app/services/retrieval_service.py` - ChromaDB retrieval
-- `app/services/llm_service.py` - llama-server (OpenAI-compatible) integration with Ministral-3-14B-Instruct-2512
+- `app/services/llm_service.py` - Ollama (OpenAI-compatible) integration with Gemma 3 12B
 
 ### Frontend (`apps/`)
 - `constitutional-gpt/` - Main RAG interface (Next.js 16)
@@ -198,7 +198,7 @@ User Query → Frontend → Backend API → Orchestrator
     ↓
 Retrieval Service → ChromaDB (1.37M+ docs)
     ↓
-LLM Service → llama-server (Ministral-3-14B-Instruct-2512)
+LLM Service → Ollama (Gemma 3 12B)
     ↓
 Response → Frontend → User
 ```
@@ -206,7 +206,7 @@ Response → Frontend → User
 ## Viktiga Konfigurationer
 
 - **ChromaDB Path**: `/home/ai-server/.../chromadb_data/` (exkluderas från git)
-- **LLM Runtime**: llama-server (llama.cpp, port 8080) with Ministral-3-14B-Instruct-2512 (primary). For stack and model choices see `docs/deep-research-by-claude.md` and `docs/deep-research-by-chatgpt.md`.
+- **LLM Runtime**: Ollama (Ollama, port 11434) with Gemma 3 12B (primary). For stack and model choices see `docs/deep-research-by-claude.md` and `docs/deep-research-by-chatgpt.md`.
 - **Embedding Model**: jinaai/jina-embeddings-v3 (1024 dimensions)
 - **Reranker**: jinaai/jina-reranker-v2-base-multilingual
 - **API Port**: 8900

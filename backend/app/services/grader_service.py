@@ -1,6 +1,6 @@
 """
 Grader Service - Document Relevance Assessment for CRAG
-Uses primary LLM (Qwen 3.5 9B) to grade retrieved documents
+Uses primary LLM (Gemma 3 12B) to grade retrieved documents
 
 CRAG Component: Grade Node
 Purpose: Filter out irrelevant documents before generation to prevent
@@ -118,7 +118,7 @@ class GraderService(BaseService):
     Grader Service - Document Relevance Assessment for CRAG.
 
     Features:
-    - Uses primary LLM (Qwen 3.5 9B) for relevance assessment
+    - Uses primary LLM (Gemma 3 12B) for relevance assessment
     - Parallel grading of multiple documents
     - Configurable relevance threshold
     - Timeout protection and error handling
@@ -149,7 +149,7 @@ class GraderService(BaseService):
 
         # Configuration
         self.grade_threshold = getattr(config.settings, "crag_grade_threshold", 0.3)
-        self.grader_model = getattr(config.settings, "crag_grader_model", "qwen3.5:9b")
+        self.grader_model = getattr(config.settings, "crag_grader_model", "gemma3:12b")
         self.max_concurrent = getattr(config.settings, "crag_max_concurrent_grading", 5)
         self.grade_timeout = getattr(config.settings, "crag_grade_timeout", 10.0)
 
@@ -368,7 +368,7 @@ class GraderService(BaseService):
                 config_override={
                     "temperature": 0.1,  # Low temperature for consistent grading
                     "top_p": 0.9,
-                    "num_predict": 32,  # Minimal JSON is ~20 tokens
+                    "num_predict": 24,  # GBNF constrains to ~15-20 tokens
                     "grammar": GRADING_GRAMMAR,
                 },
             ):
@@ -416,8 +416,10 @@ DOKUMENT ({document.doc_type or "okänd"}): {document.title}
 {document.snippet[:800]}
 
 RELEVANT = dokumentet innehåller information som hjälper besvara frågan.
-AMBIGUOUS = oklart om dokumentet är användbart.
-IRRELEVANT = dokumentet handlar om annat.
+AMBIGUOUS = oklart om dokumentet är användbart. Vid tveksamhet, välj AMBIGUOUS snarare än IRRELEVANT.
+IRRELEVANT = dokumentet handlar om ett helt annat ämne.
+
+Dokumentet behöver inte besvara frågan direkt — det räcker att det innehåller relevant bakgrundsinformation.
 
 Svara: {{"status":"RELEVANT","confidence":0.XX}} eller AMBIGUOUS eller IRRELEVANT."""
 

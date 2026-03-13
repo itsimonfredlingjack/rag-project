@@ -140,8 +140,12 @@ async def process_crag_grading(
                 f"CRAG: No RELEVANT docs, using {len(sources)} AMBIGUOUS documents"
             )
         else:
-            sources = []
-            reasoning_steps.append("CRAG: No relevant or ambiguous documents found")
+            # Soft pass: no graded matches, use top reranked docs instead of
+            # hard-refusing. Let generation + guardrail layers handle quality.
+            sources = retrieval_result.results[:3]
+            reasoning_steps.append(
+                f"CRAG soft pass: no graded matches, using top {len(sources)} reranked docs"
+            )
 
         # Compute should_rewrite for observability (no functional rewrite implementation)
         should_rewrite = (relevant_count == 0 and ambiguous_count <= 1) or avg_confidence < 0.4

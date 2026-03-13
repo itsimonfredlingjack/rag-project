@@ -375,7 +375,7 @@ class LLMService(BaseService):
         Check if a specific model is downloaded.
 
         Args:
-            model_name: Model name to check (e.g., "ministral-3:14b")
+            model_name: Model name to check (e.g., "gemma3:12b")
 
         Returns:
             True if model is available, False otherwise
@@ -525,7 +525,7 @@ class LLMService(BaseService):
                 "messages": messages,
                 "stream": True,
                 "options": model_options,
-                # Disable Qwen 3.5 thinking mode for deterministic RAG output.
+                # Disable thinking mode for deterministic RAG output.
                 # Thinking wastes tokens on internal CoT, producing empty content
                 # for low num_predict budgets (grading, critic).
                 "think": config_override.get("think", False) if config_override else False,

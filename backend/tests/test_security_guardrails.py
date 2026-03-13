@@ -292,6 +292,8 @@ class TestOutputLeakageSanitized:
             "Modellen heter model.gguf",
             "Vi kör qwen3.5 som LLM",
             "Embeddings via qwen-3.5",
+            "Vi använder gemma3 som LLM",
+            "Modellen är gemma-3 12B",
         ],
     )
     def test_leakage_sanitized(self, guardrail, leak):

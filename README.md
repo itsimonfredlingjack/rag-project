@@ -23,8 +23,8 @@ docs/             Dokumentation och arkitektur
 | Vector DB | ChromaDB (~37GB, 1.37M+ dokument) |
 | Embeddings | jinaai/jina-embeddings-v3 (1024 dim, asymmetrisk encoding) |
 | Reranker | jinaai/jina-reranker-v2-base-multilingual (cross-encoder, XLM-RoBERTa, 278M params) |
-| LLM | Ministral-3-14B-Instruct-2512 Q4_K_M (8.24GB) via llama-server |
-| Grading-modell | Qwen2.5-0.5B-Instruct Q8_0 (dokument-relevansgradering) |
+| LLM | Gemma 3 12B Q4_K_M (~8GB) via Ollama |
+| Grading-modell | Gemma 3 12B (dokument-relevansgradering, samma som primär LLM) |
 | Pipeline | LangGraph (CRAG med relevance grading + self-reflection) |
 | Sparse search | BM25 |
 | Fusion | RAG-Fusion med Reciprocal Rank Fusion |
@@ -50,7 +50,7 @@ docs/             Dokumentation och arkitektur
 | Komponent | Teknik |
 |-----------|--------|
 | Hosting | Self-hosted, RTX 4070 12GB VRAM |
-| LLM-runtime | llama-server (llama.cpp) port 8080 |
+| LLM-runtime | Ollama port 11434 |
 | Process | 3 systemd user services (backend, llm, frontend) |
 | Containers | Docker Compose (ChromaDB, llama-server, backend) |
 | CI/CD | GitHub Actions — ruff, mypy, pytest, eslint, tsc build |
@@ -65,8 +65,8 @@ Query → IntentClassifier → QueryRewriter
     ├─ Fas 3: RAG-Fusion (multi-query + RRF-merge)
     └─ Fas 4: Adaptiv retrieval (confidence-baserad eskalering)
   → Reranking (Jina cross-encoder)
-  → GraderService (Qwen 0.5B, binär relevansgradering per dokument)
-  → LLM (Ministral-3-14B, streamas via SSE)
+  → GraderService (Gemma 3 12B, 3-vägs relevansgradering per dokument)
+  → LLM (Gemma 3 12B, streamas via SSE)
   → GuardrailService (blockerar hallucinationer i EVIDENCE-läge)
   → CriticService (Critic-Revise loop)
   → Svar till frontend
@@ -79,10 +79,10 @@ Query → IntentClassifier → QueryRewriter
 | `orchestrator_service.py` | Central pipeline-koordinator (~950 rader) |
 | `retrieval_orchestrator.py` | Fas 1–4 retrieval med adaptiv eskalering |
 | `retrieval_service.py` | ChromaDB vektorsökning |
-| `llm_service.py` | llama-server (OpenAI-kompatibelt API) med streaming |
+| `llm_service.py` | Ollama LLM integration med streaming |
 | `embedding_service.py` | Jina v3 embeddingberäkning |
 | `reranking_service.py` | Jina cross-encoder reranking |
-| `grader_service.py` | Dokumentrelevansgradering (Qwen 0.5B) |
+| `grader_service.py` | Dokumentrelevansgradering (Gemma 3 12B) |
 | `graph_service.py` | LangGraph state machine för CRAG |
 | `guardrail_service.py` | Hallucinationsdetektion (Jail Warden v2) |
 | `intent_classifier.py` | Frågetypklassificering |
@@ -187,7 +187,7 @@ Swagger UI: `http://localhost:8900/docs`
 |--------|------|
 | Frontend (Vite dev) | 3001 |
 | Backend (FastAPI) | 8900 |
-| llama-server (llama.cpp) | 8080 |
+| Ollama | 11434 |
 | ChromaDB (Docker) | 8100 |
 
 ## Tester
