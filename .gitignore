@@ -126,6 +126,8 @@ corpus_bridge.py
 # Separate side-projects (not part of this RAG system)
 nerve-center/
 modelfiles/
+media_scraper/
+.playwright-mcp/
 
 # Runtime state / migration artifacts
 migration_checkpoints/
