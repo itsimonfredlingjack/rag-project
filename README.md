@@ -1,15 +1,39 @@
-# Constitutional AI
+# Constitutional AI — RAG-system för svenska myndighetsdokument
 
-RAG-system för svenska myndighetsdokument. Semantisk sökning och AI-genererade svar baserade på 1.37M+ dokument från Riksdagen, myndigheter, kommuner och DiVA-forskning. Allt körs lokalt — inga molntjänster.
+> **Personligt lärande- och portföljprojekt** — inte en produkt eller tjänst.
+
+Jag byggde det här för att lära mig end-to-end hur ett modernt RAG-system fungerar i praktiken: från datainsamling och vektorindexering till LLM-inferens och streaming-svar. Allt körs lokalt på en RTX 4070 — inga molntjänster, inga abonnemangskostnader.
+
+**Vad det gör:** tar en fråga på svenska → hämtar relevanta stycken ur 1,37 miljoner svenska myndighetsdokument → genererar ett källhänvisat svar med en lokal LLM (Gemma 3 12B via Ollama).
+
+## Varför jag byggde det
+
+Jag ville ha ett konkret projekt som demonstrerar att jag kan navigera ett komplext tekniklandskap med verkliga trade-offs: vektordatabaser, LLM-inferens, streaming-API:er och 30+ datakällor. Inte en tutorial — ett fungerande system som jag itererat på under flera månader.
+
+## Vad som funkar — och vad som är experiment
+
+✅ **Fungerar:** Pipeline end-to-end (fråga → hämtning → svar med källhänvisningar), SSE-streaming till React-frontend, CRAG-dokumentgradering (relevant/ambiguous/irrelevant), hybrid-sökning BM25 + vektor, eval-ramverk med 16 testfiler.
+
+⚠️ **Halvfärdigt / under iteration:** Guardrail-systemet (Jail Warden v2) är grovkalibrerat — EVIDENCE-läget blockerar ~40 % av legitima svar. Critic-Revise-loopen är implementerad men sällan aktiverad i praktiken.
+
+❌ **Inte inkluderat i repot:** ChromaDB-datan (57 GB) körs lokalt och finns inte i git.
+
+## Vad jag lärde mig
+
+- **RAG-pipeline i djupet:** vektorsökning (ChromaDB + Jina Embeddings v3, 1024-dim, asymmetrisk encoding), BM25 sparse search, Reciprocal Rank Fusion
+- **CRAG-mönstret:** dokumentgradering + self-reflection för att minska hallucinationer
+- **Lokal LLM-inferens:** quantiserade modeller (Q4_K_M), context-hantering, GPU-minnesbegränsningar med RTX 4070 12 GB
+- **Systemdesign i skala:** ~1,37M vektorer, 33 tjänstemodulor, LangGraph state machine, SSE-streaming
+- **Datainsamling i praktiken:** web-scrapers för 30+ myndigheter, OAI-PMH-harvesting för DiVA-forskning (829K akademiska publikationer)
 
 ## Vad ingår
 
 ```
-backend/          FastAPI RAG-backend med 30 service-moduler (port 8900)
-apps/             React-frontend med 3D-visualisering (port 3001)
-scrapers/         Web scrapers för 30+ svenska myndigheter + kommun- och mediascrapers
-indexers/         ChromaDB-indexeringsskript (25+ scripts)
-eval/             Utvärdering (RAGAS, retrieval quality, chunk analysis)
+backend/          FastAPI RAG-backend med 33 service-moduler (port 8900)
+apps/             React-frontend med 3D-visualisering (port 3003)
+scrapers/         Web scrapers för 30+ svenska myndigheter
+indexers/         ChromaDB-indexeringsskript
+eval/             Utvärderingsramverk (RAGAS, retrieval quality, chunk analysis)
 docs/             Dokumentation och arkitektur
 ```
 
@@ -20,16 +44,14 @@ docs/             Dokumentation och arkitektur
 | Komponent | Teknik |
 |-----------|--------|
 | API | FastAPI 0.109+, Uvicorn, Pydantic v2 |
-| Vector DB | ChromaDB (~37GB, 1.37M+ dokument) |
+| Vector DB | ChromaDB (~57 GB, 1,37M+ dokument) |
 | Embeddings | jinaai/jina-embeddings-v3 (1024 dim, asymmetrisk encoding) |
 | Reranker | jinaai/jina-reranker-v2-base-multilingual (cross-encoder, XLM-RoBERTa, 278M params) |
-| LLM | Gemma 3 12B Q4_K_M (~8GB) via Ollama |
-| Grading-modell | Gemma 3 12B (dokument-relevansgradering, samma som primär LLM) |
+| LLM | Gemma 3 12B Q4_K_M (~8 GB) via Ollama |
 | Pipeline | LangGraph (CRAG med relevance grading + self-reflection) |
-| Sparse search | BM25 |
+| Sparse search | BM25 (SQLite FTS5) |
 | Fusion | RAG-Fusion med Reciprocal Rank Fusion |
 | Hallucinationsskydd | Jail Warden v2 (guardrail service) |
-| HTTP-klient | httpx |
 | Linting | Ruff (line-length 100, target py310) |
 | Tester | pytest, pytest-asyncio |
 
@@ -43,16 +65,15 @@ docs/             Dokumentation och arkitektur
 | Styling | Tailwind CSS 4 |
 | State | Zustand 5 |
 | Animation | Framer Motion 12 |
-| Ikoner | Lucide React |
 
 ### Infrastruktur
 
 | Komponent | Teknik |
 |-----------|--------|
-| Hosting | Self-hosted, RTX 4070 12GB VRAM |
+| Hosting | Self-hosted, RTX 4070 12 GB VRAM |
 | LLM-runtime | Ollama port 11434 |
 | Process | 3 systemd user services (backend, llm, frontend) |
-| Containers | Docker Compose (ChromaDB, llama-server, backend) |
+| Containers | Docker Compose (valfritt) |
 | CI/CD | GitHub Actions — ruff, mypy, pytest, eslint, tsc build |
 
 ## RAG-pipeline
@@ -72,48 +93,13 @@ Query → IntentClassifier → QueryRewriter
   → Svar till frontend
 ```
 
-### Backend-services (30 moduler i `backend/app/services/`)
-
-| Service | Ansvar |
-|---------|--------|
-| `orchestrator_service.py` | Central pipeline-koordinator (~950 rader) |
-| `retrieval_orchestrator.py` | Fas 1–4 retrieval med adaptiv eskalering |
-| `retrieval_service.py` | ChromaDB vektorsökning |
-| `llm_service.py` | Ollama LLM integration med streaming |
-| `embedding_service.py` | Jina v3 embeddingberäkning |
-| `reranking_service.py` | Jina cross-encoder reranking |
-| `grader_service.py` | Dokumentrelevansgradering (Gemma 3 12B) |
-| `graph_service.py` | LangGraph state machine för CRAG |
-| `guardrail_service.py` | Hallucinationsdetektion (Jail Warden v2) |
-| `intent_classifier.py` | Frågetypklassificering |
-| `intent_routing.py` | Intent→collection-mappning |
-| `query_rewriter.py` | Query-expansion och reformulering |
-| `bm25_service.py` | Sparse keyword-sökning |
-| `rag_fusion.py` | Multi-query fusion med RRF |
-| `source_hierarchy.py` | Källprioritering (SFS > prop/SOU) |
-| `prompt_service.py` | Systemprompt-konstruktion |
-| `streaming_service.py` | SSE-streaming |
-| `sse_stream_service.py` | SSE stream-hantering |
-| `generation_service.py` | LLM-output generering |
-| `critic_service.py` | Critic-Revise loop |
-| `agentic_service.py` | Agentiskt flöde |
-| `confidence_signals.py` | Fas 4 adaptiva confidence-signaler |
-| `structured_output_service.py` | JSON-output parsning |
-| `config_service.py` | Konfigurationshantering |
-| `legal_abbreviations.py` | Svenska juridiska termer och förkortningar |
-| `swedish_compound_splitter.py` | Svensk sammansatt-ordsdelning |
-| `query_processor_service.py` | Frågebearbetning |
-| `crag_service.py` | CRAG-logik |
-| `rag_models.py` | Datamodeller för RAG |
-| `base_service.py` | Bas-klass för alla services |
-
 ### Frågelägen
 
-| Läge | Temperatur | Top_P | Max tokens | Syfte |
-|------|-----------|-------|------------|-------|
-| EVIDENCE | 0.15 | 0.9 | 1024 | Strikt källbaserat, hög precision |
-| ASSIST | 0.4 | 0.9 | 1024 | Guidat svar med källor som kontext |
-| CHAT | 0.7 | 0.9 | 512 | Konversationellt, friare |
+| Läge | Temperatur | Syfte |
+|------|-----------|-------|
+| EVIDENCE | 0.15 | Strikt källbaserat, hög precision |
+| ASSIST | 0.4 | Guidat svar med källor som kontext |
+| CHAT | 0.7 | Konversationellt, friare |
 
 ## Datakällor
 
@@ -126,25 +112,29 @@ Query → IntentClassifier → QueryRewriter
 | `sfs_lagtext` | — | Svensk författningssamling |
 | `procedural_guides` | — | Handläggningsguider |
 | DiVA-collections | 829K | Forskningspublikationer (KTH, LU, SU, UU, Chalmers, LiU m.fl.) |
-| **Totalt** | **1.37M+** | |
+| **Totalt** | **1,37M+** | |
 
 ### Scrapers
 
-**Rot-scrapers (21 filer):** Bolagsverket, Boverket, DO, Elsäkerhetsverket, Energimyndigheten, IMY, Jordbruksverket, Livsmedelsverket, Migrationsverket, MSB, PTS, SCB, SFS (Riksdagen). Plus OCR-processor och SFS-uppdaterare.
+**Rot-scrapers:** Bolagsverket, Boverket, DO, Elsäkerhetsverket, Energimyndigheten, IMY, Jordbruksverket, Livsmedelsverket, Migrationsverket, MSB, PTS, SCB, SFS (Riksdagen), plus OCR-processor.
 
-**Myndighets-scrapers (`scrapers/myndigheter/`, 40 filer):** Arbetsförmedlingen, ARN, Finansinspektionen, Kronofogden, PRV, Riksbanken, ESV, Folkhälsomyndigheten, Försäkringskassan, JK, Kemikalieinspektionen, Konjunkturinstitutet, Konsumentverket, Naturvårdsverket, Skatteverket, Socialstyrelsen, Spelinspektionen, Statskontoret, Trafikanalys, Trafikverket, Vetenskapsrådet, Skolverket, SMHI, Tillväxtverket.
-
-**Kommun-scrapers (`scrapers/kommuner/`, 4 filer):** Djupskrapning av kommunala dokument.
-
-**Media-scrapers (`scrapers/media/`, 8 filer):** Nyhetsskrapning, sitemap-crawling, batch-insamling.
+**Myndighets-scrapers (`scrapers/myndigheter/`):** Arbetsförmedlingen, ARN, Finansinspektionen, Kronofogden, PRV, Riksbanken, ESV, Folkhälsomyndigheten, Försäkringskassan, JK, Kemikalieinspektionen, Konjunkturinstitutet, Konsumentverket, Naturvårdsverket, Skatteverket, Socialstyrelsen, Spelinspektionen, Statskontoret, Trafikanalys, Trafikverket, Vetenskapsrådet, Skolverket, SMHI, Tillväxtverket.
 
 ## Kom igång
+
+### Förutsättningar
+
+- Python 3.12+, Node.js 20+
+- [Ollama](https://ollama.ai) installerat med `gemma3:12b` nedladdat
+- ChromaDB-data (inte inkluderat i repot — se `indexers/` för att bygga eget)
 
 ### Backend
 
 ```bash
 cd backend
+python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env          # justera efter behov
 uvicorn app.main:app --host 0.0.0.0 --port 8900
 ```
 
@@ -153,13 +143,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8900
 ```bash
 cd apps/konstitutionell-frontend
 npm install
-npm run dev
-```
-
-### Eller via Docker Compose
-
-```bash
-docker compose up
+npm run dev                   # dev server :3003
 ```
 
 ### API-dokumentation
@@ -173,34 +157,29 @@ Swagger UI: `http://localhost:8900/docs`
 | GET | `/api/constitutional/health` | Hälsokontroll |
 | GET | `/api/constitutional/ready` | Djup readiness-check |
 | GET | `/api/constitutional/stats/overview` | Statistik över collections |
-| GET | `/api/constitutional/collections` | Lista ChromaDB-collections |
-| GET | `/api/constitutional/metrics` | Pipeline-metrics |
-| GET | `/api/constitutional/metrics/prometheus` | Prometheus-format |
 | POST | `/api/constitutional/agent/query` | RAG-fråga (JSON) |
 | POST | `/api/constitutional/agent/query/stream` | RAG-fråga (SSE-streaming) |
 | POST | `/api/constitutional/search` | Dokumentsökning |
-| WS | `/api/constitutional/ws/harvest` | Live harvest-progress |
 
 ## Portar
 
 | Tjänst | Port |
 |--------|------|
-| Frontend (Vite dev) | 3001 |
+| Frontend (Vite dev) | 3003 |
 | Backend (FastAPI) | 8900 |
 | Ollama | 11434 |
-| ChromaDB (Docker) | 8100 |
 
 ## Tester
 
 ```bash
 cd backend
-pytest tests/ -v                            # alla unit-tester
-pytest -m "not integration and not slow"    # snabbkörning
+pytest tests/ -v                               # alla unit-tester
+pytest -m "not integration and not slow"       # snabbkörning
 RUN_INTEGRATION_TESTS=1 pytest -m integration  # integrationstester
 RUN_OLLAMA_TESTS=1 pytest -m ollama            # ollama-tester
 ```
 
-16 testfiler, ~4700 rader.
+16 testfiler, ~4 700 rader.
 
 ## Konfiguration
 
@@ -209,12 +188,12 @@ Backend-inställningar i `backend/app/config.py` via pydantic-settings. Alla mil
 | Variabel | Default | Syfte |
 |----------|---------|-------|
 | `CONST_PORT` | 8900 | Backend-port |
-| `CONST_LLM_BASE_URL` | `http://localhost:8080/v1` | llama-server URL |
-| `CONST_CRAG_ENABLED` | false | Aktivera CRAG (sätts till true i .env) |
-| `CONST_CRAG_ENABLE_SELF_REFLECTION` | false | CRAG self-reflection (sätts till true i .env) |
+| `CONST_LLM_BASE_URL` | `http://localhost:11434` | Ollama URL |
+| `CONST_CRAG_ENABLED` | false | Aktivera CRAG |
+| `CONST_CRAG_ENABLE_SELF_REFLECTION` | false | CRAG self-reflection |
 | `CONST_DEBUG` | false | Debug-läge |
 | `CONST_LOG_LEVEL` | INFO | Loggnivå |
 
 ## Licens
 
-[TBD]
+MIT — se [LICENSE](LICENSE).

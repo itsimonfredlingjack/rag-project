@@ -1,5 +1,8 @@
 # CLAUDE.md
 
+> Intern guide för AI-kodassistenter (Claude Code). Inte avsedd för mänsklig onboarding —
+> se [README.md](README.md) och [docs/](docs/) istället.
+
 Instruktioner för Claude Code i detta repository.
 
 ## Projektöversikt

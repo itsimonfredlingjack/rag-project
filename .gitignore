@@ -112,6 +112,30 @@ skatteverket_docs/
 # n8n workflows (if they contain sensitive data)
 n8n_workflows/
 
+# MCP server credentials — NEVER commit
+.env.mcp
+
+# Personal management scripts (machine-specific paths/IPs)
+simons
+simons-ai
+simons_ai_backend.egg-info/
+setup-dual-models.sh
+setup_telegram_workflow.sh
+corpus_bridge.py
+
+# Separate side-projects (not part of this RAG system)
+nerve-center/
+modelfiles/
+
+# Runtime state / migration artifacts
+migration_checkpoints/
+repair_missing_checkpoint.json
+
+# Scraped data output and reports
+reports/
+scripts/*.json
+scripts/training_data.jsonl
+
 # Node modules
 node_modules/
 
