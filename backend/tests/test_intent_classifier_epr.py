@@ -9,7 +9,7 @@ Tests the new intent types:
 
 import pytest
 
-from backend.app.services.intent_classifier import IntentClassifier, QueryIntent
+from app.services.intent_classifier import IntentClassifier, QueryIntent
 
 
 class TestNewIntents:
