@@ -6,6 +6,9 @@ Jag byggde det här för att lära mig end-to-end hur ett modernt RAG-system fun
 
 **Vad det gör:** tar en fråga på svenska → hämtar relevanta stycken ur 1,37 miljoner svenska myndighetsdokument → genererar ett källhänvisat svar med en lokal LLM (Gemma 3 12B via Ollama).
 
+![Query results](docs/assets/query-results.png)
+![Pipeline details](docs/assets/pipeline-details-expanded.png)
+
 ## Varför jag byggde det
 
 Jag ville ha ett konkret projekt som demonstrerar att jag kan navigera ett komplext tekniklandskap med verkliga trade-offs: vektordatabaser, LLM-inferens, streaming-API:er och 30+ datakällor. Inte en tutorial — ett fungerande system som jag itererat på under flera månader.
