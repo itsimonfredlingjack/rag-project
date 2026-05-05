@@ -172,7 +172,7 @@ def seed_constitutional_examples():
     metadatas = []  # Full example JSON
 
     for i, example in enumerate(CONSTITUTIONAL_EXAMPLES):
-        example_id = f"example_{i+1}"
+        example_id = f"example_{i + 1}"
         user_question = example["user"]
         full_example = json.dumps(example, ensure_ascii=False)
 

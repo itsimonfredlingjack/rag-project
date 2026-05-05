@@ -86,9 +86,9 @@ class TestItemSchema:
 
     def test_all_items_have_valid_difficulty(self, dataset):
         for item in dataset.items:
-            assert isinstance(
-                item.difficulty, DifficultyLevel
-            ), f"Item {item.id} has invalid difficulty"
+            assert isinstance(item.difficulty, DifficultyLevel), (
+                f"Item {item.id} has invalid difficulty"
+            )
 
     def test_all_items_have_category(self, dataset):
         for item in dataset.items:
@@ -98,17 +98,17 @@ class TestItemSchema:
         """EVIDENCE mode items should specify expected source types."""
         evidence_items = dataset.by_mode(EvalMode.EVIDENCE)
         for item in evidence_items:
-            assert (
-                len(item.expected_sources) > 0
-            ), f"EVIDENCE item {item.id} missing expected_sources"
+            assert len(item.expected_sources) > 0, (
+                f"EVIDENCE item {item.id} missing expected_sources"
+            )
 
     def test_chat_items_have_no_sources(self, dataset):
         """CHAT mode items should not have expected sources."""
         chat_items = dataset.by_mode(EvalMode.CHAT)
         for item in chat_items:
-            assert (
-                len(item.expected_sources) == 0
-            ), f"CHAT item {item.id} should not have expected_sources"
+            assert len(item.expected_sources) == 0, (
+                f"CHAT item {item.id} should not have expected_sources"
+            )
 
     def test_answer_fragments_are_lowercase_compatible(self, dataset):
         """Answer fragments should be lowercase (case-insensitive matching)."""

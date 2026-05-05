@@ -53,8 +53,8 @@ def test_practical_process_routing():
 def test_unknown_uses_all_primary():
     config = get_routing_for_intent(QueryIntent.UNKNOWN)
     assert len(config.primary) == 3
-    assert "diva_research_jina_v3_1024" in config.secondary
-    assert config.secondary_budget == 2
+    assert "diva_research_jina_v3_1024" in config.support
+    assert config.secondary_budget == 0
 
 
 def test_smalltalk_has_empty_primary():
@@ -201,7 +201,7 @@ class TestHasSecondaryRetrieval:
     def test_false_for_unknown(self):
         """UNKNOWN intent has secondary retrieval enabled."""
 
-        assert has_secondary_retrieval(QueryIntent.UNKNOWN) is True
+        assert has_secondary_retrieval(QueryIntent.UNKNOWN) is False
 
     def test_false_for_smalltalk(self):
         """SMALLTALK has no secondary retrieval."""

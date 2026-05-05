@@ -5,7 +5,6 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 
 @dataclass
@@ -17,7 +16,7 @@ class Rating:
     question_text: str
     answer: str
     rating: int  # 1-5
-    comment: Optional[str]
+    comment: str | None
     timestamp: str
 
 

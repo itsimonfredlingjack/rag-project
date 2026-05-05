@@ -4,7 +4,6 @@ import json
 import random
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Optional
 
 
 @dataclass
@@ -14,7 +13,7 @@ class Question:
     id: str
     category: str
     question: str
-    expected: Optional[str] = None  # Gold standard answer (if known)
+    expected: str | None = None  # Gold standard answer (if known)
 
     def to_dict(self) -> dict:
         d = asdict(self)

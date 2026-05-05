@@ -25,7 +25,6 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
@@ -122,7 +121,7 @@ def log(msg: str, level: str = "INFO"):
         f.write(line + "\n")
 
 
-def get_gpu_temp() -> Optional[int]:
+def get_gpu_temp() -> int | None:
     """Get GPU temperature in Celsius."""
     try:
         result = subprocess.run(

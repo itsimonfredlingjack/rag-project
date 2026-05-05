@@ -102,12 +102,12 @@ async def test_source_objects_have_required_fields():
 
         for i, source in enumerate(sources):
             missing = REQUIRED_SOURCE_FIELDS - set(source.keys())
-            assert (
-                not missing
-            ), f"Source [{i}] missing fields: {missing}. Got keys: {list(source.keys())}"
-            assert (
-                source["score"] > 0
-            ), f"Source [{i}] has score=0 — likely a placeholder. Title: {source.get('title')}"
+            assert not missing, (
+                f"Source [{i}] missing fields: {missing}. Got keys: {list(source.keys())}"
+            )
+            assert source["score"] > 0, (
+                f"Source [{i}] has score=0 — likely a placeholder. Title: {source.get('title')}"
+            )
 
 
 # =============================================================================
