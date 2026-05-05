@@ -690,13 +690,13 @@ async def test_retrieval_quality():
         console.print(f"[dim]Markdown report: {md_path}[/dim]")
 
         # Assertions
-        assert (
-            report.recall_at_5_rate >= 0.7
-        ), f"Recall@5 rate {report.recall_at_5_rate:.1%} < 70% threshold"
+        assert report.recall_at_5_rate >= 0.7, (
+            f"Recall@5 rate {report.recall_at_5_rate:.1%} < 70% threshold"
+        )
 
-        assert (
-            len(report.zero_source_questions) <= 2
-        ), f"Too many zero-source questions: {report.zero_source_questions}"
+        assert len(report.zero_source_questions) <= 2, (
+            f"Too many zero-source questions: {report.zero_source_questions}"
+        )
 
     finally:
         await evaluator.close()

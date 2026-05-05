@@ -265,12 +265,12 @@ class TestCRAGIntegration:
 
         # CRAG must have been used
         assert result.metrics.crag_enabled is True, "CRAG not enabled in metrics"
-        assert (
-            result.metrics.grade_count == 3
-        ), f"Expected 3 graded documents, got {result.metrics.grade_count}"
-        assert (
-            result.metrics.relevant_count == 2
-        ), f"Expected 2 relevant documents, got {result.metrics.relevant_count}"
+        assert result.metrics.grade_count == 3, (
+            f"Expected 3 graded documents, got {result.metrics.grade_count}"
+        )
+        assert result.metrics.relevant_count == 2, (
+            f"Expected 2 relevant documents, got {result.metrics.relevant_count}"
+        )
         assert result.metrics.grade_ms > 0, "Grading should have taken some time"
 
         # Self-reflection should have been used
@@ -283,14 +283,14 @@ class TestCRAGIntegration:
         relevant_source_ids = {"gdpr_article_6", "gdpr_recital_1"}
         actual_source_ids = {source.id for source in result.sources}
 
-        assert actual_source_ids.issubset(
-            relevant_source_ids
-        ), f"Expected only GDPR sources, got: {actual_source_ids - relevant_source_ids}"
+        assert actual_source_ids.issubset(relevant_source_ids), (
+            f"Expected only GDPR sources, got: {actual_source_ids - relevant_source_ids}"
+        )
 
         # Should NOT include the irrelevant tax document
-        assert (
-            "unrelated_tax_doc" not in actual_source_ids
-        ), "Irrelevant tax document should have been filtered out by CRAG"
+        assert "unrelated_tax_doc" not in actual_source_ids, (
+            "Irrelevant tax document should have been filtered out by CRAG"
+        )
 
         print(
             f"✅ CRAG FILTERING TEST PASSED: {result.metrics.relevant_count}/{result.metrics.grade_count} documents were relevant and retained"

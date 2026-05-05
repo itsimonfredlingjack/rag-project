@@ -23,7 +23,6 @@ import asyncio
 import sys
 import uuid
 from pathlib import Path
-from typing import Optional
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
@@ -46,10 +45,10 @@ class ContextualChromaDBIndexer:
 
     def __init__(
         self,
-        chromadb_path: Optional[str] = None,
+        chromadb_path: str | None = None,
         collection_name: str = "swedish_gov_docs",
-        embedding_model: Optional[str] = None,
-        context_model: Optional[str] = None,
+        embedding_model: str | None = None,
+        context_model: str | None = None,
     ):
         """
         Initialize Contextual ChromaDB Indexer
@@ -110,8 +109,8 @@ class ContextualChromaDBIndexer:
         self,
         full_text: str,
         document_title: str = "Dokument",
-        document_id: Optional[str] = None,
-        document_metadata: Optional[dict] = None,
+        document_id: str | None = None,
+        document_metadata: dict | None = None,
         batch_size: int = 50,
     ) -> dict:
         """

@@ -56,7 +56,7 @@ graph TD
     F --> F3[Fas 3: RAG-Fusion + RRF]
     F --> F4[Fas 4: Adaptiv eskalering]
 
-    F1 & F2 & F3 & F4 --> G[ChromaDB\n1.37M dokument]
+    F1 & F2 & F3 & F4 --> G[ChromaDB<br/>1.37M dokument]
     F1 & F2 & F3 & F4 --> H[BM25 FTS5\nSparse search]
 
     G & H --> I[RerankingService\nJina cross-encoder]
@@ -72,7 +72,7 @@ graph TD
 ## Repo-struktur
 
 ```
-constitutional-ai/
+rag-project/
 ├── backend/                    # FastAPI RAG-backend
 │   ├── app/
 │   │   ├── api/                # Routes (constitutional, document)

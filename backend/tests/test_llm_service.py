@@ -141,9 +141,9 @@ class TestLLMServiceLlamaServer:
             assert False, "Should have raised an error for nonexistent model"
         except Exception as e:
             # Expected to get an error (model not found or connection error)
-            assert (
-                "model" in str(e).lower() or "connection" in str(e).lower()
-            ), f"Should get model or connection error, got: {e}"
+            assert "model" in str(e).lower() or "connection" in str(e).lower(), (
+                f"Should get model or connection error, got: {e}"
+            )
         finally:
             # Restore original config
             llm_service._config.primary_model = llm_service.config.constitutional_model

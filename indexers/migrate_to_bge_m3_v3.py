@@ -211,9 +211,9 @@ def format_time(seconds: float) -> str:
     if seconds < 60:
         return f"{seconds:.0f}s"
     elif seconds < 3600:
-        return f"{seconds/60:.1f}m"
+        return f"{seconds / 60:.1f}m"
     else:
-        return f"{seconds/3600:.1f}h"
+        return f"{seconds / 3600:.1f}h"
 
 
 def format_eta(seconds: float) -> str:

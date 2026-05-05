@@ -178,8 +178,9 @@ class SpelinspeketionenScraper:
         # Look for decision items (adapt to actual HTML structure)
         decision_items = soup.find_all(
             ["article", "div"],
-            class_=lambda c: c
-            and any(x in str(c).lower() for x in ["decision", "beslut", "item", "post"]),
+            class_=lambda c: (
+                c and any(x in str(c).lower() for x in ["decision", "beslut", "item", "post"])
+            ),
         )
 
         for item in decision_items:
