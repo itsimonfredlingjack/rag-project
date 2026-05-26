@@ -1,6 +1,6 @@
 # Frontend: RAG-system för svenska offentliga dokument
 
-React/TypeScript-frontend för portföljprojektet. Gränssnittet låter användaren skriva en fråga, följa pipeline-status och se svar, källor och källdetaljer från FastAPI-backenden.
+React/TypeScript-frontend för portföljprojektet. Gränssnittet är en chat-first forskningsyta där användaren ställer frågor, följer streaming-svar och granskar källor, pipeline-status och källdetaljer från FastAPI-backenden.
 
 Det här är inte en fristående publik tjänst. Frontenden kräver en körande backend för verkliga RAG-svar.
 
@@ -11,9 +11,9 @@ Det här är inte en fristående publik tjänst. Frontenden kräver en körande 
 - Vite 7
 - Tailwind CSS 4
 - Zustand
-- Three.js via React Three Fiber och Drei
 - Framer Motion
 - Lucide React
+- Electron development shell
 
 ## Miljövariabler
 
@@ -60,15 +60,22 @@ npm run preview
 ## Viktiga Mappar
 
 ```text
+electron/
+├── main.ts                    Electron main process for desktop dev/runtime
+└── preload.ts                 Minimal context-isolated bridge
+
 src/
-├── App.tsx                    Root med 3D-bakgrund och UI-overlay
-├── components/3d/             Substrate, source viewer och connector logic
-├── components/ui/             Frågefält, chatvy, pipeline, källor och citations
-├── stores/useAppStore.ts      Zustand-store och SSE-hantering
-├── types/queryResult.ts       UI-typer för svar, källor och pipeline
-├── constants.ts               Timing, historik och UI-konstanter
-└── theme/colors.ts            Färgtema
+├── App.tsx                    Shell: sidebar, header, chat/search and split results layout
+├── components/ui/             Chat, pipeline, facets, document reader, inspector and citations
+├── stores/useAppStore.ts      Zustand-store, SSE handling and query history
+├── types/queryResult.ts       UI types for answers, sources and pipeline state
+├── constants.ts               Timing, history and UI constants
+└── theme/colors.ts            Color theme
 ```
+
+The old 3D substrate/source viewer prototype has been removed. Current UI work
+should optimize the chat-first research workflow: questions, streaming answers,
+source/citation review, pipeline status, filters, history and document reading.
 
 ## Backendkoppling
 
