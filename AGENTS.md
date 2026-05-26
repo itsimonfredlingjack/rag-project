@@ -42,6 +42,37 @@ Pytest is the canonical test runner for Python code.
 - Add unit tests for new logic and at least one integration-level test when
   behavior crosses service boundaries.
 
+## Project-local Codex subagents
+This checkout has project-specific Codex agents in `.codex/agents/`. Use them
+when work depends on this repository's live RAG paths, data stores, or runtime
+truth rather than generic framework behavior.
+
+- `constitutional_rag_runtime_architect`: backend API contracts, retrieval
+  orchestration, prompts, model wiring, citations, structured output, and
+  streaming response contracts.
+- `constitutional_corpus_indexing_engineer`: raw files vs indexed documents,
+  Chroma/Jina, BM25/FTS5, parent store, recovered JSONL, scrapers, and
+  ingestion utilities.
+- `constitutional_frontend_client_engineer`: React/Vite UI, Zustand/SSE state,
+  document reader, source/citation UX, and Electron shell behavior.
+- `constitutional_eval_quality_engineer`: golden sets, retrieval quality,
+  citation correctness, answer faithfulness, regression thresholds, and
+  build/test gates.
+- `constitutional_ops_readiness_engineer`: local bring-up, ports, logs,
+  Docker/systemd, host prerequisites, and `/api/constitutional/ready`.
+- `constitutional_docs_canonicality_curator`: public docs and architecture
+  notes aligned with verified runtime truth; historical notes under
+  `docs/internal/` are non-canonical unless re-verified.
+- `constitutional_security_guardrails_engineer`: auth, rate limits, CORS,
+  write endpoints, prompt injection, SSE leakage, Electron boundaries, and
+  Swedish refusal/guardrail behavior.
+
+Operational truth order for this repo: inspect
+`backend/app/services/config_service.py`, then live readiness through
+`/api/constitutional/ready`, then logs/tests. Treat historical docs and restored
+files on disk as evidence to verify, not proof that documents are indexed into
+active retrieval stores.
+
 ## Commit & pull request guidelines
 History follows Conventional Commits, for example:
 `feat(eval): add chunk quality analysis` and
