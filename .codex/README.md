@@ -7,7 +7,6 @@ Use these when the task depends on this repository's real runtime paths, readine
 
 - `constitutional_rag_runtime_architect`: backend API, retrieval orchestration, prompts, model wiring, response contracts.
 - `constitutional_corpus_indexing_engineer`: Chroma/Jina, BM25/FTS5, parent store, recovered JSONL, scrapers, indexers.
-- `constitutional_frontend_client_engineer`: React/Vite UI, Zustand/SSE state, document reader, Electron shell.
 - `constitutional_eval_quality_engineer`: golden sets, citation correctness, faithfulness, retrieval quality, regression gates.
 - `constitutional_ops_readiness_engineer`: local bring-up, ports, logs, Docker/systemd, host prerequisites, `/api/constitutional/ready`.
 - `constitutional_docs_canonicality_curator`: public docs and architecture notes aligned with verified runtime truth.

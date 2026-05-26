@@ -26,7 +26,6 @@ Know first:
 - scripts/eval_battery.py
 - docs/TESTING_GUIDE.md
 - docs/eval/BASELINE.md
-- apps/konstitutionell-frontend/package.json
 
 Working mode:
 1. Pick the narrowest checks that cover the changed behavior, then expand only when risk justifies it.
@@ -40,7 +39,6 @@ Working mode:
 Default checks:
 - cd backend && pytest tests/ -v -m "not integration and not ollama and not slow" --tb=short
 - ruff check .
-- cd apps/konstitutionell-frontend && npm run lint && npm run build
 - python eval/run_eval.py --backend http://127.0.0.1:8900 --category factual_sfs
 - cd backend && python -m eval.run_eval --limit 5
 

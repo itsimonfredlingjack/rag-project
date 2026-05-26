@@ -1,13 +1,11 @@
 # CLAUDE.md
 
-> Intern guide för AI-kodassistenter (Claude Code). Inte avsedd för mänsklig onboarding —
-> se [README.md](README.md) och [docs/](docs/) istället.
-
-Instruktioner för Claude Code i detta repository.
+> Historisk intern guide. För aktuell projektinformation, använd [README.md](README.md)
+> och [docs/](docs/) istället.
 
 ## Projektöversikt
 
-Constitutional AI är ett RAG-system för svenska myndighetsdokument (1.37M+ dokument: 538K juridiska/myndighets + 829K DiVA-forskning). ChromaDB med Jina Embeddings v3 (1024 dim, asymmetrisk encoding) för semantisk sökning, Ollama (Gemma 3 12B) för lokal LLM-inferens, FastAPI backend på port 8900, React+Vite+Three.js frontend på port 3003.
+Constitutional AI är ett RAG-system för svenska myndighetsdokument (1.37M+ dokument: 538K juridiska/myndighets + 829K DiVA-forskning). ChromaDB med Jina Embeddings v3 (1024 dim, asymmetrisk encoding) för semantisk sökning, Ollama (Gemma 3 12B) för lokal LLM-inferens och FastAPI backend på port 8900.
 
 Fristående git-repo i `AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/`.
 
@@ -38,26 +36,11 @@ ruff check --fix .
 ruff format .
 ```
 
-### Frontend (port 3003)
-
-Enda frontend: `apps/konstitutionell-frontend/`. Skapa aldrig nya frontend-appar.
-
-```bash
-cd apps/konstitutionell-frontend
-npm install
-npm run dev       # dev server :3003
-npm run build     # tsc -b && vite build
-npm run lint      # eslint
-```
-
-Frontend ansluter till `VITE_BACKEND_URL` (default `http://localhost:8900`).
-
 ### Systemd services
 
 ```bash
 systemctl --user status constitutional-ai-backend
 systemctl --user status constitutional-ai-llm
-systemctl --user status constitutional-ai-frontend
 journalctl --user -u constitutional-ai-backend -f
 ```
 
@@ -82,7 +65,7 @@ API-docs: `http://localhost:8900/docs` (Swagger) och `/redoc`.
 ### RAG-pipeline
 
 ```
-User Query → Frontend → POST /api/constitutional/agent/query/stream
+User Query → POST /api/constitutional/agent/query/stream
   → OrchestratorService (~1020 rader, central koordinator)
     → IntentClassifier (klassificerar frågetyp)
     → QueryRewriter (omskrivning/expansion)
@@ -95,7 +78,7 @@ User Query → Frontend → POST /api/constitutional/agent/query/stream
     → LLMService → Ollama (Gemma 3 12B)
     → GuardrailService (Jail Warden v2, blockerar hallucinationer i EVIDENCE)
     → CriticService (Critic-Revise loop)
-  → SSE streaming → Frontend
+  → SSE streaming
 ```
 
 Tre frågelägen:
@@ -143,17 +126,6 @@ Tre frågelägen:
 
 Services är singletons via `get_*_service()` factory-funktioner.
 
-### Frontend (`apps/konstitutionell-frontend/`)
-
-React 19 + Vite 7 + TypeScript 5.9 + Three.js (React Three Fiber/Drei) + Tailwind CSS 4 + Zustand 5.
-
-- `src/App.tsx` — Root med 3D canvas-bakgrund
-- `src/stores/useAppStore.ts` — Zustand store: query state, SSE-streaming, pipeline-visualisering
-- `src/components/3d/` — Three.js 3D-komponenter (Substrate, SourceViewer3D, ConnectorLogic)
-- `src/components/ui/` — UI-komponenter (TrustHull, HeroSection, ChatView, QueryBar, SourcesPanel, PipelineVisualizer, AnswerWithCitations, ConfidenceBadge m.fl.)
-
-25 TSX-filer (23 komponenter + App.tsx + main.tsx).
-
 ### API routes
 
 Alla prefixade med `/api/constitutional` (definierade i `backend/app/api/constitutional_routes.py`):
@@ -165,7 +137,7 @@ Alla prefixade med `/api/constitutional` (definierade i `backend/app/api/constit
 - `GET /metrics` — Pipeline-metrics
 - `GET /metrics/prometheus` — Prometheus-format
 - `POST /agent/query` — RAG-fråga (JSON)
-- `POST /agent/query/stream` — RAG-fråga (SSE-streaming, används av frontend)
+- `POST /agent/query/stream` — RAG-fråga (SSE-streaming)
 - `POST /search` — Dokumentsökning
 - `WS /ws/harvest` — Live harvest-progress
 
@@ -180,10 +152,6 @@ Viktiga variabler: `CONST_CRAG_ENABLED`, `CONST_CRAG_ENABLE_SELF_REFLECTION`, `C
 ### Python
 
 Ruff: line-length 100, target py310. Konfigurerat i `pyproject.toml`. Type hints obligatoriskt. Import-ordning: stdlib → tredjepartsbibliotek → lokala. Pytest: `asyncio_mode = "auto"`.
-
-### TypeScript/React
-
-Funktionella komponenter. `import type` för type-only imports. Tailwind CSS med `clsx`/`tailwind-merge`. Zustand för state.
 
 ### Commits
 

@@ -29,7 +29,6 @@ Know first:
 - backend/app/services/readiness_service.py
 - backend/app/services/config_service.py
 - backend/app/api/constitutional_routes.py
-- apps/konstitutionell-frontend/package.json
 - logs/
 - backend/.env
 - .env
@@ -37,7 +36,7 @@ Know first:
 Working mode:
 1. Inspect current processes, ports, env paths, and logs before proposing fixes.
 2. Treat /api/constitutional/ready as the go-live gate for RAG, not just process health.
-3. Separate backend, frontend, Ollama/model runtime, Chroma, BM25/FTS5, and reranker status.
+3. Separate backend, Ollama/model runtime, Chroma, BM25/FTS5, and reranker status.
 4. Prefer bounded smoke tests and explicit timeouts for long-running processes.
 5. Do not leave background processes running unless the user asked for a server to stay up.
 6. If system packages or host prerequisites are missing, install or report the exact package names and verification result.

@@ -1,5 +1,5 @@
 name = "constitutional_docs_canonicality_curator"
-description = "Project-local documentation curator for keeping public docs, architecture notes, API catalog, and frontend docs aligned with current verified runtime truth."
+description = "Project-local documentation curator for keeping public docs, architecture notes, and API catalog aligned with current verified runtime truth."
 model = "gpt-5.5"
 model_reasoning_effort = "high"
 model_verbosity = "medium"
@@ -25,8 +25,6 @@ Know first:
 - docs/TESTING_GUIDE.md
 - docs/PORTFOLIO_CASE.md
 - docs/internal/
-- apps/konstitutionell-frontend/README.md
-- apps/konstitutionell-frontend/PRODUCTION_BUILD.md
 - scripts/check_docs_canonical.py
 
 Working mode:
@@ -39,8 +37,7 @@ Working mode:
 
 Default checks:
 - python scripts/check_docs_canonical.py
-- rg -n "1\\.37M|535K|Gemma 3|gemma3|llama-server|Ollama|production|LIVE|auth|None \\(SHOULD" README.md docs CLAUDE.md apps/konstitutionell-frontend/README.md
-- rg -n "components/3d|SourceViewer3D|Substrate" apps/konstitutionell-frontend docs README.md CLAUDE.md
+- rg -n "1\\.37M|535K|Gemma 3|gemma3|llama-server|Ollama|production|LIVE|auth|None \\(SHOULD" README.md docs CLAUDE.md
 
 Return:
 - docs touched or reviewed

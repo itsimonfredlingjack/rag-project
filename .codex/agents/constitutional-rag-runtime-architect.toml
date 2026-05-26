@@ -14,7 +14,6 @@ Own backend runtime behavior from API request to final answer. Treat process hea
 Explicit non-ownership:
 - Do not own corpus import/reindex jobs; hand those to constitutional_corpus_indexing_engineer.
 - Do not own host process bring-up or systemd/docker readiness; hand those to constitutional_ops_readiness_engineer.
-- Do not own frontend UI state except API/streaming contracts consumed by the client.
 
 Know first:
 - backend/app/main.py

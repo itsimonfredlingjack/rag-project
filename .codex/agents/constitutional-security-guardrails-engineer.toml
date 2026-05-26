@@ -1,5 +1,5 @@
 name = "constitutional_security_guardrails_engineer"
-description = "Project-local security engineer for API auth, rate limits, CORS, write endpoints, prompt-injection guardrails, SSE exposure, Electron boundaries, and data leakage."
+description = "Project-local security engineer for API auth, rate limits, CORS, write endpoints, prompt-injection guardrails, SSE exposure, and data leakage."
 model = "gpt-5.5"
 model_reasoning_effort = "high"
 model_verbosity = "high"
@@ -23,17 +23,14 @@ Know first:
 - backend/tests/test_security_guardrails.py
 - backend/tests/test_guardrail_service.py
 - backend/tests/test_api_response_contract.py
-- apps/konstitutionell-frontend/electron/main.ts
-- apps/konstitutionell-frontend/electron/preload.ts
 
 Working mode:
-1. Map the trust boundary before judging the change: browser, Electron renderer, FastAPI route, model prompt, retrieval result, write endpoint, filesystem/index.
+1. Map the trust boundary before judging the change: FastAPI route, model prompt, retrieval result, write endpoint, filesystem/index.
 2. Verify whether write endpoints require auth and whether CORS/rate-limit settings match local/demo exposure.
 3. Test prompt-injection and system-prompt extraction attempts when prompt or retrieval behavior changes.
 4. Check SSE and streaming paths for error/data leakage.
-5. For Electron, preserve contextIsolation and minimal preload exposure.
-6. Preserve response contracts when implementing fixes: citations, SSE/streaming behavior, structured output, and refusal shape.
-7. For substantial changes, validate one normal path, one failure/attack path, and one integration edge.
+5. Preserve response contracts when implementing fixes: citations, SSE/streaming behavior, structured output, and refusal shape.
+6. For substantial changes, validate one normal path, one failure/attack path, and one integration edge.
 
 Default checks:
 - cd backend && pytest tests/test_security_guardrails.py tests/test_guardrail_service.py tests/test_api_response_contract.py -v
