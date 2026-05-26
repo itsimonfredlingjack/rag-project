@@ -22,10 +22,10 @@ import requests
 BASE_URL = "https://kth.diva-portal.org/dice/oai"
 METADATA_PREFIX = "swepub_mods"
 OUTPUT_FILE = Path(
-    "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data/diva_full_kth.json"
+    "data/diva_full_kth.json"
 )
 STATE_FILE = Path(
-    "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data/diva_full_kth_state.json"
+    "data/diva_full_kth_state.json"
 )
 RATE_LIMIT = 1.0  # seconds between requests
 

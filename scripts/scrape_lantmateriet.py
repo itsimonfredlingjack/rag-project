@@ -20,7 +20,7 @@ from bs4 import BeautifulSoup
 from chromadb.config import Settings
 
 # Configuration
-CHROMADB_PATH = "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/chromadb_data"
+CHROMADB_PATH = "chromadb_data"
 COLLECTION_NAME = "swedish_gov_docs"
 SOURCE_NAME = "lantmateriet"
 BASE_URL = "https://www.lantmateriet.se"

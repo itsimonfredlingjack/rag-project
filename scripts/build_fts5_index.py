@@ -7,7 +7,7 @@ Streams data/bm25_index/docs.jsonl into a SQLite FTS5 database at data/bm25_fts5
 Each JSONL line: {"id": "...", "text": "..."}
 
 Usage:
-    cd /home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI
+    cd rag-project
     python scripts/build_fts5_index.py
 """
 

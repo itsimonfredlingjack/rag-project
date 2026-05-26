@@ -21,7 +21,7 @@ except ImportError:
     HAS_PYMUPDF = False
     print("WARNING: PyMuPDF not installed - PDF text extraction disabled")
 
-OUTPUT_DIR = Path("/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data")
+OUTPUT_DIR = Path("data")
 PDF_DIR = OUTPUT_DIR / "jo_pdfs"
 
 

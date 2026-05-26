@@ -17,9 +17,9 @@ import requests
 # Configuration
 OAI_ENDPOINT = "https://gup.ub.gu.se/oai"
 METADATA_PREFIX = "mods"  # GUP only supports MODS
-OUTPUT_FILE = "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data/diva_full_gu.json"
+OUTPUT_FILE = "data/diva_full_gu.json"
 CHECKPOINT_FILE = (
-    "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data/gu_harvest_checkpoint.json"
+    "data/gu_harvest_checkpoint.json"
 )
 RATE_LIMIT = 1.0  # seconds between requests
 

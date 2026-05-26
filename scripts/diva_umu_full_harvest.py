@@ -24,9 +24,9 @@ import requests
 # Configuration
 BASE_URL = "https://umu.diva-portal.org/dice/oai"
 METADATA_PREFIX = "swepub_mods"
-OUTPUT_FILE = "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data/diva_full_umu.json"
+OUTPUT_FILE = "data/diva_full_umu.json"
 CHECKPOINT_FILE = (
-    "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data/diva_umu_checkpoint.json"
+    "data/diva_umu_checkpoint.json"
 )
 RATE_LIMIT = 1.0  # seconds between requests
 

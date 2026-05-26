@@ -19,7 +19,7 @@ DC_NS = "{http://purl.org/dc/elements/1.1/}"
 
 BASE_URL = "https://lup.lub.lu.se/oai"
 METADATA_PREFIX = "oai_dc"
-OUTPUT_FILE = Path("/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data/diva_full_lu.json")
+OUTPUT_FILE = Path("data/diva_full_lu.json")
 RATE_LIMIT = 1.0  # seconds between requests
 
 

@@ -15,8 +15,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 
 import chromadb
 
-DATA_DIR = Path("/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data")
-CHROMADB_PATH = Path("/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/chromadb_data")
+DATA_DIR = Path("data")
+CHROMADB_PATH = Path("chromadb_data")
 LOG_FILE = DATA_DIR / "missing_diva_indexer.log"
 
 COLLECTION_NAME = "diva_research_bge_m3_1024"

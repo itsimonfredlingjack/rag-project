@@ -21,9 +21,9 @@ import requests
 # Configuration
 OAI_ENDPOINT = "http://ki.diva-portal.org/dice/oai"
 METADATA_PREFIX = "swepub_mods"
-OUTPUT_FILE = "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data/diva_full_ki.json"
+OUTPUT_FILE = "data/diva_full_ki.json"
 CHECKPOINT_FILE = (
-    "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data/diva_ki_checkpoint.json"
+    "data/diva_ki_checkpoint.json"
 )
 RATE_LIMIT_SECONDS = 1.0
 

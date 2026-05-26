@@ -14,7 +14,7 @@ import sys
 
 import chromadb
 
-CHROMADB_PATH = "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/chromadb_data"
+CHROMADB_PATH = "chromadb_data"
 
 # Collections confirmed safe to remove (all have Jina v3 replacements)
 LEGACY_COLLECTIONS = {

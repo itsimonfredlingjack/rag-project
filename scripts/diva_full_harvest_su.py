@@ -22,9 +22,9 @@ import requests
 # Configuration
 OAI_ENDPOINT = "https://su.diva-portal.org/dice/oai"
 METADATA_PREFIX = "oai_dc"  # swepub_mods is blocked, using Dublin Core
-OUTPUT_FILE = Path("/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data/diva_full_su.json")
+OUTPUT_FILE = Path("data/diva_full_su.json")
 CHECKPOINT_FILE = Path(
-    "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data/diva_su_checkpoint.json"
+    "data/diva_su_checkpoint.json"
 )
 RATE_LIMIT_SECONDS = 1.0
 

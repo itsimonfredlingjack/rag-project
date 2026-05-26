@@ -23,9 +23,9 @@ import requests
 OAI_ENDPOINT = "http://api.libris.kb.se/swepub/oaipmh/SWEPUB"
 METADATA_PREFIX = "mods"  # or oai_dc
 SET_SPEC = "KI_SWEPUB"
-OUTPUT_FILE = "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data/diva_full_ki.json"
+OUTPUT_FILE = "data/diva_full_ki.json"
 CHECKPOINT_FILE = (
-    "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data/ki_swepub_checkpoint.json"
+    "data/ki_swepub_checkpoint.json"
 )
 RATE_LIMIT_SECONDS = 1.0
 
