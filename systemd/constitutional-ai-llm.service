@@ -4,9 +4,9 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI
-Environment=LD_LIBRARY_PATH=/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/llama.cpp/build/bin
-ExecStart=/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/llama.cpp/build/bin/llama-server \
+WorkingDirectory=/opt/rag-project
+Environment=LD_LIBRARY_PATH=/opt/rag-project/llama.cpp/build/bin
+ExecStart=/opt/rag-project/llama.cpp/build/bin/llama-server \
     -m models/Ministral-3-14B-Instruct-2512-Q4_K_M.gguf \
     -c 16384 \
     -ngl 99 \

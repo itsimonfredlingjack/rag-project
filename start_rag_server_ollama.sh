@@ -1,79 +1,35 @@
-#!/bin/bash
-# RAG Server using Ollama (fallback if custom build fails)
+#!/usr/bin/env bash
+set -euo pipefail
 
-set -e
+MODEL="${OLLAMA_MODEL:-gemma4:26b}"
+OLLAMA_URL="${OLLAMA_URL:-http://localhost:11434}"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+echo "Checking Ollama RAG model"
+echo "Endpoint: $OLLAMA_URL"
+echo "Model:    $MODEL"
 
-# Colors
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
-
-echo -e "${CYAN}"
-echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║       CONSTITUTIONAL AI RAG - OLLAMA FALLBACK               ║"
-echo "║          12GB VRAM - OpenAI Compatible API                 ║"
-echo "╚══════════════════════════════════════════════════════════════╝"
-echo -e "${NC}"
-
-# Model name
-MODEL="ministral-3:14b"
-PORT=8080
-
-echo -e "${YELLOW}Model: $MODEL${NC}"
-echo -e "${YELLOW}Port: $PORT${NC}"
-
-# Stop existing servers
-echo -e "${YELLOW}Stopping existing servers...${NC}"
-pkill -f "ollama.*serve" 2>/dev/null || true
-pkill -f "llama-server" 2>/dev/null || true
-sleep 2
-
-# Check if port is free
-if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
-    echo -e "${RED}❌ Port $PORT is still in use${NC}"
-    exit 1
+if ! command -v ollama >/dev/null 2>&1; then
+  echo "ERROR: ollama is not installed or not on PATH"
+  exit 1
 fi
 
-echo ""
-echo -e "${GREEN}🚀 Starting Ollama server...${NC}"
+if ! curl -fsS "$OLLAMA_URL/api/tags" >/dev/null 2>&1; then
+  echo "Ollama is not responding. Start it with:"
+  echo "  ollama serve"
+  exit 1
+fi
 
-OLLAMA_HOST=0.0.0.0 \
-OLLAMA_PORT=$PORT \
-OLLAMA_ORIGINS="*" \
-OLLAMA_KEEP_ALIVE=-1 \
-OLLAMA_NUM_GPU=99 \
-OLLAMA_LOAD_TIMEOUT=5m \
-OLLAMA_NUM_THREAD=4 \
-OLLAMA_FLASH_ATTENTION=1 \
-ollama serve > /tmp/ollama_server.log 2>&1 &
+if ! curl -fsS "$OLLAMA_URL/api/tags" | grep -q "\"name\":\"$MODEL\""; then
+  echo "ERROR: model '$MODEL' is not installed"
+  echo "Install it with:"
+  echo "  ollama pull $MODEL"
+  exit 1
+fi
 
-SERVER_PID=$!
+echo "Warming $MODEL..."
+curl -fsS "$OLLAMA_URL/api/chat" \
+  -H "Content-Type: application/json" \
+  -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Svara exakt: OK\"}],\"stream\":false,\"think\":false,\"options\":{\"num_predict\":8,\"temperature\":0}}" \
+  >/dev/null
 
-# Wait for server to start
-echo -e "${YELLOW}Waiting for server to start...${NC}"
-TIMEOUT=30
-ELAPSED=0
-while ! curl -s http://localhost:$PORT/v1/models >/dev/null 2>&1; do
-    if [ $ELAPSED -ge $TIMEOUT ]; then
-        echo -e "${RED}❌ Server failed to start within ${TIMEOUT}s${NC}"
-        kill $SERVER_PID 2>/dev/null || true
-        exit 1
-    fi
-    sleep 1
-    ELAPSED=$((ELAPSED + 1))
-    echo -n "."
-done
-
-echo ""
-echo -e "${GREEN}✅ Server is running!${NC}"
-echo -e "${CYAN}   PID: $SERVER_PID${NC}"
-echo -e "${CYAN}   API: http://localhost:$PORT/v1${NC}"
-echo ""
-echo -e "${GREEN}══════════════════════════════════════════════════════════════${NC}"
-
-wait $SERVER_PID
+echo "OK: Ollama and $MODEL are ready for backend CONST_LLM_BASE_URL=$OLLAMA_URL"

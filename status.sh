@@ -1,127 +1,93 @@
 #!/usr/bin/env bash
-#
-# SIMONS AI - STATUS SCRIPT
-# Visar status för alla komponenter
-#
+set -euo pipefail
 
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-NC='\033[0m'
+BACKEND_PORT="${BACKEND_PORT:-8900}"
+FRONTEND_PORT="${FRONTEND_PORT:-3003}"
+MODEL="${OLLAMA_MODEL:-gemma4:26b}"
 
-echo ""
-echo -e "${CYAN}╔══════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║              SIMONS AI - SYSTEM STATUS                       ║${NC}"
-echo -e "${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}"
-echo ""
-
-# ============================================================
-# GPU STATUS
-# ============================================================
-echo -e "${CYAN}[GPU]${NC}"
-if command -v nvidia-smi &> /dev/null; then
-    GPU_INFO=$(nvidia-smi --query-gpu=name,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits 2>/dev/null)
-    if [ ! -z "$GPU_INFO" ]; then
-        IFS=',' read -r NAME USED TOTAL TEMP <<< "$GPU_INFO"
-        echo -e "  ${GREEN}✓${NC} $NAME"
-        echo -e "    VRAM: ${USED}MB / ${TOTAL}MB"
-        echo -e "    Temp: ${TEMP}°C"
-    else
-        echo -e "  ${RED}✕${NC} GPU ej tillgänglig"
-    fi
-else
-    echo -e "  ${YELLOW}?${NC} nvidia-smi ej installerat"
-fi
-echo ""
-
-# ============================================================
-# OLLAMA STATUS
-# ============================================================
-echo -e "${CYAN}[OLLAMA]${NC}"
-if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
-    echo -e "  ${GREEN}✓${NC} Ollama körs på port 11434"
-
-    # Visa modeller
-    MODELS=$(ollama list 2>/dev/null | tail -n +2)
-    if [ ! -z "$MODELS" ]; then
-        echo "    Modeller:"
-        echo "$MODELS" | while read line; do
-            echo "      - $line"
-        done
-    fi
-
-    # Visa laddade modeller
-    RUNNING=$(curl -s http://localhost:11434/api/ps 2>/dev/null | grep -o '"name":"[^"]*"' | cut -d'"' -f4)
-    if [ ! -z "$RUNNING" ]; then
-        echo -e "    ${GREEN}Aktiv modell: $RUNNING${NC}"
-    fi
-else
-    echo -e "  ${RED}✕${NC} Ollama körs INTE"
-    echo "    Starta med: ollama serve"
-fi
-echo ""
-
-# ============================================================
-# BACKEND STATUS
-# ============================================================
-echo -e "${CYAN}[BACKEND]${NC}"
-if curl -s http://localhost:8000/api/health > /dev/null 2>&1; then
-    HEALTH=$(curl -s http://localhost:8000/api/health)
-    STATUS=$(echo "$HEALTH" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
-    echo -e "  ${GREEN}✓${NC} Backend körs på port 8000 (status: $STATUS)"
-else
-    echo -e "  ${RED}✕${NC} Backend körs INTE"
-
-    # Kontrollera systemd
-    if systemctl --user is-active simons-ai-backend.service &>/dev/null; then
-        echo "    Systemd service aktiv men svarar inte"
-    else
-        echo "    Starta med: systemctl --user start simons-ai-backend"
-    fi
-fi
-echo ""
-
-# ============================================================
-# FRONTEND STATUS
-# ============================================================
-echo -e "${CYAN}[FRONTEND]${NC}"
-if curl -s http://localhost:3003 > /dev/null 2>&1; then
-    echo -e "  ${GREEN}✓${NC} Frontend körs på port 3003"
-    echo "    Öppna: http://localhost:3003"
-else
-    echo -e "  ${RED}✕${NC} Frontend körs INTE"
-    echo "    Starta med: systemctl --user start simons-ai-frontend"
-fi
-echo ""
-
-# ============================================================
-# SYSTEMD SERVICES
-# ============================================================
-echo -e "${CYAN}[SYSTEMD SERVICES]${NC}"
-
-check_service() {
-    local service=$1
-    local status=$(systemctl --user is-active "$service" 2>/dev/null || echo "inactive")
-    local enabled=$(systemctl --user is-enabled "$service" 2>/dev/null || echo "disabled")
-
-    if [ "$status" = "active" ]; then
-        echo -e "  ${GREEN}✓${NC} $service ($status, $enabled)"
-    else
-        echo -e "  ${RED}✕${NC} $service ($status, $enabled)"
-    fi
+check_url() {
+  local label="$1"
+  local url="$2"
+  if curl -fsS "$url" >/dev/null 2>&1; then
+    echo "OK       $label $url"
+  else
+    echo "MISSING  $label $url"
+  fi
 }
 
-check_service "simons-ai-backend.service"
-check_service "simons-ai-frontend.service"
-echo ""
+echo "Constitutional AI local demo status"
+echo
 
-# ============================================================
-# SAMMANFATTNING
-# ============================================================
-echo -e "${CYAN}[SNABBKOMMANDON]${NC}"
-echo "  Starta allt:    ./start.sh"
-echo "  Stoppa allt:    ./stop.sh"
-echo "  Fixa problem:   ./fix.sh"
-echo "  Visa loggar:    journalctl --user -u simons-ai-backend -f"
-echo ""
+echo "[GPU]"
+if command -v nvidia-smi >/dev/null 2>&1; then
+  nvidia-smi --query-gpu=name,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits |
+    awk -F', ' '{printf "OK       %s, VRAM %s/%s MB, temp %s C\n", $1, $2, $3, $4}'
+else
+  echo "MISSING  nvidia-smi"
+fi
+echo
+
+echo "[Ollama]"
+if curl -fsS http://localhost:11434/api/tags >/dev/null 2>&1; then
+  echo "OK       Ollama http://localhost:11434"
+  if curl -fsS http://localhost:11434/api/tags | grep -q "\"name\":\"$MODEL\""; then
+    echo "OK       model installed: $MODEL"
+  else
+    echo "MISSING  model not installed: $MODEL"
+  fi
+  RUNNING="$(curl -fsS http://localhost:11434/api/ps 2>/dev/null | grep -o '"name":"[^"]*"' | cut -d'"' -f4 | paste -sd ', ' - || true)"
+  if [ -n "$RUNNING" ]; then
+    echo "OK       loaded model(s): $RUNNING"
+  else
+    echo "INFO     no model currently loaded"
+  fi
+else
+  echo "MISSING  Ollama http://localhost:11434"
+fi
+echo
+
+echo "[Backend]"
+check_url "health" "http://localhost:$BACKEND_PORT/api/constitutional/health"
+if curl -fsS "http://localhost:$BACKEND_PORT/api/constitutional/ready" >/tmp/constitutional-ready.json 2>/dev/null; then
+  python3 - <<'PY'
+import json
+from pathlib import Path
+
+try:
+    payload = json.loads(Path("/tmp/constitutional-ready.json").read_text())
+    print(f"INFO     readiness: {payload.get('status', 'unknown')}")
+    checks = payload.get("checks", {})
+    chroma = checks.get("chromadb", {}).get("details", {})
+    if chroma:
+        counts = chroma.get("collection_counts", {}) or {}
+        missing = chroma.get("missing_expected_collections", []) or []
+        empty = chroma.get("empty_expected_collections", []) or []
+        print(f"INFO     chroma collections: {chroma.get('collections', 0)}")
+        for name in chroma.get("expected_collections", []) or []:
+            print(f"INFO       {name}: {counts.get(name, 0)} docs")
+        if missing:
+            print("INFO     chroma missing: " + ", ".join(missing))
+        if empty:
+            print("INFO     chroma empty: " + ", ".join(empty))
+    bm25 = checks.get("bm25", {}).get("details", {})
+    if bm25:
+        print(
+            "INFO     bm25: "
+            f"usable={bm25.get('usable')} loaded={bm25.get('loaded')} "
+            f"docs={bm25.get('doc_count')} path={bm25.get('index_path')}"
+        )
+except Exception:
+    print("INFO     readiness: unknown")
+PY
+else
+  echo "MISSING  readiness http://localhost:$BACKEND_PORT/api/constitutional/ready"
+fi
+echo
+
+echo "[Frontend]"
+check_url "ui" "http://localhost:$FRONTEND_PORT"
+echo
+
+echo "Start: ./start_system.sh"
+echo "Stop:  ./stop_system.sh"
+echo "Logs:  logs/backend.log and logs/frontend.log"

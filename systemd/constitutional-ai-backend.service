@@ -5,10 +5,10 @@ Wants=constitutional-ai-llm.service
 
 [Service]
 Type=simple
-WorkingDirectory=/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/backend
-Environment="PATH=/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/backend/venv/bin:/usr/local/bin:/usr/bin:/bin"
+WorkingDirectory=/opt/rag-project/backend
+Environment="PATH=/opt/rag-project/backend/.venv/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="RAG_SIMILARITY_THRESHOLD=0.01"
-ExecStart=/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/backend/venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8900
+ExecStart=/opt/rag-project/backend/.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8900
 Restart=always
 RestartSec=5
 StandardOutput=journal
