@@ -3,7 +3,6 @@ import {
   GRADING_WATCHDOG_MS,
   MIN_STAGE_DURATION_MS,
   METADATA_STAGE_DELAY_MS,
-  GRADING_STAGE_DELAY_MS,
   MAX_PIPELINE_LOG_ENTRIES,
 } from "../constants";
 import type {
@@ -55,9 +54,9 @@ export interface Source {
   id: string;
   title: string;
   snippet: string;
-  score: number; // Backend uses "score", not "relevance"
-  doc_type: string; // "prop", "mot", "sou", "bet", "sfs"
-  source: string; // "riksdagen", etc.
+  score: number;
+  doc_type: string;
+  source: string;
 }
 
 // Pipeline stages matching backend flow + CRAG
@@ -66,8 +65,8 @@ export type PipelineStage =
   | "query_classification"
   | "decontextualization"
   | "retrieval"
-  | "grading" // NY: CRAG Grading
-  | "self_reflection" // NY: CRAG Reflection
+  | "grading"
+  | "self_reflection"
   | "generation"
   | "guardrail_validation";
 
@@ -109,6 +108,19 @@ function normalizeSources(data: unknown): QueryResultSource[] {
   }));
 }
 
+export interface OpenDocumentTab {
+  id: string;
+  title: string;
+  snippet?: string;
+  source?: string;
+  content?: string;
+  sfs_nummer?: string;
+  law_name?: string;
+  kapitel_rubrik?: string;
+  isLoaded: boolean;
+  error?: string;
+}
+
 interface AppState {
   viewMode: "hero" | "results";
   query: string;
@@ -123,6 +135,21 @@ interface AppState {
   lockedSourceId: string | null;
   citationTarget: DOMRect | null;
   connectorCoords: { x: number; y: number } | null;
+
+  // New Workspace state variables
+  isSidebarOpen: boolean;
+  selectedAgencies: string[];
+  selectedDocTypes: string[];
+  yearStart: number;
+  yearEnd: number;
+  availableFacets: {
+    agencies: { id: string; name: string }[];
+    doc_types: { id: string; name: string }[];
+    years: { min: number; max: number };
+  } | null;
+  openDocuments: OpenDocumentTab[];
+  activeDocumentTabId: string | null;
+  isSearchInspectorOpen: boolean;
 
   setQuery: (q: string) => void;
   setActiveMode: (mode: "verify" | "summarize" | "compare") => void;
@@ -139,6 +166,18 @@ interface AppState {
   setConnectorCoords: (coords: { x: number; y: number } | null) => void;
   updateQueryResult: (id: string, patch: Partial<QueryResult>) => void;
   resetToHome: () => void;
+
+  // New Workspace actions
+  toggleSidebar: () => void;
+  toggleAgencyFilter: (agencyId: string) => void;
+  toggleDocTypeFilter: (docTypeId: string) => void;
+  setYearRange: (start: number, end: number) => void;
+  clearFilters: () => void;
+  fetchFacets: () => Promise<void>;
+  openDocument: (docId: string, title: string, snippet?: string, source?: string) => Promise<void>;
+  closeDocument: (docId: string) => void;
+  setActiveDocumentTabId: (docId: string) => void;
+  toggleSearchInspector: (force?: boolean) => void;
 }
 
 const MAX = MAX_PIPELINE_LOG_ENTRIES;
@@ -158,6 +197,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   citationTarget: null,
   connectorCoords: null,
 
+  // New Workspace defaults
+  isSidebarOpen: true,
+  selectedAgencies: [],
+  selectedDocTypes: [],
+  yearStart: 1900,
+  yearEnd: 2026,
+  availableFacets: null,
+  openDocuments: [],
+  activeDocumentTabId: null,
+  isSearchInspectorOpen: false,
+
   setQuery: (query) => set({ query }),
 
   setActiveMode: (mode) => set({ activeMode: mode }),
@@ -168,6 +218,155 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       queries: state.queries.map((q) => (q.id === id ? { ...q, ...patch } : q)),
     })),
+
+  toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+
+  toggleAgencyFilter: (agencyId) =>
+    set((state) => {
+      const agencies = state.selectedAgencies.includes(agencyId)
+        ? state.selectedAgencies.filter((id) => id !== agencyId)
+        : [...state.selectedAgencies, agencyId];
+      return { selectedAgencies: agencies };
+    }),
+
+  toggleDocTypeFilter: (docTypeId) =>
+    set((state) => {
+      const docTypes = state.selectedDocTypes.includes(docTypeId)
+        ? state.selectedDocTypes.filter((id) => id !== docTypeId)
+        : [...state.selectedDocTypes, docTypeId];
+      return { selectedDocTypes: docTypes };
+    }),
+
+  setYearRange: (start, end) => set({ yearStart: start, yearEnd: end }),
+
+  clearFilters: () => set({ selectedAgencies: [], selectedDocTypes: [], yearStart: 1900, yearEnd: 2026 }),
+
+  toggleSearchInspector: (force) =>
+    set((state) => ({
+      isSearchInspectorOpen: typeof force === "boolean" ? force : !state.isSearchInspectorOpen,
+    })),
+
+  fetchFacets: async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/documents/facets`);
+      if (res.ok) {
+        const facets = await res.json();
+        set({ availableFacets: facets });
+      } else {
+        throw new Error("Failed to fetch facets");
+      }
+    } catch (e) {
+      console.warn("Could not fetch facets from backend, using default static facets:", e);
+      // Failover static facets matching system scraper types
+      set({
+        availableFacets: {
+          agencies: [
+            { id: "sfs", name: "Svensk författningssamling (SFS)" },
+            { id: "socialstyrelsen", name: "Socialstyrelsen" },
+            { id: "naturvardsverket", name: "Naturvårdsverket" },
+            { id: "lakemedelsverket", name: "Läkemedelsverket" },
+            { id: "upphandlingsmyndigheten", name: "Upphandlingsmyndigheten" },
+            { id: "sgu", name: "Sveriges geologiska undersökning (SGU)" },
+            { id: "arn", name: "Allmänna reklamationsnämnden (ARN)" },
+            { id: "jk", name: "Justitiekanslern (JK)" },
+            { id: "diva", name: "DiVA Forskningsdatabas" }
+          ],
+          doc_types: [
+            { id: "lag", name: "Lag" },
+            { id: "förordning", name: "Förordning" },
+            { id: "föreskrift", name: "Föreskrift" },
+            { id: "allmänna_råd", name: "Allmänna Råd" },
+            { id: "beslut", name: "Beslut / Dom" },
+            { id: "rapport", name: "Rapport / Utredning" },
+            { id: "thesis", name: "Avhandling / Thesis" },
+            { id: "article", name: "Forskningsartikel" }
+          ],
+          years: { min: 1900, max: 2026 }
+        }
+      });
+    }
+  },
+
+  openDocument: async (docId, title, snippet, source) => {
+    const { openDocuments } = get();
+    const existing = openDocuments.find((d) => d.id === docId);
+
+    if (existing) {
+      set({ activeDocumentTabId: docId });
+      return;
+    }
+
+    const newTab: OpenDocumentTab = {
+      id: docId,
+      title: title || "Dokument",
+      snippet: snippet,
+      source: source,
+      isLoaded: false,
+    };
+
+    set((state) => ({
+      openDocuments: [...state.openDocuments, newTab],
+      activeDocumentTabId: docId,
+    }));
+
+    try {
+      const isSFS = docId.startsWith("sfs_") || source === "sfs";
+      const fetchUrl = isSFS 
+        ? `${BACKEND_URL}/api/documents/parents/${docId}`
+        : `${BACKEND_URL}/api/documents/${docId}`;
+
+      const res = await fetch(fetchUrl);
+      if (!res.ok) throw new Error(`Fetch failed: ${res.statusText}`);
+      
+      const docData = await res.json();
+      
+      set((state) => ({
+        openDocuments: state.openDocuments.map((d) => {
+          if (d.id === docId) {
+            return {
+              ...d,
+              isLoaded: true,
+              content: docData.content || docData.full_text || "",
+              sfs_nummer: docData.sfs_nummer || "",
+              law_name: docData.law_name || "",
+              kapitel_rubrik: docData.kapitel_rubrik || "",
+            };
+          }
+          return d;
+        }),
+      }));
+    } catch (e) {
+      console.error("Error opening document:", e);
+      set((state) => ({
+        openDocuments: state.openDocuments.map((d) => {
+          if (d.id === docId) {
+            return {
+              ...d,
+              isLoaded: true,
+              content: snippet || "Innehållet kunde inte hämtas från databasen.",
+              error: e instanceof Error ? e.message : "Det gick inte att ladda dokumentets fulltext.",
+            };
+          }
+          return d;
+        }),
+      }));
+    }
+  },
+
+  closeDocument: (docId) =>
+    set((state) => {
+      const filtered = state.openDocuments.filter((d) => d.id !== docId);
+      let nextActive = state.activeDocumentTabId;
+      if (state.activeDocumentTabId === docId) {
+        nextActive = filtered.length > 0 ? filtered[filtered.length - 1].id : null;
+      }
+      return {
+        openDocuments: filtered,
+        activeDocumentTabId: nextActive,
+      };
+    }),
+
+  setActiveDocumentTabId: (docId) => set({ activeDocumentTabId: docId }),
 
   startSearch: async (mode = "auto", uiMode) => {
     const { query } = get();
@@ -308,6 +507,22 @@ export const useAppStore = create<AppState>((set, get) => ({
     const RETRY_DELAYS = [1000, 2000, 4000];
     let lastNetworkError: Error | null = null;
 
+    // Filter payload construction
+    const buildFilterPayload = () => {
+      const agencies = get().selectedAgencies;
+      const docTypes = get().selectedDocTypes;
+      const start = get().yearStart;
+      const end = get().yearEnd;
+      
+      const payload: Record<string, string[] | number> = {};
+      if (agencies.length > 0) payload.agencies = agencies;
+      if (docTypes.length > 0) payload.doc_types = docTypes;
+      if (start !== 1900) payload.year_start = start;
+      if (end !== 2026) payload.year_end = end;
+      
+      return Object.keys(payload).length > 0 ? payload : null;
+    };
+
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       // Wait before retry (skip delay on first attempt)
       if (attempt > 0 && lastNetworkError) {
@@ -333,6 +548,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             question: query,
             mode: mode,
             history: [],
+            filters: buildFilterPayload(),
           }),
         });
 
@@ -364,6 +580,40 @@ export const useAppStore = create<AppState>((set, get) => ({
               const data = JSON.parse(dataMatch[1]);
 
               switch (data.type) {
+                case "decontextualized": {
+                  get().updateQueryResult(queryResultId, {
+                    rewrittenQuery: data.rewritten,
+                  });
+                  break;
+                }
+
+                case "phase": {
+                  if (data.phase === "retrieval_complete") {
+                    get().updateQueryResult(queryResultId, {
+                      retrievalLatencyMs: data.latency_ms,
+                    });
+                  }
+                  break;
+                }
+
+                case "grading": {
+                  get().updateQueryResult(queryResultId, {
+                    gradingMetrics: {
+                      total: data.total,
+                      relevant: data.relevant,
+                      ambiguous: data.ambiguous,
+                    },
+                  });
+                  break;
+                }
+
+                case "thought_chain": {
+                  get().updateQueryResult(queryResultId, {
+                    thoughtChain: data.content,
+                  });
+                  break;
+                }
+
                 case "metadata": {
                   if (data.sources)
                     get().updateQueryResult(queryResultId, {
@@ -399,130 +649,51 @@ export const useAppStore = create<AppState>((set, get) => ({
                   break;
                 }
 
-                case "grading": {
-                  clearGradingWatchdog();
-                  const relevant = data.relevant ?? data.relevant_count ?? 0;
-                  const total = data.total ?? data.total_count ?? 0;
-                  const active = get().queries.find(
-                    (q) => q.id === queryResultId,
-                  );
-                  const shouldAdvance = active?.pipelineStage === "grading";
-                  updateStageWithDelay(() => {
-                    const cur = get().queries.find(
-                      (q) => q.id === queryResultId,
-                    );
-                    if (!cur) return;
-                    get().updateQueryResult(queryResultId, {
-                      pipelineLog: [
-                        ...cur.pipelineLog,
-                        {
-                          ts: Date.now(),
-                          stage: "grading",
-                          message:
-                            typeof data.message === "string"
-                              ? data.message
-                              : `Grading: ${relevant}/${total} documents relevant`,
-                        },
-                      ].slice(-MAX),
-                      pipelineStage: shouldAdvance
-                        ? "self_reflection"
-                        : cur.pipelineStage,
-                    });
-                  }, GRADING_STAGE_DELAY_MS);
-                  break;
-                }
-
-                case "thought_chain":
-                  clearGradingWatchdog();
-                  get().updateQueryResult(queryResultId, {
-                    thoughtChain: data.content,
-                  });
-                  updateStageWithDelay(() => {
-                    const active = get().queries.find(
-                      (q) => q.id === queryResultId,
-                    );
-                    if (!active) return;
-                    get().updateQueryResult(queryResultId, {
-                      pipelineLog: [
-                        ...active.pipelineLog,
-                        {
-                          ts: Date.now(),
-                          stage: "self_reflection",
-                          message:
-                            "Reflection: analyzing evidence sufficiency...",
-                        },
-                      ].slice(-MAX),
-                      pipelineStage: "generation",
-                      searchStage: "reasoning",
-                    });
-                  }, GRADING_STAGE_DELAY_MS);
-                  break;
-
-                case "token":
-                  clearGradingWatchdog();
-                  if (data.content) {
-                    if (!generationLogged) {
-                      generationLogged = true;
-                      const active = get().queries.find(
-                        (q) => q.id === queryResultId,
-                      );
-                      if (active)
-                        get().updateQueryResult(queryResultId, {
-                          pipelineLog: [
-                            ...active.pipelineLog,
-                            {
-                              ts: Date.now(),
-                              stage: "generation",
-                              message: "Generate: composing answer…",
-                            },
-                          ].slice(-MAX),
-                        });
-                    }
-                    tokenBuffer.push(data.content);
-                    scheduleTokenFlush(() => {
-                      const buffered = tokenBuffer.join("");
-                      tokenBuffer = [];
+                case "token": {
+                  if (!generationLogged) {
+                    generationLogged = true;
+                    updateStageWithDelay(() => {
                       const active = get().queries.find(
                         (q) => q.id === queryResultId,
                       );
                       if (!active) return;
                       get().updateQueryResult(queryResultId, {
-                        answer: active.answer + buffered,
+                        pipelineLog: [
+                          ...active.pipelineLog,
+                          {
+                            ts: Date.now(),
+                            stage: "generation",
+                            message: "Generation: streaming svar...",
+                          },
+                        ].slice(-MAX),
                         pipelineStage: "generation",
                         searchStage: "reasoning",
                       });
                     });
                   }
-                  break;
-
-                case "corrections": {
-                  clearGradingWatchdog();
-                  // Flush pending token buffer BEFORE applying correction
-                  // to prevent race condition where RAF flush appends stale
-                  // tokens after corrected_text replaces the answer
-                  if (tokenBuffer.length > 0) {
-                    const remaining = tokenBuffer.join("");
-                    tokenBuffer = [];
-                    const cur = get().queries.find(
+                  const token = data.content || "";
+                  tokenBuffer.push(token);
+                  scheduleTokenFlush(() => {
+                    const active = get().queries.find(
                       (q) => q.id === queryResultId,
                     );
-                    if (cur)
+                    if (active) {
+                      const added = tokenBuffer.join("");
+                      tokenBuffer = [];
                       get().updateQueryResult(queryResultId, {
-                        answer: cur.answer + remaining,
+                        answer: active.answer + added,
                       });
-                  }
-                  if (rafId !== null) {
-                    cancelAnimationFrame(rafId);
-                    rafId = null;
-                  }
-                  flushCallback = null;
+                    }
+                  });
+                  break;
+                }
 
+                case "corrections": {
                   const active = get().queries.find(
                     (q) => q.id === queryResultId,
                   );
                   if (active)
                     get().updateQueryResult(queryResultId, {
-                      pipelineStage: "guardrail_validation",
                       pipelineLog: [
                         ...active.pipelineLog,
                         {
@@ -634,7 +805,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             });
           set({ isSearching: false, currentSearchId: null });
         }
-        break; // Success — exit retry loop
+        break; // Success – exit retry loop
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
@@ -658,7 +829,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             error: error instanceof Error ? error.message : "Search failed",
           });
         set({ isSearching: false, currentSearchId: null });
-        break; // Non-retryable error — exit retry loop
+        break; // Non-retryable error – exit retry loop
       } finally {
         clearGradingWatchdog();
         if (
@@ -674,12 +845,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   retryQuery: (queryResultId) => {
     const queryResult = get().queries.find((q) => q.id === queryResultId);
     if (!queryResult) return;
-    // Remove the failed query and re-run with same parameters
     set((state) => ({
       queries: state.queries.filter((q) => q.id !== queryResultId),
       query: queryResult.query,
     }));
-    // Map UI mode back to backend mode
     const modeMap: Record<QueryResultMode, BackendMode> = {
       verify: "evidence",
       summarize: "chat",
@@ -742,7 +911,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({
       viewMode: "hero",
       query: "",
-      queries: [], // Clear chat history
+      queries: [],
       activeQueryId: null,
       focusedQueryId: null,
       isSearching: false,
@@ -752,6 +921,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       lockedSourceId: null,
       citationTarget: null,
       connectorCoords: null,
+      openDocuments: [],
+      activeDocumentTabId: null,
+      isSearchInspectorOpen: false,
     });
   },
 }));

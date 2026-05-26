@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ArrowUp, Shield, BookOpen, GitCompare, RotateCcw } from "lucide-react";
-import clsx from "clsx";
+import React, { useState, useEffect, useRef } from "react";
 import { useAppStore } from "../../stores/useAppStore";
+import clsx from "clsx";
+import { motion, AnimatePresence } from "framer-motion";
+import { Shield, BookOpen, GitCompare, ArrowUp, RotateCcw } from "lucide-react";
 import type { QueryResultMode } from "../../types/queryResult";
 import type { BackendMode } from "../../stores/useAppStore";
 
@@ -43,7 +43,6 @@ export const ChatInput: React.FC = () => {
         if (isSearching) return;
 
         if (!input.trim()) {
-            // Empty submit - shake animation
             setShake(true);
             setTimeout(() => setShake(false), 500);
             return;
@@ -63,7 +62,6 @@ export const ChatInput: React.FC = () => {
     };
 
     const handleNewConversation = () => {
-        // Clear queries and stay in chat view
         resetToHome();
     };
 
@@ -77,14 +75,14 @@ export const ChatInput: React.FC = () => {
     return (
         <div
             className={clsx(
-                "border-t border-stone-200/60",
-                "bg-stone-50/80 backdrop-blur-xl",
-                "px-4 py-3"
+                "border-t border-white/[0.035]",
+                "bg-panel-bg/40 backdrop-blur-xl",
+                "px-4 py-3 relative z-20"
             )}
         >
-            <div className="max-w-3xl mx-auto flex items-end gap-3">
+            <div className="max-w-3xl mx-auto flex items-end gap-3 font-ui">
                 {/* Mode selector buttons */}
-                <div className="flex gap-1 flex-shrink-0">
+                <div className="flex gap-1 flex-shrink-0 bg-black/20 p-1 rounded-2xl border border-white/5">
                     {MODE_CONFIG.map((mode) => {
                         const Icon = mode.icon;
                         const isActive = activeMode === mode.id;
@@ -97,11 +95,11 @@ export const ChatInput: React.FC = () => {
                                 aria-label={mode.label}
                                 aria-pressed={isActive}
                                 className={clsx(
-                                    "min-w-[44px] min-h-[44px] rounded-xl flex items-center justify-center",
-                                    "border transition-all duration-200",
+                                    "w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer",
+                                    "transition-all duration-200 focus:outline-none",
                                     isActive
-                                        ? "bg-teal-700 border-teal-700 text-white shadow-sm"
-                                        : "bg-stone-100 border-stone-300/60 text-stone-600 hover:bg-stone-200/70 hover:border-stone-400/60"
+                                        ? "bg-accent-primary/10 border border-accent-primary/25 text-accent-primary shadow-[0_0_12px_rgba(0,240,244,0.15)]"
+                                        : "bg-transparent border border-transparent text-slate-400 hover:text-slate-200"
                                 )}
                                 title={mode.label}
                             >
@@ -126,13 +124,13 @@ export const ChatInput: React.FC = () => {
                             rows={1}
                             disabled={isSearching}
                             className={clsx(
-                                "w-full resize-none rounded-xl px-4 py-3 pr-12",
-                                "bg-white border",
+                                "w-full resize-none rounded-2xl px-4 py-3 pr-12",
+                                "bg-black/30 border",
                                 shake
-                                    ? "border-red-400 ring-2 ring-red-200"
-                                    : "border-stone-300/60",
-                                "text-stone-900 text-[15px] placeholder:text-stone-400",
-                                "focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700/40",
+                                    ? "border-red-500 ring-2 ring-red-500/20"
+                                    : "border-white/5",
+                                "text-slate-200 text-[14px] placeholder:text-slate-500",
+                                "focus:outline-none focus:ring-1 focus:ring-accent-primary/10 focus:border-accent-primary/30 focus:shadow-[0_0_15px_rgba(0,240,244,0.06)]",
                                 "transition-all duration-200",
                                 "disabled:opacity-60 disabled:cursor-not-allowed"
                             )}
@@ -151,17 +149,17 @@ export const ChatInput: React.FC = () => {
                     disabled={isSearching}
                     aria-label="Skicka"
                     className={clsx(
-                        "min-w-[44px] min-h-[44px] rounded-xl flex items-center justify-center flex-shrink-0",
-                        "transition-all duration-200",
+                        "w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0",
+                        "transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-primary/20",
                         !isSearching
-                            ? "bg-teal-700 text-white hover:bg-teal-800 shadow-sm"
-                            : "bg-stone-200 text-stone-400 cursor-not-allowed"
+                            ? "bg-accent-primary text-slate-950 hover:bg-accent-primary/95 shadow-[0_0_12px_rgba(0,240,244,0.25)] hover:shadow-[0_0_18px_rgba(0,240,244,0.45)] cursor-pointer"
+                            : "bg-white/[0.02] border border-white/5 text-slate-600 cursor-not-allowed"
                     )}
                 >
                     <ArrowUp className="w-5 h-5" strokeWidth={2} />
                 </button>
 
-                {/* New conversation button - only show if there are queries */}
+                {/* New conversation button */}
                 <AnimatePresence>
                     {queries.length > 0 && (
                         <motion.button
@@ -172,9 +170,9 @@ export const ChatInput: React.FC = () => {
                             onClick={handleNewConversation}
                             aria-label="Ny konversation"
                             className={clsx(
-                                "min-w-[44px] min-h-[44px] rounded-xl flex items-center justify-center flex-shrink-0",
-                                "border border-stone-300/60 bg-stone-100",
-                                "text-stone-500 hover:text-stone-700 hover:bg-stone-200/70",
+                                "w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 cursor-pointer",
+                                "border border-white/5 bg-white/[0.02] focus:outline-none focus:ring-2 focus:ring-white/10",
+                                "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]",
                                 "transition-all duration-200"
                             )}
                             title="Ny konversation"
@@ -187,8 +185,8 @@ export const ChatInput: React.FC = () => {
 
             {/* Hint text */}
             <div className="max-w-3xl mx-auto mt-2 px-1">
-                <span className="text-[10px] text-stone-400 font-mono">
-                    Enter = skicka • Shift+Enter = ny rad
+                <span className="text-[10px] text-slate-500 font-mono">
+                    Enter = skicka ↵ | Shift+Enter = ny rad
                 </span>
             </div>
         </div>

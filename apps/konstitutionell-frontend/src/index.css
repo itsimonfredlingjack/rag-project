@@ -1,39 +1,34 @@
 @import "tailwindcss";
 
-/* Custom theme variables for Tailwind v4 */
+/* Custom theme variables for Tailwind v4: Nordic Cyber (Pitch Charcoal & Neon Frost Cyan) */
 @theme {
   /* Core palette */
-  --color-app-bg: #E7E5E4;
-  /* Stone-200 */
-  --color-glass-border: rgba(28, 25, 23, 0.1);
-  --color-glass-bg: rgba(250, 250, 249, 0.6);
-  --color-accent-primary: #0f766e;
-  /* Teal-700 */
-  --color-accent-secondary: #b45309;
-  /* Amber-700 */
-  --color-app-text: #1c1917;
-  /* Stone-900 */
+  --color-app-bg: #07090C;         /* True pitch graphite */
+  --color-panel-bg: #0E1217;       /* Sleek darker charcoal-navy */
+  --color-glass-border: rgba(255, 255, 255, 0.035);
+  --color-glass-bg: rgba(14, 18, 23, 0.65);
+  
+  --color-accent-primary: #00F0F4;   /* High-voltage Neon Frost Cyan */
+  --color-accent-secondary: #FFB300; /* Rich Golden Amber */
+  --color-accent-tertiary: #C084FC;  /* Mystic Purple */
+  --color-app-text: #F1F5F9;         /* Premium Off-White */
 
-  /* WCAG AA compliant semantic text colors
-     All pass 4.5:1+ on Stone-200 (#E7E5E4) background */
-  --color-text-muted: #57534e;
-  /* Stone-600: 5.2:1 contrast */
-  --color-text-subtle: #44403c;
-  /* Stone-700: 7.1:1 contrast */
-  --color-text-disabled: #78716c;
-  /* Stone-500: 4.5:1 - minimum AA */
+  /* Text colors */
+  --color-text-muted: #64748B;       /* Slate-500: balanced readability */
+  --color-text-subtle: #94A3B8;      /* Slate-400 */
+  --color-text-disabled: #334155;    /* Slate-700 */
 
-  /* User message tinting (distinguishes from AI) */
-  --color-user-bubble-bg: rgba(15, 118, 110, 0.08);
-  /* Teal tint */
-  --color-user-bubble-border: rgba(15, 118, 110, 0.2);
+  /* User message bubble tinting */
+  --color-user-bubble-bg: rgba(0, 240, 244, 0.03);
+  --color-user-bubble-border: rgba(0, 240, 244, 0.12);
 
-  /* Animation timing (snappier) */
-  --duration-fast: 150ms;
-  --duration-normal: 200ms;
-  --duration-slow: 300ms;
+  /* Animation timing */
+  --duration-fast: 120ms;
+  --duration-normal: 180ms;
+  --duration-slow: 280ms;
 
-  --font-sans: 'Inter', sans-serif;
+  --font-sans: 'Outfit', sans-serif;
+  --font-serif: 'Lora', serif;
   --font-mono: 'JetBrains Mono', monospace;
 }
 
@@ -47,6 +42,8 @@ body {
   overflow: hidden;
   background-color: var(--color-app-bg);
   color: var(--color-app-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
@@ -55,15 +52,25 @@ body {
   position: relative;
 }
 
-/* Custom scrollbar styling */
+/* Typography utilities */
+.font-ui {
+  font-family: var(--font-sans);
+}
+
+.font-doc {
+  font-family: var(--font-serif);
+  line-height: 1.8;
+}
+
+/* Custom scrollbar styling (Nordic Cyber theme) */
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: rgba(15, 118, 110, 0.4) transparent;
+  scrollbar-color: rgba(0, 240, 244, 0.15) transparent;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 5px;
+  height: 5px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
@@ -71,19 +78,60 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(15, 118, 110, 0.4);
+  background-color: rgba(0, 240, 244, 0.15);
   border-radius: 4px;
-  border: 2px solid transparent;
+  border: 1px solid transparent;
   background-clip: padding-box;
+  transition: background-color 0.2s ease;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(15, 118, 110, 0.6);
+  background-color: rgba(0, 240, 244, 0.35);
+}
+
+/* Glassmorphic Cyber Panels */
+.glass-panel {
+  background: rgba(14, 18, 23, 0.55);
+  backdrop-filter: blur(16px) saturate(130%);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+  border: 1px solid rgba(255, 255, 255, 0.035);
+}
+
+.glass-panel-glow-cyan {
+  background: rgba(14, 18, 23, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 240, 244, 0.12);
+  box-shadow: 0 0 25px rgba(0, 240, 244, 0.02);
+}
+
+.glass-panel-glow-amber {
+  background: rgba(14, 18, 23, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 179, 0, 0.12);
+  box-shadow: 0 0 25px rgba(255, 179, 0, 0.02);
+}
+
+/* Glowing focuses */
+.cyber-glow-focus:focus-within {
+  border-color: rgba(0, 240, 244, 0.3);
+  box-shadow: 0 0 15px rgba(0, 240, 244, 0.08);
+}
+
+/* Document search highlight utility */
+.rag-highlight {
+  background-color: rgba(0, 240, 244, 0.15);
+  border-bottom: 2px solid rgba(0, 240, 244, 0.8);
+  padding: 0.05rem 0.2rem;
+  border-radius: 3px;
+  font-weight: 500;
+  color: #FFFFFF;
+  text-shadow: 0 0 8px rgba(0, 240, 244, 0.4);
 }
 
 /* Reduced motion: respect user preferences */
 @media (prefers-reduced-motion: reduce) {
-
   *,
   *::before,
   *::after {
@@ -93,9 +141,8 @@ body {
   }
 }
 
-/* Mobile-safe viewport: accounts for on-screen keyboard */
+/* Mobile-safe viewport */
 @supports (height: 100dvh) {
-
   html,
   body,
   #root {
@@ -103,7 +150,7 @@ body {
   }
 }
 
-/* Touch target utility (44×44 minimum per WCAG 2.5.5) */
+/* Touch target utility */
 .touch-target {
   min-width: 44px;
   min-height: 44px;
@@ -115,16 +162,14 @@ body {
   outline-offset: 2px;
 }
 
-/* Animated gradient for brand title (Apple-style shimmer) */
-@keyframes gradient-shift {
+/* Animated gradient for brand title */
+@keyframes gradient-shift-nordic {
   0% {
     background-position: 0% 50%;
   }
-
   50% {
     background-position: 100% 50%;
   }
-
   100% {
     background-position: 0% 50%;
   }
@@ -132,13 +177,88 @@ body {
 
 .animate-gradient {
   background-size: 200% 100%;
-  animation: gradient-shift 8s ease-in-out infinite;
+  animation: gradient-shift-nordic 8s ease-in-out infinite;
 }
 
-/* Respect reduced motion for gradient animation */
-@media (prefers-reduced-motion: reduce) {
-  .animate-gradient {
-    animation: none;
-    background-position: 0% 50%;
+/* Pulsing ambient glows */
+@keyframes ambient-pulse {
+  0%, 100% {
+    opacity: 0.25;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(1.08);
   }
 }
+
+.ambient-glow-cyan {
+  position: absolute;
+  width: 450px;
+  height: 450px;
+  background: radial-gradient(circle, rgba(0, 240, 244, 0.08) 0%, rgba(0, 240, 244, 0) 70%);
+  filter: blur(40px);
+  animation: ambient-pulse 10s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.ambient-glow-amber {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(255, 179, 0, 0.05) 0%, rgba(255, 179, 0, 0) 70%);
+  filter: blur(50px);
+  animation: ambient-pulse 14s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Markdown typography styles for document viewing */
+.prose-doc h1,
+.prose-doc h2,
+.prose-doc h3,
+.prose-doc h4 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  color: #FFFFFF;
+  margin-top: 1.6em;
+  margin-bottom: 0.6em;
+}
+
+.prose-doc h1 { 
+  font-size: 1.5rem; 
+  border-bottom: 1px solid rgba(255,255,255,0.04); 
+  padding-bottom: 0.4rem; 
+  letter-spacing: -0.01em;
+}
+.prose-doc h2 { font-size: 1.25rem; }
+.prose-doc h3 { font-size: 1.05rem; }
+
+.prose-doc p {
+  margin-bottom: 1.1rem;
+  color: #CBD5E1;
+}
+
+.prose-doc blockquote {
+  border-left: 2px solid var(--color-accent-primary);
+  background-color: rgba(255, 255, 255, 0.015);
+  padding: 0.6rem 1.1rem;
+  margin: 1.2rem 0;
+  font-style: italic;
+  color: #E2E8F0;
+  border-radius: 0 6px 6px 0;
+}
+
+.prose-doc ul,
+.prose-doc ol {
+  margin-bottom: 1.1rem;
+  padding-left: 1.4rem;
+}
+
+.prose-doc ul { list-style-type: disc; }
+.prose-doc ol { list-style-type: decimal; }
+
+.prose-doc li {
+  margin-bottom: 0.4rem;
+  color: #CBD5E1;
+}
+

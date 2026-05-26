@@ -219,28 +219,22 @@ export const PipelineVisualizer: React.FC<PipelineVisualizerProps> = (
   return (
     <div
       className={clsx(
-        "w-full rounded-2xl border bg-gradient-to-b backdrop-blur-xl px-7 py-6",
-        "from-stone-50/70 to-stone-100/45",
-        "border-stone-300/70 ring-1 ring-stone-900/5",
-        "shadow-[0_10px_30px_rgba(0,0,0,0.06)]",
+        "w-full rounded-2xl border glass-panel shadow-[0_12px_40px_rgba(0,0,0,0.5)] px-7 py-6 border-white/[0.035]"
       )}
     >
-      {/* Subtle top accent (helps the eye find the panel) */}
-      <div className="h-[2px] w-full rounded-full bg-teal-700/25 mb-4" />
-
       {/* Small header row */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="text-[11px] font-mono uppercase tracking-wider text-stone-600">
-          PIPELINE
+      <div className="flex items-center justify-between mb-4">
+        <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
+          PIPELINE PIPELINE_RUN
         </div>
         <div
           className={clsx(
-            "text-[11px] font-mono uppercase tracking-wider",
+            "text-[10px] font-mono uppercase tracking-wider",
             runState === "error"
-              ? "text-red-700"
+              ? "text-red-400"
               : runState === "complete"
-                ? "text-teal-800"
-                : "text-stone-500",
+                ? "text-accent-primary"
+                : "text-slate-400"
           )}
         >
           {runStateLabel[runState]} • {percent}%
@@ -248,20 +242,20 @@ export const PipelineVisualizer: React.FC<PipelineVisualizerProps> = (
       </div>
 
       {/* Top row: stages */}
-      <div className="relative">
+      <div className="relative mb-6">
         {/* Connector baseline */}
         <div
           className={clsx(
-            "absolute left-0 top-[18px] w-full h-[3px] rounded-full pointer-events-none -z-10",
-            runState === "error" ? "bg-red-500/25" : "bg-stone-300/70",
+            "absolute left-0 top-[20px] w-full h-[2px] rounded-full pointer-events-none -z-10",
+            runState === "error" ? "bg-red-500/10" : "bg-white/[0.03]"
           )}
         />
 
         {/* Active Progress Bar */}
         <motion.div
           className={clsx(
-            "absolute left-0 top-[18px] h-[3px] rounded-full pointer-events-none -z-10",
-            runState === "error" ? "bg-red-600/80" : "bg-teal-700/85",
+            "absolute left-0 top-[20px] h-[2px] rounded-full pointer-events-none -z-10",
+            runState === "error" ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" : "bg-accent-primary shadow-[0_0_8px_rgba(0,240,244,0.5)]"
           )}
           initial={{ width: "0%" }}
           animate={{
@@ -277,8 +271,8 @@ export const PipelineVisualizer: React.FC<PipelineVisualizerProps> = (
         <motion.div
           aria-hidden="true"
           className={clsx(
-            "absolute left-0 top-[18px] h-[12px] -translate-y-1/2 blur-md rounded-full pointer-events-none -z-10",
-            runState === "error" ? "bg-red-600/35" : "bg-teal-700/35",
+            "absolute left-0 top-[20px] h-[10px] -translate-y-1/2 blur-md rounded-full pointer-events-none -z-10",
+            runState === "error" ? "bg-red-500/20" : "bg-accent-primary/20"
           )}
           initial={{ width: "0%" }}
           animate={{
@@ -294,7 +288,7 @@ export const PipelineVisualizer: React.FC<PipelineVisualizerProps> = (
         {runState === "running" && (
           <motion.div
             aria-hidden="true"
-            className="absolute left-0 top-[18px] h-[3px] rounded-full overflow-hidden pointer-events-none -z-10"
+            className="absolute left-0 top-[20px] h-[2px] rounded-full overflow-hidden pointer-events-none -z-10"
             style={{
               width:
                 displayIndex >= 0
@@ -306,7 +300,7 @@ export const PipelineVisualizer: React.FC<PipelineVisualizerProps> = (
               className="h-full w-full"
               style={{
                 backgroundImage:
-                  "linear-gradient(90deg, rgba(15,118,110,0) 0%, rgba(15,118,110,0.55) 45%, rgba(15,118,110,0) 80%)",
+                  "linear-gradient(90deg, rgba(0,240,244,0) 0%, rgba(0,240,244,0.6) 45%, rgba(0,240,244,0) 80%)",
                 backgroundSize: "200% 100%",
               }}
               animate={{ backgroundPositionX: ["0%", "200%"] }}
@@ -320,11 +314,11 @@ export const PipelineVisualizer: React.FC<PipelineVisualizerProps> = (
           <>
             <motion.div
               aria-hidden="true"
-              className="absolute top-[18px] -translate-y-1/2 w-7 h-7 rounded-full bg-teal-700/25 blur-md pointer-events-none"
+              className="absolute top-[20px] -translate-y-1/2 w-6 h-6 rounded-full bg-accent-primary/10 blur-sm pointer-events-none"
               style={{
-                left: `calc(${(displayIndex / (stages.length - 1)) * 100}% - 14px)`,
+                left: `calc(${(displayIndex / (stages.length - 1)) * 100}% - 12px)`,
               }}
-              animate={{ opacity: [0.25, 0.6, 0.25] }}
+              animate={{ opacity: [0.2, 0.5, 0.2] }}
               transition={{
                 repeat: Infinity,
                 duration: 1.15,
@@ -332,13 +326,13 @@ export const PipelineVisualizer: React.FC<PipelineVisualizerProps> = (
               }}
             />
             <motion.div
-              className="absolute top-[18px] -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-teal-700 shadow-sm pointer-events-none"
+              className="absolute top-[20px] -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-accent-primary shadow-[0_0_8px_rgba(0,240,244,0.6)] pointer-events-none"
               style={{
-                left: `calc(${(displayIndex / (stages.length - 1)) * 100}% - 7px)`,
+                left: `calc(${(displayIndex / (stages.length - 1)) * 100}% - 5px)`,
               }}
               animate={{
-                scale: [1, 1.35, 1],
-                opacity: [0.65, 1, 0.65],
+                scale: [1, 1.25, 1],
+                opacity: [0.7, 1, 0.7],
               }}
               transition={{
                 repeat: Infinity,
@@ -349,7 +343,7 @@ export const PipelineVisualizer: React.FC<PipelineVisualizerProps> = (
           </>
         )}
 
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-2">
           {stages.map((stage, index) => {
             const isBefore = displayIndex >= 0 && index < displayIndex;
             const isCurrent = index === displayIndex;
@@ -380,76 +374,74 @@ export const PipelineVisualizer: React.FC<PipelineVisualizerProps> = (
                   togglePipelineDrawer(true);
                 }}
                 className={clsx(
-                  "group flex flex-col items-center gap-2 text-left select-none",
-                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-700/30 rounded-xl px-1",
+                  "group flex flex-col items-center gap-1.5 text-center select-none cursor-pointer",
+                  "focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-primary/30 rounded-xl px-0.5"
                 )}
               >
                 <motion.div
                   className={clsx(
                     "relative rounded-full flex items-center justify-center border",
-                    "transition-colors duration-200",
+                    "transition-all duration-200",
                     stepState === "active"
-                      ? "bg-stone-50 border-teal-700/70 ring-2 ring-teal-700/25 shadow-sm"
+                      ? "bg-[#0E151A] border-accent-primary ring-2 ring-accent-primary/10 shadow-[0_0_12px_rgba(0,240,244,0.15)] text-accent-primary"
                       : stepState === "done"
-                        ? "bg-stone-50 border-stone-300/60"
+                        ? "bg-[#0E1217] border-white/10 text-slate-300"
                         : stepState === "failed"
-                          ? "bg-stone-50 border-red-500/50 ring-2 ring-red-500/15"
-                          : "bg-stone-100/60 border-stone-300/40",
-                    isSelected && "outline outline-1 outline-stone-900/5",
+                          ? "bg-[#1D1217] border-red-500/50 ring-2 ring-red-500/10 text-red-400"
+                          : "bg-transparent border-white/5 text-slate-600",
+                    isSelected && "border-white/30"
                   )}
                   style={{
-                    width: stepState === "active" ? 44 : 40,
-                    height: stepState === "active" ? 44 : 40,
+                    width: 40,
+                    height: 40,
                   }}
                   animate={
                     stepState === "active"
-                      ? { scale: [1, 1.08, 1] }
+                      ? { scale: [1, 1.05, 1] }
                       : { scale: 1 }
                   }
                   transition={{
-                    repeat: stepState === "active" ? Infinity : (0 as number),
+                    repeat: stepState === "active" ? Infinity : 0,
                     duration: 1.8,
                   }}
                 >
                   <Icon
-                    size={18}
+                    size={16}
                     className={clsx(
-                      "text-stone-800",
-                      stepState === "pending" && "opacity-70",
-                      stepState === "done" && "opacity-80",
-                      stepState === "failed" && "opacity-90",
+                      stepState === "pending" && "opacity-40",
+                      stepState === "done" && "opacity-80"
                     )}
                     strokeWidth={1.5}
                   />
 
                   {stepState === "done" && (
-                    <span className="absolute -right-1 -top-1 w-[18px] h-[18px] rounded-full bg-stone-100 border border-stone-300/70 flex items-center justify-center">
+                    <span className="absolute -right-1 -top-1 w-[16px] h-[16px] rounded-full bg-[#0E1217] border border-white/10 flex items-center justify-center shadow-[0_2px_5px_rgba(0,0,0,0.3)]">
                       <Check
-                        className="w-3.5 h-3.5 text-teal-700/80"
-                        strokeWidth={2}
+                        className="w-3 h-3 text-accent-primary"
+                        strokeWidth={2.5}
                       />
                     </span>
                   )}
 
                   {stepState === "failed" && (
-                    <span className="absolute -right-1 -top-1 w-[18px] h-[18px] rounded-full bg-stone-100 border border-red-500/40 flex items-center justify-center">
+                    <span className="absolute -right-1 -top-1 w-[16px] h-[16px] rounded-full bg-[#1D1217] border border-red-500/30 flex items-center justify-center shadow-[0_2px_5px_rgba(0,0,0,0.3)]">
                       <XCircle
-                        className="w-3.5 h-3.5 text-red-600/90"
-                        strokeWidth={1.8}
+                        className="w-3 h-3 text-red-500"
+                        strokeWidth={2.5}
                       />
                     </span>
                   )}
                 </motion.div>
                 <span
                   className={clsx(
-                    "text-xs font-mono uppercase tracking-wider",
+                    "text-[9px] font-mono uppercase tracking-wider transition-colors",
                     stepState === "active"
-                      ? "text-stone-900"
+                      ? "text-slate-100 font-semibold"
                       : stepState === "done"
-                        ? "text-stone-700"
+                        ? "text-slate-300"
                         : stepState === "failed"
-                          ? "text-red-700"
-                          : "text-stone-400",
+                          ? "text-red-400"
+                          : "text-slate-600"
                   )}
                 >
                   {stage.label}
@@ -461,28 +453,28 @@ export const PipelineVisualizer: React.FC<PipelineVisualizerProps> = (
       </div>
 
       {/* Inline status row + drawer toggle */}
-      <div className="mt-4 flex items-center justify-between gap-4">
+      <div className="mt-4 flex items-center justify-between gap-4 pt-3 border-t border-white/[0.02]">
         <motion.div
           key={`${searchStage}:${pipelineStage}:${displayIndex}`}
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
           className={clsx(
-            "text-sm font-mono truncate flex items-center gap-2",
-            runState === "error" ? "text-red-700" : "text-stone-700",
+            "text-xs font-mono truncate flex items-center gap-2",
+            runState === "error" ? "text-red-400" : "text-slate-300"
           )}
         >
           {runState === "running" ? (
             <Loader2
-              className="w-4 h-4 animate-spin opacity-70"
-              strokeWidth={1.8}
+              className="w-3.5 h-3.5 animate-spin text-accent-primary/80"
+              strokeWidth={2}
             />
           ) : runState === "complete" ? (
-            <Check className="w-4 h-4 text-teal-700/80" strokeWidth={2} />
+            <Check className="w-3.5 h-3.5 text-accent-primary" strokeWidth={2.5} />
           ) : (
-            <XCircle className="w-4 h-4" strokeWidth={1.8} />
+            <XCircle className="w-3.5 h-3.5 text-red-500" strokeWidth={2.5} />
           )}
           <span className="truncate">{statusText}</span>
-          <span className="text-[11px] text-stone-400 font-mono whitespace-nowrap">
+          <span className="text-[10px] text-slate-500 font-mono whitespace-nowrap">
             {Math.max(1, displayIndex + 1)}/{stages.length}
           </span>
         </motion.div>
@@ -491,15 +483,15 @@ export const PipelineVisualizer: React.FC<PipelineVisualizerProps> = (
           type="button"
           onClick={() => togglePipelineDrawer()}
           className={clsx(
-            "flex items-center gap-2 text-[11px] font-mono uppercase tracking-wider",
-            "text-stone-500 hover:text-stone-700 transition-colors",
+            "flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider cursor-pointer",
+            "text-slate-400 hover:text-accent-primary transition-colors"
           )}
         >
-          <span>{isPipelineDrawerOpen ? "Hide" : "Details"}</span>
+          <span>{isPipelineDrawerOpen ? "Dölj" : "Detaljer"}</span>
           <ChevronDown
             className={clsx(
-              "w-3.5 h-3.5 transition-transform",
-              isPipelineDrawerOpen ? "rotate-180" : "rotate-0",
+              "w-3 h-3 transition-transform",
+              isPipelineDrawerOpen ? "rotate-180" : "rotate-0"
             )}
             strokeWidth={1.5}
           />
@@ -516,16 +508,16 @@ export const PipelineVisualizer: React.FC<PipelineVisualizerProps> = (
             transition={{ duration: 0.2 }}
             className="mt-3 overflow-hidden"
           >
-            <div className="rounded-xl border border-stone-300/50 bg-stone-100/50 px-5 py-4">
+            <div className="rounded-xl border border-white/5 bg-black/30 px-5 py-4">
               {/* Selected stage progress hint */}
               <div className="flex items-center justify-between mb-2">
-                <div className="text-[11px] font-mono uppercase tracking-wider text-stone-600">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
                   {stages.find((s) => s.id === selectedPipelineStage)?.label}{" "}
-                  Logs
+                  Loggar
                 </div>
-                <div className="w-28 h-2 rounded-full bg-stone-200 overflow-hidden">
+                <div className="w-24 h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
                   <div
-                    className="h-full bg-teal-700/50"
+                    className="h-full bg-accent-primary/60 shadow-[0_0_8px_rgba(0,240,244,0.3)]"
                     style={{ width: progressPct }}
                   />
                 </div>
@@ -533,16 +525,16 @@ export const PipelineVisualizer: React.FC<PipelineVisualizerProps> = (
 
               <div className="space-y-1.5">
                 {visibleLog.length === 0 ? (
-                  <div className="text-sm text-stone-500 font-mono">
-                    No logs yet.
+                  <div className="text-xs text-slate-500 font-mono">
+                    Inga loggar tillgängliga.
                   </div>
                 ) : (
                   visibleLog.map((l) => (
                     <div
                       key={`${l.ts}:${l.message}`}
-                      className="text-sm text-stone-700 font-mono"
+                      className="text-xs text-slate-400 font-mono leading-relaxed"
                     >
-                      {l.message}
+                      &gt; {l.message}
                     </div>
                   ))
                 )}

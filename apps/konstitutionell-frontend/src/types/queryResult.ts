@@ -37,4 +37,11 @@ export interface QueryResult {
   lastStageChangeTimestamp: number;
   searchTimeMs: number | null;
   totalTimeMs: number | null;
+  rewrittenQuery?: string;
+  retrievalLatencyMs?: number;
+  gradingMetrics?: {
+    total: number;
+    relevant: number;
+    ambiguous: number;
+  };
 }

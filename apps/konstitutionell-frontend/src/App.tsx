@@ -1,134 +1,129 @@
-import React, { Suspense, useState, useRef, useMemo } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { TrustHull } from "./components/ui/TrustHull";
-import {
-  EffectComposer,
-  Noise,
-  Vignette,
-  Bloom,
-  TiltShift2,
-} from "@react-three/postprocessing";
-import { COLORS, EVIDENCE_COLORS } from "./theme/colors";
-import { ErrorBoundary } from "./components/ErrorBoundary";
+import { useEffect } from "react";
 import { useAppStore } from "./stores/useAppStore";
-import * as THREE from "three";
-
-// Lazy-load heavy 3D components for faster initial paint
-const Substrate = React.lazy(() =>
-  import("./components/3d/Substrate").then((m) => ({ default: m.Substrate })),
-);
-const SourceViewer3D = React.lazy(() =>
-  import("./components/3d/SourceViewer3D").then((m) => ({
-    default: m.SourceViewer3D,
-  })),
-);
-const ConnectorLogic = React.lazy(() =>
-  import("./components/3d/ConnectorLogic").then((m) => ({
-    default: m.ConnectorLogic,
-  })),
-);
-
-/** Dynamic amber point light — intensity reacts to the current evidence level. */
-function AmberLight() {
-  const lightRef = useRef<THREE.PointLight>(null);
-  const queries = useAppStore((s) => s.queries);
-  const focusedQueryId = useAppStore((s) => s.focusedQueryId);
-
-  const evidenceLevel = useMemo(() => {
-    const q = queries.find((x) => x.id === focusedQueryId);
-    return (q?.evidenceLevel as keyof typeof EVIDENCE_COLORS) ?? null;
-  }, [queries, focusedQueryId]);
-
-  useFrame(() => {
-    if (!lightRef.current) return;
-    // MEDIUM → warmer glow (0.8), LOW → subdued (0.3), HIGH/null → default (0.4)
-    const targetIntensity =
-      evidenceLevel === "MEDIUM" ? 0.8 : evidenceLevel === "LOW" ? 0.3 : 0.4;
-    lightRef.current.intensity = THREE.MathUtils.lerp(
-      lightRef.current.intensity,
-      targetIntensity,
-      0.05,
-    );
-  });
-
-  return (
-    <pointLight
-      ref={lightRef}
-      position={[-10, 5, -10]}
-      intensity={0.4}
-      color={COLORS.accentSecondary}
-    />
-  );
-}
+import { HistorySidebar } from "./components/ui/HistorySidebar";
+import { FacetFilters } from "./components/ui/FacetFilters";
+import { SearchInspector } from "./components/ui/SearchInspector";
+import { DocumentReader } from "./components/ui/DocumentReader";
+import { HeroSection } from "./components/ui/HeroSection";
+import { ChatView } from "./components/ui/ChatView";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { PanelLeft, Terminal, Shield } from "lucide-react";
 
 function App() {
-  const [isHighPerformance] = useState(() => {
-    if (typeof window === "undefined") return true;
-    // Check pixel ratio. If > 2 (Retina/HighDPI) or mobile agent, assume restricted performance budget.
-    const pixelRatio = window.devicePixelRatio;
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    return !(pixelRatio > 2 || isMobile);
-  });
+  const {
+    viewMode,
+    isSidebarOpen,
+    toggleSidebar,
+    toggleSearchInspector,
+    isSearchInspectorOpen,
+    activeQueryId,
+    queries,
+    fetchFacets,
+  } = useAppStore();
+
+  const isHeroMode = viewMode === "hero";
+  const activeQuery = queries.find((q) => q.id === activeQueryId);
+
+  // Fetch filters/facets on load
+  useEffect(() => {
+    fetchFacets();
+  }, [fetchFacets]);
 
   return (
-    <div
-      className="w-screen h-screen overflow-hidden relative"
-      style={{ backgroundColor: COLORS.background }}
-    >
-      {/* ===== LAYER 0: 3D Background (Fixed, Z-0) ===== */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <ErrorBoundary>
-          <Canvas
-            dpr={isHighPerformance ? [1, 2] : [1, 1.5]} // Cap DPR on lower end
-            camera={{ position: [0, 2, 8], fov: 50 }}
-            gl={{ antialias: true, powerPreference: "high-performance" }}
-          >
-            <color attach="background" args={[COLORS.background]} />
-            <fog attach="fog" args={[COLORS.background, 5, 25]} />
+    <div className="w-screen h-screen overflow-hidden flex bg-app-bg text-[#E2E8F0] font-ui select-none relative">
+      {/* Background Ambient Glows */}
+      <div className="ambient-glow-cyan top-[-100px] left-[-100px] opacity-25 pointer-events-none z-0" />
+      <div className="ambient-glow-amber bottom-[-100px] right-[-100px] opacity-15 pointer-events-none z-0" />
 
-            <ambientLight intensity={0.8} />
-            <pointLight
-              position={[10, 10, 10]}
-              intensity={0.6}
-              color={COLORS.accentPrimary}
-            />
-            <AmberLight />
+      <ErrorBoundary>
+        {/* Collapsible Left Sidebar */}
+        <HistorySidebar />
 
-            <Suspense fallback={
-              <mesh position={[0, 0, 0]}>
-                <planeGeometry args={[20, 20]} />
-                <meshBasicMaterial color={COLORS.background} transparent opacity={0.5} />
-              </mesh>
-            }>
-              <Substrate reducedParticles={!isHighPerformance} />
+        {/* Main Work Area */}
+        <div className="flex-1 flex flex-col min-w-0 h-full relative z-10">
+          
+          {/* Header Bar */}
+          <header className="h-14 border-b border-white/[0.035] bg-panel-bg/60 backdrop-blur-md px-6 flex items-center justify-between shrink-0 z-30 shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
+            <div className="flex items-center gap-4">
+              {!isSidebarOpen && (
+                <button
+                  onClick={toggleSidebar}
+                  className="p-1.5 text-stone-500 hover:text-accent-primary hover:bg-white/[0.02] rounded-md transition-colors cursor-pointer"
+                  title="Visa sidopanel"
+                >
+                  <PanelLeft className="w-4 h-4" />
+                </button>
+              )}
+              
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-accent-primary filter drop-shadow-[0_0_8px_rgba(0,240,244,0.4)]" />
+                <span className="text-xs font-semibold tracking-wider uppercase text-slate-300">
+                  Konstitutionell AI
+                </span>
+                <span className="text-[10px] text-accent-primary/80 font-mono bg-accent-primary/5 px-1.5 py-0.5 rounded border border-accent-primary/10">
+                  Myndighetsdata RAG
+                </span>
+              </div>
+            </div>
 
-              {/* 3D Source Visualization (Left side) */}
-              <SourceViewer3D />
-              <ConnectorLogic />
-            </Suspense>
+            <div className="flex items-center gap-3">
+              {/* Local Dev Indicator */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/5 border border-emerald-500/15 text-[10px] font-medium text-emerald-400 font-mono">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                </span>
+                <span>Local</span>
+              </div>
 
-            <EffectComposer
-              multisampling={isHighPerformance ? 4 : 0}
-              enableNormalPass={isHighPerformance}
-            >
-              <Bloom
-                luminanceThreshold={0.8}
-                mipmapBlur
-                intensity={0.2}
-                radius={0.2}
-              />
-              <Vignette eskil={false} offset={0.1} darkness={0.4} />
-              {isHighPerformance ? <Noise opacity={0.01} /> : <></>}
-              {isHighPerformance ? <TiltShift2 blur={0.05} /> : <></>}
-            </EffectComposer>
-          </Canvas>
-        </ErrorBoundary>
-      </div>
+              {/* Technical Search Inspector Toggle */}
+              {!isHeroMode && activeQuery && (
+                <button
+                  onClick={() => toggleSearchInspector()}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs transition-all cursor-pointer ${
+                    isSearchInspectorOpen
+                      ? "bg-accent-primary/10 border-accent-primary/30 text-accent-primary font-medium shadow-[0_0_12px_rgba(0,240,244,0.15)]"
+                      : "bg-white/[0.02] border-white/5 hover:border-accent-primary/20 text-slate-400 hover:text-slate-200"
+                  }`}
+                  title="Visa teknisk analys"
+                >
+                  <Terminal className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Inspector</span>
+                </button>
+              )}
+            </div>
+          </header>
 
-      {/* ===== LAYER 1: UI Overlay (Relative, Z-10) ===== */}
-      <div className="relative z-10 w-full h-full">
-        <TrustHull />
-      </div>
+          {/* View Container */}
+          <div className="flex-1 flex min-h-0 min-w-0 relative">
+            {isHeroMode ? (
+              /* 1. Hero Search Panel (Home view) */
+              <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col justify-start py-8 relative">
+                <HeroSection />
+                <div className="max-w-4xl w-full mx-auto px-6 sm:px-8 mt-6">
+                  <FacetFilters />
+                </div>
+              </div>
+            ) : (
+              /* 2. Search Results view (Split layout) */
+              <div className="flex-1 flex min-h-0 min-w-0 border-t border-white/[0.02]">
+                {/* Left Panel: Query and Streaming Answer */}
+                <div className="flex-1 md:w-1/2 flex flex-col min-w-0 h-full bg-app-bg/50">
+                  <ChatView />
+                </div>
+
+                {/* Right Panel: Split Document Reader */}
+                <div className="hidden md:flex md:w-1/2 h-full border-l border-white/[0.035] bg-panel-bg/25">
+                  <DocumentReader />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Floating Inspector Drawer */}
+        <SearchInspector />
+      </ErrorBoundary>
     </div>
   );
 }

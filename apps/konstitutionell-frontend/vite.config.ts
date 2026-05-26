@@ -7,7 +7,6 @@ export default defineConfig({
   server: {
     port: 3003,
     host: "0.0.0.0",
-    allowedHosts: ["swerag.fredlingautomation.dev"],
   },
   build: {
     // Code splitting for better caching

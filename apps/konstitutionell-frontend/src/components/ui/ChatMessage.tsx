@@ -51,26 +51,26 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ queryResult }) => {
             transition={{ duration: 0.3 }}
             className="w-full max-w-3xl mx-auto space-y-4"
         >
-            {/* User's question - right aligned with teal tint and avatar */}
+            {/* User's question - right aligned with cyan tint and avatar */}
             <div className="flex justify-end gap-3">
                 <div
                     className={clsx(
                         "relative max-w-[85%] rounded-2xl px-5 py-3",
-                        "bg-user-bubble-bg backdrop-blur-sm",
-                        "border border-user-bubble-border"
+                        "bg-accent-primary/[0.03] backdrop-blur-md",
+                        "border border-accent-primary/10 shadow-[0_4px_20px_rgba(0,240,244,0.02)]"
                     )}
                 >
-                    <p className="text-stone-900 text-[15px] leading-relaxed">{query}</p>
+                    <p className="text-slate-100 text-[14px] leading-relaxed">{query}</p>
                     <div className="flex items-center gap-1.5 mt-2">
-                        <ModeIcon className="w-3 h-3 text-text-muted" strokeWidth={1.5} />
-                        <span className="text-[10px] font-mono uppercase tracking-wider text-text-muted">
+                        <ModeIcon className="w-3 h-3 text-text-subtle/60" strokeWidth={1.5} />
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-text-subtle/60">
                             {MODE_LABELS[mode]}
                         </span>
                     </div>
                 </div>
                 {/* User Avatar */}
-                <div className="w-8 h-8 rounded-full bg-teal-700 flex items-center justify-center shrink-0">
-                    <User className="w-4 h-4 text-white" strokeWidth={2} />
+                <div className="w-8 h-8 rounded-full bg-accent-primary/10 border border-accent-primary/20 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(0,240,244,0.1)]">
+                    <User className="w-4 h-4 text-accent-primary" strokeWidth={2} />
                 </div>
             </div>
 
@@ -81,9 +81,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ queryResult }) => {
             <div
                 className={clsx(
                     "relative rounded-2xl px-5 sm:px-6 pt-6 pb-5",
-                    "bg-white/70 backdrop-blur-xl",
-                    "border border-stone-200/60",
-                    "shadow-sm"
+                    "glass-panel shadow-[0_12px_40px_rgba(0,0,0,0.5)]",
+                    "border border-white/[0.035]"
                 )}
                 role="region"
                 aria-label="AI-svar"
@@ -105,9 +104,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ queryResult }) => {
                             </div>
                             {/* Skeleton lines */}
                             <div className="space-y-2.5 animate-pulse">
-                                <div className="h-3.5 bg-stone-200 rounded w-3/4" />
-                                <div className="h-3.5 bg-stone-200 rounded w-1/2" />
-                                <div className="h-3.5 bg-stone-200 rounded w-5/6" />
+                                <div className="h-3 bg-white/5 rounded w-3/4" />
+                                <div className="h-3 bg-white/5 rounded w-1/2" />
+                                <div className="h-3 bg-white/5 rounded w-5/6" />
                             </div>
                         </div>
                     )
@@ -126,7 +125,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ queryResult }) => {
                                     </p>
                                     <button
                                         onClick={() => retryQuery(id)}
-                                        className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-lg transition-colors focus-ring"
+                                        className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-xl border border-red-500/20 transition-all cursor-pointer focus-ring"
                                     >
                                         <RefreshCw className="w-3.5 h-3.5" />
                                         Försök igen
@@ -147,8 +146,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ queryResult }) => {
                             {/* Main answer */}
                             {answer ? (
                                 <div
-                                    className="text-stone-900 text-[15px] leading-relaxed"
-                                    style={{ lineHeight: "1.85" }}
+                                    className="text-slate-200 text-[14px] leading-relaxed font-ui"
+                                    style={{ lineHeight: "1.8" }}
                                 >
                                     <AnswerWithCitations answer={answer} sources={sources} />
                                 </div>
@@ -165,7 +164,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ queryResult }) => {
                 {/* Source chips or empty state */}
                 {
                     hasAnswer && (
-                        <div className="mt-5 pt-4 border-t border-stone-200/50">
+                        <div className="mt-5 pt-4 border-t border-white/5">
                             {sources.length > 0 ? (
                                 <>
                                     <div className="text-[10px] font-mono uppercase tracking-wider text-text-muted mb-2">
@@ -178,7 +177,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ queryResult }) => {
                                     </div>
                                 </>
                             ) : (
-                                <div className="flex items-start gap-3 p-3 rounded-lg bg-stone-100/50">
+                                <div className="flex items-start gap-3 p-3 rounded-lg bg-white/[0.01] border border-white/5">
                                     <FileQuestion className="w-4 h-4 text-text-muted shrink-0 mt-0.5" />
                                     <div>
                                         <p className="text-xs font-medium text-stone-700">Inga källor hämtade</p>
