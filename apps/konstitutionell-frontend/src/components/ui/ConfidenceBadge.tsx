@@ -36,35 +36,34 @@ export const ConfidenceBadge: React.FC<ConfidenceBadgeProps> = ({
     // Configuration based on level
     const config = {
         HIGH: {
-            label: "Hög tillförlitlighet",
+            label: "Verifierad källa",
             icon: Shield,
-            color: "text-emerald-700",
-            bg: "bg-emerald-50",
-            border: "border-emerald-200",
+            color: "text-[#38bdf8]",
+            bg: "bg-[#38bdf8]/5",
+            border: "border-[#38bdf8]/20",
         },
         MEDIUM: {
-            label: "Medel tillförlitlighet",
+            label: "Indirekt källa",
             icon: Shield,
-            color: "text-amber-700",
-            bg: "bg-amber-50",
-            border: "border-amber-200",
+            color: "text-[#f59e0b]",
+            bg: "bg-[#f59e0b]/5",
+            border: "border-[#f59e0b]/20",
         },
         LOW: {
-            label: "Låg tillförlitlighet",
+            label: "Obekräftad",
             icon: ShieldAlert,
-            color: "text-red-700",
-            bg: "bg-red-50",
-            border: "border-red-200",
+            color: "text-red-400",
+            bg: "bg-red-500/5",
+            border: "border-red-500/20",
         },
-    }[evidenceLevel || "LOW"]; // Fallback to LOW if null (shouldn't happen with check above)
+    }[evidenceLevel || "LOW"];
 
-    // Default to LOW if undefined (should be covered by check but TS safety)
     const activeConfig = config || {
         label: "Okänd status",
         icon: Info,
-        color: "text-stone-500",
-        bg: "bg-stone-50",
-        border: "border-stone-200",
+        color: "text-slate-500",
+        bg: "bg-white/[0.01]",
+        border: "border-white/5",
     };
 
     const Icon = activeConfig.icon;
@@ -77,14 +76,14 @@ export const ConfidenceBadge: React.FC<ConfidenceBadgeProps> = ({
                 onMouseLeave={() => setShowTooltip(false)}
                 onClick={() => setShowTooltip(!showTooltip)}
                 className={clsx(
-                    "flex items-center gap-1.5 px-3 py-1 rounded-full border cursor-help transition-colors shadow-sm",
+                    "flex items-center gap-1 px-2 py-0.5 rounded-[3px] border cursor-help transition-colors shadow-sm",
                     activeConfig.bg,
                     activeConfig.border,
                     activeConfig.color
                 )}
             >
-                <Icon className="w-3.5 h-3.5" strokeWidth={2} />
-                <span className="text-[11px] font-semibold uppercase tracking-wide">
+                <Icon className="w-3 h-3" strokeWidth={2} />
+                <span className="text-[9px] font-semibold uppercase tracking-wider">
                     {activeConfig.label.split(" ")[0]}
                 </span>
             </button>
@@ -92,37 +91,37 @@ export const ConfidenceBadge: React.FC<ConfidenceBadgeProps> = ({
             <AnimatePresence>
                 {showTooltip && (
                     <motion.div
-                        initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                        initial={{ opacity: 0, y: 4, scale: 0.98 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 4, scale: 0.95 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute bottom-full left-0 mb-2 w-64 p-3 bg-white rounded-xl shadow-xl border border-stone-200/60 z-50 text-left pointer-events-none"
+                        exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                        transition={{ duration: 0.1 }}
+                        className="absolute bottom-full left-0 mb-2 w-60 p-3 bg-[#0b0f13]/95 rounded border border-white/5 shadow-2xl z-50 text-left pointer-events-none backdrop-blur-md text-slate-300"
                     >
-                        <div className="flex items-center gap-2 mb-2 pb-2 border-b border-stone-100">
-                            <Icon className={clsx("w-4 h-4", activeConfig.color)} />
-                            <span className={clsx("text-xs font-semibold", activeConfig.color)}>
+                        <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/5">
+                            <Icon className={clsx("w-3.5 h-3.5", activeConfig.color)} />
+                            <span className={clsx("text-xs font-semibold uppercase tracking-wide", activeConfig.color)}>
                                 {activeConfig.label}
                             </span>
                         </div>
 
-                        <div className="space-y-1.5">
-                            <div className="flex justify-between text-xs">
-                                <span className="text-stone-500">Antal källor:</span>
-                                <span className="font-mono text-stone-700">{sourceCount}</span>
+                        <div className="space-y-1.5 text-[11px]">
+                            <div className="flex justify-between">
+                                <span className="text-slate-500">Antal referenser:</span>
+                                <span className="font-mono text-slate-300">{sourceCount}</span>
                             </div>
-                            <div className="flex justify-between text-xs">
-                                <span className="text-stone-500">Snittrelevans:</span>
-                                <span className="font-mono text-stone-700">
-                                    {avgScore.toFixed(2)}
+                            <div className="flex justify-between">
+                                <span className="text-slate-500">Genomsnittlig relevans:</span>
+                                <span className="font-mono text-slate-300">
+                                    {(avgScore * 100).toFixed(0)}%
                                 </span>
                             </div>
-                            <div className="mt-2 text-[10px] text-stone-400 leading-tight">
-                                Bedömning baserad på källornas kvalitet och relevans för frågan.
+                            <div className="mt-2 text-[10px] text-slate-500 leading-normal">
+                                Bedömning baseras på källornas kvalitet och träffsäkerhet för denna fråga.
                             </div>
                         </div>
 
                         {/* Arrow */}
-                        <div className="absolute bottom-[-5px] left-4 w-2.5 h-2.5 bg-white border-b border-r border-stone-200/60 transform rotate-45" />
+                        <div className="absolute bottom-[-5px] left-4 w-2 h-2 bg-[#0b0f13] border-b border-r border-white/5 transform rotate-45" />
                     </motion.div>
                 )}
             </AnimatePresence>

@@ -76,16 +76,16 @@ function injectCitations(
             }}
             className={clsx(
               "inline-flex items-center align-baseline mx-1",
-              "px-2 py-0.5 rounded-full border",
-              "text-[11px] font-mono tracking-wider cursor-pointer transition-all",
+              "px-1.5 py-0.5 rounded-[3px] border",
+              "text-[10px] font-mono font-medium tracking-wide cursor-pointer transition-all",
               isKnown
-                ? "bg-teal-950/20 border-teal-500/20 hover:border-teal-500/40 text-teal-400 hover:bg-teal-950/40"
-                : "bg-white/[0.02] border-white/5 text-slate-500 cursor-not-allowed",
-              isActive && "ring-2 ring-teal-400/30",
+                ? "bg-amber-500/5 border-amber-500/20 hover:border-amber-500/40 text-amber-500 hover:bg-amber-500/10"
+                : "bg-white/[0.01] border-white/5 text-slate-500 cursor-not-allowed",
+              isActive && "ring-1 ring-amber-500/30",
             )}
             aria-label={isKnown ? `Citation ${n}` : "Unknown citation"}
           >
-            [{n}]
+            {n}
           </button>,
         );
 
@@ -179,7 +179,7 @@ export function AnswerWithCitations({
       <h4 className="font-semibold text-sm mt-4 mb-2 text-slate-300 font-ui">{cite(children)}</h4>
     ),
     blockquote: ({ children }) => (
-      <blockquote className="border-l-3 border-teal-500/30 pl-4 my-3 text-slate-400 italic bg-white/[0.01] py-1 rounded-r-md">
+      <blockquote className="border-l-3 border-accent-tertiary pl-4 my-3 text-slate-400 italic bg-white/[0.01] py-1 rounded-r-md">
         {children}
       </blockquote>
     ),
@@ -191,7 +191,7 @@ export function AnswerWithCitations({
         return (
           <code
             className={clsx(
-              "block bg-black/20 border border-white/5 rounded-lg p-3 my-3 text-[13px] font-mono overflow-x-auto whitespace-pre text-slate-300",
+              "block bg-black/20 border border-white/5 rounded p-3 my-3 text-[13px] font-mono overflow-x-auto whitespace-pre text-slate-300",
               codeClassName,
             )}
           >
@@ -200,7 +200,7 @@ export function AnswerWithCitations({
         );
       }
       return (
-        <code className="bg-black/30 border border-white/5 rounded px-1.5 py-0.5 text-[12px] font-mono text-teal-400">
+        <code className="bg-[#38bdf8]/5 border border-[#38bdf8]/10 rounded px-1.5 py-0.5 text-[12px] font-mono text-accent-primary">
           {children}
         </code>
       );
@@ -230,7 +230,7 @@ export function AnswerWithCitations({
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-teal-400 underline underline-offset-2 hover:text-teal-300 transition-colors"
+        className="text-accent-primary underline underline-offset-2 hover:text-accent-primary/80 transition-colors"
       >
         {cite(children)}
       </a>

@@ -75,14 +75,14 @@ export const ChatInput: React.FC = () => {
     return (
         <div
             className={clsx(
-                "border-t border-white/[0.035]",
-                "bg-panel-bg/40 backdrop-blur-xl",
+                "border-t border-white/5",
+                "bg-slate-950/20 backdrop-blur-xl",
                 "px-4 py-3 relative z-20"
             )}
         >
-            <div className="max-w-3xl mx-auto flex items-end gap-3 font-ui">
+            <div className="max-w-2xl mx-auto flex items-end gap-2.5 font-ui">
                 {/* Mode selector buttons */}
-                <div className="flex gap-1 flex-shrink-0 bg-black/20 p-1 rounded-2xl border border-white/5">
+                <div className="flex gap-1 flex-shrink-0 bg-slate-950/40 p-1 rounded border border-white/5">
                     {MODE_CONFIG.map((mode) => {
                         const Icon = mode.icon;
                         const isActive = activeMode === mode.id;
@@ -95,15 +95,15 @@ export const ChatInput: React.FC = () => {
                                 aria-label={mode.label}
                                 aria-pressed={isActive}
                                 className={clsx(
-                                    "w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer",
-                                    "transition-all duration-200 focus:outline-none",
+                                    "w-9 h-9 rounded flex items-center justify-center cursor-pointer",
+                                    "transition-all duration-200 focus:outline-none border",
                                     isActive
-                                        ? "bg-accent-primary/10 border border-accent-primary/25 text-accent-primary shadow-[0_0_12px_rgba(0,240,244,0.15)]"
-                                        : "bg-transparent border border-transparent text-slate-400 hover:text-slate-200"
+                                        ? "bg-accent-primary/10 border-accent-primary/20 text-accent-primary shadow-sm"
+                                        : "bg-transparent border-transparent text-slate-500 hover:text-slate-300"
                                 )}
                                 title={mode.label}
                             >
-                                <Icon className="w-4 h-4" strokeWidth={1.5} />
+                                <Icon className="w-3.5 h-3.5" strokeWidth={1.5} />
                             </button>
                         );
                     })}
@@ -124,18 +124,18 @@ export const ChatInput: React.FC = () => {
                             rows={1}
                             disabled={isSearching}
                             className={clsx(
-                                "w-full resize-none rounded-2xl px-4 py-3 pr-12",
-                                "bg-black/30 border",
+                                "w-full resize-none rounded px-4 py-2.5 pr-10 border",
                                 shake
-                                    ? "border-red-500 ring-2 ring-red-500/20"
+                                    ? "border-red-500 ring-1 ring-red-500/20"
                                     : "border-white/5",
-                                "text-slate-200 text-[14px] placeholder:text-slate-500",
-                                "focus:outline-none focus:ring-1 focus:ring-accent-primary/10 focus:border-accent-primary/30 focus:shadow-[0_0_15px_rgba(0,240,244,0.06)]",
+                                "bg-slate-950/30",
+                                "text-slate-200 text-sm placeholder:text-slate-500",
+                                "focus:outline-none focus:border-accent-primary/30 focus:bg-slate-950/50",
                                 "transition-all duration-200",
                                 "disabled:opacity-60 disabled:cursor-not-allowed"
                             )}
                             style={{
-                                minHeight: "48px",
+                                minHeight: "40px",
                                 maxHeight: "150px",
                             }}
                         />
@@ -149,14 +149,14 @@ export const ChatInput: React.FC = () => {
                     disabled={isSearching}
                     aria-label="Skicka"
                     className={clsx(
-                        "w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0",
-                        "transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-primary/20",
+                        "w-10 h-10 rounded flex items-center justify-center flex-shrink-0 border",
+                        "transition-all duration-200 focus:outline-none",
                         !isSearching
-                            ? "bg-accent-primary text-slate-950 hover:bg-accent-primary/95 shadow-[0_0_12px_rgba(0,240,244,0.25)] hover:shadow-[0_0_18px_rgba(0,240,244,0.45)] cursor-pointer"
-                            : "bg-white/[0.02] border border-white/5 text-slate-600 cursor-not-allowed"
+                            ? "bg-accent-primary/15 border-accent-primary/25 text-accent-primary hover:bg-accent-primary/25 cursor-pointer"
+                            : "bg-transparent border-white/5 text-slate-600 cursor-not-allowed"
                     )}
                 >
-                    <ArrowUp className="w-5 h-5" strokeWidth={2} />
+                    <ArrowUp className="w-4 h-4" strokeWidth={2} />
                 </button>
 
                 {/* New conversation button */}
@@ -170,24 +170,23 @@ export const ChatInput: React.FC = () => {
                             onClick={handleNewConversation}
                             aria-label="Ny konversation"
                             className={clsx(
-                                "w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 cursor-pointer",
-                                "border border-white/5 bg-white/[0.02] focus:outline-none focus:ring-2 focus:ring-white/10",
-                                "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]",
+                                "w-10 h-10 rounded flex items-center justify-center flex-shrink-0 cursor-pointer border",
+                                "border-white/5 bg-white/[0.01] focus:outline-none",
+                                "text-slate-400 hover:text-slate-200 hover:bg-white/[0.02]",
                                 "transition-all duration-200"
                             )}
                             title="Ny konversation"
                         >
-                            <RotateCcw className="w-4 h-4" strokeWidth={1.5} />
+                            <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.5} />
                         </motion.button>
                     )}
                 </AnimatePresence>
             </div>
 
             {/* Hint text */}
-            <div className="max-w-3xl mx-auto mt-2 px-1">
-                <span className="text-[10px] text-slate-500 font-mono">
-                    Enter = skicka ↵ | Shift+Enter = ny rad
-                </span>
+            <div className="max-w-2xl mx-auto mt-1.5 px-1 flex justify-between text-[9px] text-slate-600 font-mono">
+                <span>Enter = skicka | Shift+Enter = ny rad</span>
+                <span>Myndighetsdata</span>
             </div>
         </div>
     );

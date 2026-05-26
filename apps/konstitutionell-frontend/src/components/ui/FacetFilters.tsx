@@ -27,46 +27,46 @@ export function FacetFilters() {
   const totalActive = selectedAgencies.length + selectedDocTypes.length + (yearStart !== 1900 || yearEnd !== 2026 ? 1 : 0);
 
   return (
-    <div className="w-full font-ui text-slate-300 mb-6 bg-[#11161B]/80 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-md transition-all duration-200">
+    <div className="w-full font-ui text-slate-300 mb-6 bg-slate-950/20 border border-white/5 rounded overflow-hidden backdrop-blur-md transition-all duration-200">
       {/* Header bar */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-5 py-3.5 flex items-center justify-between hover:bg-white/[0.01] transition-colors cursor-pointer text-sm"
+        className="w-full px-5 py-3 flex items-center justify-between hover:bg-white/[0.01] transition-colors cursor-pointer text-xs uppercase tracking-wider font-mono text-slate-400"
       >
         <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-teal-400" />
-          <span className="font-medium text-slate-200">Filtrera sökning</span>
+          <Filter className="w-3.5 h-3.5 text-accent-primary" />
+          <span className="font-semibold">Sökfilter</span>
           {totalActive > 0 && (
-            <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-teal-500/10 text-teal-400 border border-teal-500/20 rounded-full">
+            <span className="px-1.5 py-0.5 text-[9px] font-mono font-bold bg-accent-primary/10 text-accent-primary border border-accent-primary/20 rounded-[3px]">
               {totalActive} aktiv{totalActive > 1 ? "a" : ""}
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-stone-500 hover:text-slate-300">
-          <span>{isOpen ? "Dölj" : "Visa inställningar"}</span>
-          {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        <div className="flex items-center gap-1.5 text-[10px] text-slate-500 hover:text-slate-300">
+          <span>{isOpen ? "Dölj" : "Visa"}</span>
+          {isOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
         </div>
       </button>
 
       {/* Expanded filters panel */}
       {isOpen && (
-        <div className="px-5 pb-5 pt-3 border-t border-white/5 grid grid-cols-1 md:grid-cols-3 gap-6 bg-black/10">
+        <div className="px-5 pb-5 pt-3 border-t border-white/5 grid grid-cols-1 md:grid-cols-3 gap-5 bg-[#0b0f13]/30">
           {/* Column 1: Authorities / Agencies */}
           <div className="flex flex-col gap-2">
-            <span className="text-[10px] uppercase font-mono tracking-wider text-slate-500 font-semibold mb-1">
-              Myndighet / Källa
+            <span className="text-[9px] uppercase font-mono tracking-widest text-slate-500 font-semibold mb-1">
+              Källa / Register
             </span>
-            <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+            <div className="flex flex-col gap-1 max-h-48 overflow-y-auto custom-scrollbar pr-1">
               {availableFacets.agencies.map((agency) => {
                 const checked = selectedAgencies.includes(agency.id);
                 return (
                   <label
                     key={agency.id}
-                    className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs cursor-pointer transition-all ${
+                    className={`flex items-center gap-2 px-2 py-1 rounded-[3px] border text-[11px] cursor-pointer transition-all ${
                       checked
-                        ? "bg-teal-950/15 border-teal-500/35 text-teal-400 font-medium"
-                        : "bg-white/[0.01] border-transparent hover:bg-white/[0.03] text-slate-400 hover:text-slate-200"
+                        ? "bg-accent-primary/5 border-accent-primary/20 text-accent-primary font-medium"
+                        : "bg-transparent border-transparent hover:bg-white/[0.01] text-slate-400 hover:text-slate-200"
                     }`}
                   >
                     <input
@@ -75,11 +75,11 @@ export function FacetFilters() {
                       onChange={() => toggleAgencyFilter(agency.id)}
                       className="sr-only"
                     />
-                    <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-all ${
-                      checked ? "border-teal-500 bg-teal-500 text-black" : "border-slate-700 bg-transparent"
+                    <div className={`w-3 h-3 rounded-[2px] flex items-center justify-center border transition-all ${
+                      checked ? "border-accent-primary bg-accent-primary text-black" : "border-slate-700 bg-transparent"
                     }`}>
                       {checked && (
-                        <svg className="w-2.5 h-2.5 fill-none stroke-current stroke-3" viewBox="0 0 24 24">
+                        <svg className="w-2 h-2 fill-none stroke-current stroke-3" viewBox="0 0 24 24">
                           <polyline points="20 6 9 17 4 12" />
                         </svg>
                       )}
@@ -93,19 +93,19 @@ export function FacetFilters() {
 
           {/* Column 2: Document Types */}
           <div className="flex flex-col gap-2">
-            <span className="text-[10px] uppercase font-mono tracking-wider text-slate-500 font-semibold mb-1">
+            <span className="text-[9px] uppercase font-mono tracking-widest text-slate-500 font-semibold mb-1">
               Dokumenttyp
             </span>
-            <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+            <div className="flex flex-col gap-1 max-h-48 overflow-y-auto custom-scrollbar pr-1">
               {availableFacets.doc_types.map((type) => {
                 const checked = selectedDocTypes.includes(type.id);
                 return (
                   <label
                     key={type.id}
-                    className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs cursor-pointer transition-all ${
+                    className={`flex items-center gap-2 px-2 py-1 rounded-[3px] border text-[11px] cursor-pointer transition-all ${
                       checked
-                        ? "bg-teal-950/15 border-teal-500/35 text-teal-400 font-medium"
-                        : "bg-white/[0.01] border-transparent hover:bg-white/[0.03] text-slate-400 hover:text-slate-200"
+                        ? "bg-accent-primary/5 border-accent-primary/20 text-accent-primary font-medium"
+                        : "bg-transparent border-transparent hover:bg-white/[0.01] text-slate-400 hover:text-slate-200"
                     }`}
                   >
                     <input
@@ -114,11 +114,11 @@ export function FacetFilters() {
                       onChange={() => toggleDocTypeFilter(type.id)}
                       className="sr-only"
                     />
-                    <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-all ${
-                      checked ? "border-teal-500 bg-teal-500 text-black" : "border-slate-700 bg-transparent"
+                    <div className={`w-3 h-3 rounded-[2px] flex items-center justify-center border transition-all ${
+                      checked ? "border-accent-primary bg-accent-primary text-black" : "border-slate-700 bg-transparent"
                     }`}>
                       {checked && (
-                        <svg className="w-2.5 h-2.5 fill-none stroke-current stroke-3" viewBox="0 0 24 24">
+                        <svg className="w-2 h-2 fill-none stroke-current stroke-3" viewBox="0 0 24 24">
                           <polyline points="20 6 9 17 4 12" />
                         </svg>
                       )}
@@ -133,18 +133,18 @@ export function FacetFilters() {
           {/* Column 3: Year Range Slider & Controls */}
           <div className="flex flex-col justify-between">
             <div className="flex flex-col gap-3">
-              <span className="text-[10px] uppercase font-mono tracking-wider text-slate-500 font-semibold mb-1">
+              <span className="text-[9px] uppercase font-mono tracking-widest text-slate-500 font-semibold mb-1">
                 Tidsperiod (År)
               </span>
-              <div className="flex items-center justify-between text-xs text-slate-400 bg-white/[0.02] border border-white/5 p-3 rounded-xl font-mono">
+              <div className="flex items-center justify-between text-[11px] text-slate-400 bg-white/[0.01] border border-white/5 p-2.5 rounded font-mono">
                 <div>
-                  <span className="text-stone-500 block text-[9px] uppercase tracking-wider">Minst</span>
-                  <span className="text-slate-200 font-bold text-sm">{yearStart}</span>
+                  <span className="text-slate-500 block text-[8px] uppercase tracking-wider">Startår</span>
+                  <span className="text-slate-200 font-bold text-xs">{yearStart}</span>
                 </div>
                 <div className="h-6 w-[1px] bg-white/5" />
                 <div className="text-right">
-                  <span className="text-stone-500 block text-[9px] uppercase tracking-wider">Högst</span>
-                  <span className="text-slate-200 font-bold text-sm">{yearEnd}</span>
+                  <span className="text-slate-500 block text-[8px] uppercase tracking-wider">Slutår</span>
+                  <span className="text-slate-200 font-bold text-xs">{yearEnd}</span>
                 </div>
               </div>
               
@@ -156,7 +156,7 @@ export function FacetFilters() {
                   max={availableFacets.years.max}
                   value={yearStart}
                   onChange={(e) => setYearRange(Number(e.target.value), Math.max(Number(e.target.value), yearEnd))}
-                  className="w-full accent-teal-500 cursor-pointer h-1 bg-slate-800 rounded-lg appearance-none"
+                  className="w-full accent-accent-primary cursor-pointer h-1 bg-slate-800 rounded appearance-none animate-none"
                   aria-label="Startår"
                 />
                 <input
@@ -165,7 +165,7 @@ export function FacetFilters() {
                   max={availableFacets.years.max}
                   value={yearEnd}
                   onChange={(e) => setYearRange(Math.min(Number(e.target.value), yearStart), Number(e.target.value))}
-                  className="w-full accent-teal-500 cursor-pointer h-1 bg-slate-800 rounded-lg appearance-none"
+                  className="w-full accent-accent-primary cursor-pointer h-1 bg-slate-800 rounded appearance-none animate-none"
                   aria-label="Slutår"
                 />
               </div>
@@ -176,10 +176,10 @@ export function FacetFilters() {
               <button
                 type="button"
                 onClick={clearFilters}
-                className="mt-6 w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] text-stone-400 hover:text-slate-200 rounded-xl transition-all cursor-pointer"
+                className="mt-6 w-full flex items-center justify-center gap-1.5 py-1.5 px-3 text-[10px] bg-white/[0.01] border border-white/5 hover:bg-white/[0.03] text-slate-400 hover:text-slate-200 rounded transition-all cursor-pointer font-mono uppercase tracking-wider"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Nollställ filter</span>
+                <RotateCcw className="w-3 h-3" />
+                <span>Nollställ</span>
               </button>
             )}
           </div>
