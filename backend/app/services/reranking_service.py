@@ -174,6 +174,10 @@ class RerankingService(BaseService):
 
         self._mark_initialized()
 
+        if not self.config.settings.reranking_enabled:
+            self.logger.info("Reranking disabled; skipping reranker model preload")
+            return
+
         # Eagerly load model and warm up to reserve GPU VRAM at startup.
         # Both model weights AND inference buffers must be allocated before
         # Ollama fills GPU memory during grading calls.
@@ -200,6 +204,8 @@ class RerankingService(BaseService):
         Returns:
             True if service is initialized, False otherwise
         """
+        if not self.config.settings.reranking_enabled:
+            return True
         return self._is_loaded  # Only loaded if we've attempted
 
     async def close(self) -> None:
@@ -227,6 +233,9 @@ class RerankingService(BaseService):
             ServiceNotInitializedError: If service is not initialized
         """
         await super().ensure_initialized()
+
+        if not self.config.settings.reranking_enabled:
+            return
 
         # Lazy-load model if not already loaded
         if not self._is_loaded:
@@ -294,6 +303,15 @@ class RerankingService(BaseService):
             RerankingError: If reranking fails
             ServiceNotInitializedError: If service is not initialized
         """
+        if not self.config.settings.reranking_enabled:
+            return RerankingResult(
+                original_docs=documents,
+                reranked_docs=documents,
+                original_scores=[doc.get("score", 0.0) for doc in documents],
+                reranked_scores=[doc.get("score", 0.0) for doc in documents],
+                latency_ms=0.0,
+            )
+
         await self.ensure_initialized()
 
         if not documents:

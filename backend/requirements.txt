@@ -29,11 +29,12 @@ pytest-asyncio>=0.23.0
 chromadb>=0.4.0
 
 # Embeddings
-sentence-transformers>=2.7.0  # Bumped from 2.2.0 for Jina v3 task-aware encoding
+sentence-transformers>=2.7.0,<6.0.0  # Bumped from 2.2.0 for Jina v3 task-aware encoding
 torch>=2.0.0
+einops>=0.8.0  # Required by Jina embedding/reranker remote model code
 
 # Reranking
-transformers>=4.30.0
+transformers>=4.40.0,<5.0.0  # Jina remote model code is not compatible with Transformers 5.x
 
 # System monitoring
 psutil>=5.9.0

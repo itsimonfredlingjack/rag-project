@@ -22,8 +22,12 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-# Add parent directory (backend/) to Python path
+# Add both repository root and backend/ to Python path. Some tests import
+# app.* while EPR/docs tests import backend.app.* or root scripts.*.
 backend_root = Path(__file__).resolve().parent.parent
+repo_root = backend_root.parent
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
 if str(backend_root) not in sys.path:
     sys.path.insert(0, str(backend_root))
 

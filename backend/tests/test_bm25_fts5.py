@@ -128,6 +128,34 @@ class TestBM25Initialization:
         assert stats["doc_count"] == len(SAMPLE_DOCS)
         assert stats["backend"] == "sqlite_fts5"
 
+    def test_validate_marks_usable_for_real_smoke_hit(self, bm25_service):
+        validation = bm25_service.validate("yttrandefrihet")
+        stats = bm25_service.get_stats()
+
+        assert validation["usable"] is True
+        assert validation["smoke_results"] == 1
+        assert stats["usable"] is True
+        assert stats["validated"] is True
+
+    def test_validate_rejects_smoke_miss(self, bm25_service):
+        validation = bm25_service.validate("xyznonexistentterm123")
+
+        assert validation["usable"] is False
+        assert validation["smoke_results"] == 0
+        assert "returned no results" in validation["error"]
+
+    def test_validate_rejects_wrong_schema(self, tmp_path):
+        db_path = tmp_path / "wrong_schema.db"
+        sqlite3.connect(db_path).execute("CREATE TABLE not_docs(id text)").connection.close()
+        with patch("app.services.bm25_service.get_compound_splitter") as mock_fn:
+            mock_fn.return_value = MagicMock(is_available=MagicMock(return_value=False))
+            service = BM25Service(index_path=str(db_path))
+
+        validation = service.validate("anything")
+
+        assert validation["usable"] is False
+        assert service.is_loaded() is False
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TEST: SEARCH

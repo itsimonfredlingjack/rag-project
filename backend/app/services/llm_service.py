@@ -520,6 +520,8 @@ class LLMService(BaseService):
                 if config_override
                 else self._config.num_predict,
             }
+            if self.config.ollama_num_ctx > 0:
+                model_options["num_ctx"] = self.config.ollama_num_ctx
             payload = {
                 "model": model_to_use,
                 "messages": messages,

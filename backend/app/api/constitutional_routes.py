@@ -19,6 +19,7 @@ from ..core.rate_limiter import limiter
 from ..services.config_service import get_config_service
 from ..services.orchestrator_service import OrchestratorService, get_orchestrator_service
 from ..services.rag_models import RAGResult
+from ..services.readiness_service import build_dependency_readiness
 from ..services.retrieval_service import RetrievalStrategy
 from ..services.sse_stream_service import SSEStreamService
 from ..services.stream_resumption_service import get_stream_resumption_service
@@ -164,6 +165,9 @@ class AgentQueryRequest(BaseModel):
     use_agent: bool = Field(
         default=False, description="Use LangGraph agentic flow instead of linear pipeline"
     )
+    filters: Optional[Dict[str, Any]] = Field(
+        default=None, description="Optional filters like agencies, doc_types, year_start, year_end"
+    )
 
 
 class SourceItem(BaseModel):
@@ -304,105 +308,14 @@ async def readiness_check(
 
     Returns detailed status for each dependency.
     """
-    checks = {}
-    all_ready = True
-
-    try:
-        # Check ChromaDB via retrieval service
-        if hasattr(orchestrator, "retrieval") and orchestrator.retrieval:
-            try:
-                chromadb_healthy = await orchestrator.retrieval.health_check()
-                if chromadb_healthy and hasattr(orchestrator.retrieval, "_chromadb_client"):
-                    client = orchestrator.retrieval._chromadb_client
-                    if client:
-                        collections = (
-                            client.list_collections() if hasattr(client, "list_collections") else []
-                        )
-                        checks["chromadb"] = ServiceCheck(
-                            status="ok",
-                            details={"collections": len(collections) if collections else 0},
-                        )
-                    else:
-                        checks["chromadb"] = ServiceCheck(
-                            status="error", details={"error": "Client not initialized"}
-                        )
-                        all_ready = False
-                else:
-                    checks["chromadb"] = ServiceCheck(
-                        status="degraded", details={"healthy": chromadb_healthy}
-                    )
-                    all_ready = False
-            except Exception as e:
-                checks["chromadb"] = ServiceCheck(status="error", details={"error": str(e)})
-                all_ready = False
-        else:
-            checks["chromadb"] = ServiceCheck(
-                status="error", details={"error": "Retrieval service not available"}
-            )
-            all_ready = False
-    except Exception as e:
-        checks["chromadb"] = ServiceCheck(status="error", details={"error": str(e)})
-        all_ready = False
-
-    try:
-        # Check LLM service
-        if hasattr(orchestrator, "llm_service") and orchestrator.llm_service:
-            try:
-                llm_healthy = await orchestrator.llm_service.health_check()
-                model_name = getattr(
-                    orchestrator.config.settings,
-                    "constitutional_model",
-                    "unknown",
-                )
-                if llm_healthy:
-                    checks["llm_service"] = ServiceCheck(status="ok", details={"model": model_name})
-                else:
-                    checks["llm_service"] = ServiceCheck(
-                        status="degraded", details={"model": model_name}
-                    )
-                    all_ready = False
-            except Exception as e:
-                checks["llm_service"] = ServiceCheck(status="error", details={"error": str(e)})
-                all_ready = False
-        else:
-            checks["llm_service"] = ServiceCheck(
-                status="error", details={"error": "LLM service not available"}
-            )
-            all_ready = False
-    except Exception as e:
-        checks["llm_service"] = ServiceCheck(status="error", details={"error": str(e)})
-        all_ready = False
-
-    try:
-        # Check embedding service via retrieval
-        if hasattr(orchestrator, "retrieval") and orchestrator.retrieval:
-            if hasattr(orchestrator.retrieval, "_embedding_service"):
-                embedding_svc = orchestrator.retrieval._embedding_service
-                if embedding_svc and hasattr(embedding_svc, "is_initialized"):
-                    if embedding_svc.is_initialized:
-                        checks["embedding_service"] = ServiceCheck(status="ok", details={})
-                    else:
-                        checks["embedding_service"] = ServiceCheck(
-                            status="error", details={"error": "Not initialized"}
-                        )
-                        all_ready = False
-                else:
-                    checks["embedding_service"] = ServiceCheck(status="degraded", details={})
-            else:
-                checks["embedding_service"] = ServiceCheck(status="unknown", details={})
-        else:
-            checks["embedding_service"] = ServiceCheck(
-                status="error", details={"error": "Retrieval service not available"}
-            )
-            all_ready = False
-    except Exception as e:
-        checks["embedding_service"] = ServiceCheck(status="error", details={"error": str(e)})
-        all_ready = False
-
+    readiness = await build_dependency_readiness(orchestrator)
     return ReadinessResponse(
-        status="ready" if all_ready else "not_ready",
-        checks=checks,
-        timestamp=datetime.now().isoformat(),
+        status=readiness["status"],
+        checks={
+            name: ServiceCheck(status=check["status"], details=check.get("details"))
+            for name, check in readiness["checks"].items()
+        },
+        timestamp=readiness["timestamp"],
     )
 
 
@@ -536,6 +449,36 @@ async def agent_query(
         # Convert history for OrchestratorService
         history = [{"role": msg.role, "content": msg.content} for msg in body.history or []]
 
+        # Build where filter from request filters
+        where_filter = None
+        if body.filters:
+            filters_list = []
+            agencies = body.filters.get("agencies")
+            doc_types = body.filters.get("doc_types")
+            year_start = body.filters.get("year_start")
+            year_end = body.filters.get("year_end")
+            
+            if agencies:
+                if len(agencies) == 1:
+                    filters_list.append({"source": agencies[0]})
+                elif len(agencies) > 1:
+                    filters_list.append({"source": {"$in": agencies}})
+            if doc_types:
+                if len(doc_types) == 1:
+                    filters_list.append({"doc_type": doc_types[0]})
+                elif len(doc_types) > 1:
+                    filters_list.append({"doc_type": {"$in": doc_types}})
+            if year_start is not None:
+                filters_list.append({"year": {"$gte": str(year_start)}})
+            if year_end is not None:
+                filters_list.append({"year": {"$lte": str(year_end)}})
+                
+            if filters_list:
+                if len(filters_list) == 1:
+                    where_filter = filters_list[0]
+                else:
+                    where_filter = {"$and": filters_list}
+
         # Process query via OrchestratorService
         result: RAGResult = await orchestrator.process_query(
             question=body.question,
@@ -544,6 +487,7 @@ async def agent_query(
             retrieval_strategy=retrieval_strategy,
             history=history,
             use_agent=body.use_agent,  # NEW: Pass agent flag
+            where_filter=where_filter,
         )
 
         mode_value = result.mode.value if hasattr(result.mode, "value") else str(result.mode)
@@ -677,6 +621,36 @@ async def agent_query_stream(
     # Convert history for OrchestratorService
     history = [{"role": msg.role, "content": msg.content} for msg in body.history or []]
 
+    # Build where filter from request filters
+    where_filter = None
+    if body.filters:
+        filters_list = []
+        agencies = body.filters.get("agencies")
+        doc_types = body.filters.get("doc_types")
+        year_start = body.filters.get("year_start")
+        year_end = body.filters.get("year_end")
+        
+        if agencies:
+            if len(agencies) == 1:
+                filters_list.append({"source": agencies[0]})
+            elif len(agencies) > 1:
+                filters_list.append({"source": {"$in": agencies}})
+        if doc_types:
+            if len(doc_types) == 1:
+                filters_list.append({"doc_type": doc_types[0]})
+            elif len(doc_types) > 1:
+                filters_list.append({"doc_type": {"$in": doc_types}})
+        if year_start is not None:
+            filters_list.append({"year": {"$gte": str(year_start)}})
+        if year_end is not None:
+            filters_list.append({"year": {"$lte": str(year_end)}})
+            
+        if filters_list:
+            if len(filters_list) == 1:
+                where_filter = filters_list[0]
+            else:
+                where_filter = {"$and": filters_list}
+
     # Build the event pipeline: generate → [resumption] → keepalive
     cfg = get_config_service()
     session_id: Optional[str] = None
@@ -695,6 +669,7 @@ async def agent_query_stream(
             retrieval_strategy=retrieval_strategy,
             history=history,
             stream_session_id=session_id,
+            where_filter=where_filter,
         ):
             yield event
 

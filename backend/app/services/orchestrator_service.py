@@ -249,6 +249,7 @@ class OrchestratorService(BaseService):
         enable_reranking: bool = True,
         enable_adaptive: bool = True,
         use_agent: bool = False,  # NEW: Flag to use agentic flow
+        where_filter: Optional[dict] = None,
     ) -> RAGResult:
         """
         Execute full RAG pipeline.
@@ -345,7 +346,7 @@ class OrchestratorService(BaseService):
             retrieval_result = await self.retrieval.search_with_epr(
                 query=search_query,
                 k=k,
-                where_filter=None,
+                where_filter=where_filter,
                 history=history_for_retrieval,
             )
             self.logger.info(
@@ -368,7 +369,8 @@ class OrchestratorService(BaseService):
             # Rerank first while GPU is free (before Ollama grading fills VRAM).
             # This also reduces the number of docs that need expensive LLM grading.
             reranking_ms = 0.0
-            if enable_reranking and self.reranker and resolved_mode != ResponseMode.CHAT:
+            reranking_allowed = bool(enable_reranking and self.config.settings.reranking_enabled)
+            if reranking_allowed and self.reranker and resolved_mode != ResponseMode.CHAT:
                 rerank_start = time.perf_counter()
 
                 try:
@@ -954,6 +956,7 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
         retrieval_strategy: RetrievalStrategy = RetrievalStrategy.ADAPTIVE,
         history: Optional[List[dict]] = None,
         stream_session_id: Optional[str] = None,
+        where_filter: Optional[dict] = None,
     ) -> AsyncGenerator[str, None]:
         """Stream RAG pipeline with SSE. Delegates to streaming_service."""
         async for event in _stream_query_fn(
@@ -976,6 +979,7 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
             retrieval_strategy=retrieval_strategy,
             history=history,
             stream_session_id=stream_session_id,
+            where_filter=where_filter,
         ):
             yield event
 

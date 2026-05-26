@@ -52,8 +52,6 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3003",
         "http://localhost:8000",
         "http://127.0.0.1:8000",
-        "https://swerag.fredlingautomation.dev",
-        "https://swerag-api.fredlingautomation.dev",
     ]
     cors_allow_credentials: bool = True
 

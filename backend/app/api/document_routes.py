@@ -662,6 +662,7 @@ async def patch_document(
     document: DocumentUpdate,
     collection: Optional[str] = Query(None, description="Collection name", max_length=200),
     x_api_version: Optional[str] = Header(None, alias="X-API-Version"),
+    _api_key: str = Depends(require_write_access),
     retrieval_service: RetrievalService = Depends(get_retrieval_service_dependency),
 ) -> DocumentResponse:
     """
@@ -672,7 +673,12 @@ async def patch_document(
     # Same implementation as PUT for now (ChromaDB limitation)
     # In a real implementation, you'd merge more intelligently
     return await update_document(
-        document_id, document, collection, x_api_version, retrieval_service
+        document_id=document_id,
+        document=document,
+        collection=collection,
+        x_api_version=x_api_version,
+        _api_key=_api_key,
+        retrieval_service=retrieval_service,
     )
 
 
@@ -741,3 +747,106 @@ async def delete_document(
     except Exception as e:
         logger.error(f"Error deleting document {document_id}: {e}")
         raise RetrievalError(f"Failed to delete document: {str(e)}")
+
+
+@router.get(
+    "/parents/{parent_id}",
+    response_model=Dict[str, Any],
+    status_code=status.HTTP_200_OK,
+    summary="Get parent document by ID",
+    description="Retrieve a parent document (full text SFS/law chapter) by ID from the parent store",
+)
+async def get_parent_document(
+    parent_id: str,
+) -> Dict[str, Any]:
+    """Retrieve a parent document (full text SFS/law chapter) by ID from the parent store."""
+    try:
+        from ..services.parent_store_service import get_parent_store_service
+        parent_id = sanitize_input(parent_id, max_length=200)
+        parent_service = get_parent_store_service()
+        if not parent_service.is_available():
+            raise ServiceNotInitializedError("Parent store database is not available")
+            
+        parents = parent_service.get_parents_by_ids([parent_id])
+        if not parents:
+            # Try to normalize child chunk ID from Chroma/BM25 format to SFS format
+            normalized_id = parent_id
+            import re
+            m1 = re.match(r"^sfs_(\d+)_(\d+)_(\d+)kap_(\d+)§", parent_id)
+            if m1:
+                normalized_id = f"{m1.group(1)}:{m1.group(2)}_{m1.group(3)}_kap_{m1.group(4)}_§"
+            else:
+                m2 = re.match(r"^sfs_(\d+)_(\d+)_(\d+)§", parent_id)
+                if m2:
+                    normalized_id = f"{m2.group(1)}:{m2.group(2)}_{m2.group(3)}_§"
+                else:
+                    m3 = re.match(r"^sfs_(\d+)_(\d+)_(\d+)kap", parent_id)
+                    if m3:
+                        normalized_id = f"{m3.group(1)}:{m3.group(2)}_{m3.group(3)}_kap"
+                    else:
+                        m4 = re.match(r"^sfs_(\d+)_(\d+)", parent_id)
+                        if m4:
+                            normalized_id = f"{m4.group(1)}:{m4.group(2)}"
+            
+            # Resolve via child_parent_map
+            resolved = parent_service.resolve_parents([normalized_id])
+            if resolved:
+                parents = resolved
+            else:
+                # Fallback to direct parent ID lookup with normalized ID
+                resolved_direct = parent_service.get_parents_by_ids([normalized_id])
+                if resolved_direct:
+                    parents = resolved_direct
+                
+        if not parents:
+            raise ResourceNotFoundError(f"Parent document '{parent_id}' not found")
+            
+        return parents[0]
+    except (ResourceNotFoundError, ServiceNotInitializedError):
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving parent document {parent_id}: {e}")
+        raise RetrievalError(f"Failed to retrieve parent document: {str(e)}")
+
+
+@router.get(
+    "/facets",
+    response_model=Dict[str, Any],
+    status_code=status.HTTP_200_OK,
+    summary="Get document facets",
+    description="Retrieve dynamic categories, agencies, and year ranges for filtering",
+)
+async def get_document_facets() -> Dict[str, Any]:
+    """Retrieve metadata facets for filtering search results."""
+    try:
+        # Predefined Swedish public authority facets matching indexers & scrapers
+        return {
+            "agencies": [
+                {"id": "sfs", "name": "Svensk författningssamling (SFS)"},
+                {"id": "socialstyrelsen", "name": "Socialstyrelsen"},
+                {"id": "naturvardsverket", "name": "Naturvårdsverket"},
+                {"id": "lakemedelsverket", "name": "Läkemedelsverket"},
+                {"id": "upphandlingsmyndigheten", "name": "Upphandlingsmyndigheten"},
+                {"id": "sgu", "name": "Sveriges geologiska undersökning (SGU)"},
+                {"id": "arn", "name": "Allmänna reklamationsnämnden (ARN)"},
+                {"id": "jk", "name": "Justitiekanslern (JK)"},
+                {"id": "diva", "name": "DiVA Forskningsdatabas"}
+            ],
+            "doc_types": [
+                {"id": "lag", "name": "Lag"},
+                {"id": "förordning", "name": "Förordning"},
+                {"id": "föreskrift", "name": "Föreskrift"},
+                {"id": "allmänna_råd", "name": "Allmänna Råd"},
+                {"id": "beslut", "name": "Beslut / Dom"},
+                {"id": "rapport", "name": "Rapport / Utredning"},
+                {"id": "thesis", "name": "Avhandling / Thesis"},
+                {"id": "article", "name": "Forskningsartikel"}
+            ],
+            "years": {
+                "min": 1900,
+                "max": 2026
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error retrieving facets: {e}")
+        raise RetrievalError(f"Failed to retrieve facets: {str(e)}")

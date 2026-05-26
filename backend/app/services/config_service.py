@@ -35,8 +35,8 @@ class ConfigSettings(BaseSettings):
     port: int = 8900
 
     # ChromaDB Configuration
-    chromadb_path: str = "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/chromadb_data"
-    pdf_cache_path: str = "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/pdf_cache"
+    chromadb_path: str = "chromadb_data"
+    pdf_cache_path: str = "pdf_cache"
 
     # Collections
     default_collections: list[str] = [
@@ -66,6 +66,7 @@ class ConfigSettings(BaseSettings):
     llama_server_timeout: float = 120.0
     gguf_primary_model: str = "gemma3:12b"
     gguf_context_window: int = 16384
+    ollama_num_ctx: int = 0  # 0 = let Ollama decide; set to align with source budgeting
 
     # Response Modes
     mode_evidence_temperature: float = 0.15
@@ -340,6 +341,11 @@ class ConfigService:
     def gguf_context_window(self) -> int:
         """Get the context window size for GGUF models"""
         return self._settings.gguf_context_window
+
+    @property
+    def ollama_num_ctx(self) -> int:
+        """Get the Ollama num_ctx override (0 means default runtime context)."""
+        return self._settings.ollama_num_ctx
 
     @property
     def embedding_model(self) -> str:

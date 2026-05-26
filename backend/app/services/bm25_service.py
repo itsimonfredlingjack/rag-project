@@ -20,6 +20,7 @@ Usage:
 import logging
 import re
 import sqlite3
+import threading
 import time
 from functools import lru_cache
 from pathlib import Path
@@ -107,6 +108,15 @@ class BM25Service:
         self._conn: Optional[sqlite3.Connection] = None
         self._is_loaded = False
         self._doc_count = 0
+        self._load_lock = threading.Lock()
+        self._last_validation: Dict[str, Any] = {
+            "usable": False,
+            "validated": False,
+            "smoke_query": None,
+            "smoke_results": 0,
+            "latency_ms": 0.0,
+            "error": None,
+        }
 
         # Initialize compound splitter for query expansion
         self._compound_splitter = get_compound_splitter()
@@ -127,46 +137,59 @@ class BM25Service:
         if self._is_loaded:
             return True
 
-        if not self.index_path.exists():
-            logger.warning(f"BM25 FTS5 database not found at {self.index_path}")
-            return False
+        with self._load_lock:
+            if self._is_loaded:
+                return True
 
-        try:
-            logger.info(f"Opening BM25 FTS5 database from {self.index_path}...")
-            start = time.perf_counter()
-
-            self._conn = sqlite3.connect(
-                str(self.index_path),
-                check_same_thread=False,
-            )
-            self._conn.execute("PRAGMA journal_mode=WAL")
-            self._conn.execute("PRAGMA mmap_size=268435456")  # 256MB mmap
-
-            # Verify table exists
-            cursor = self._conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='docs_fts'"
-            )
-            if cursor.fetchone() is None:
-                logger.error("FTS5 table 'docs_fts' not found in database")
-                self._conn.close()
-                self._conn = None
+            if not self.index_path.exists():
+                logger.warning(f"BM25 FTS5 database not found at {self.index_path}")
                 return False
 
-            # Get doc count
-            cursor = self._conn.execute("SELECT count(*) FROM docs_fts")
-            self._doc_count = cursor.fetchone()[0]
+            try:
+                logger.info(f"Opening BM25 FTS5 database from {self.index_path}...")
+                start = time.perf_counter()
 
-            self._is_loaded = True
-            load_time = time.perf_counter() - start
-            logger.info(f"BM25 FTS5 database opened: {self._doc_count:,} docs in {load_time:.2f}s")
-            return True
+                conn = sqlite3.connect(
+                    str(self.index_path),
+                    check_same_thread=False,
+                )
+                conn.execute("PRAGMA journal_mode=WAL")
+                conn.execute("PRAGMA mmap_size=268435456")  # 256MB mmap
 
-        except Exception as e:
-            logger.error(f"Failed to open BM25 FTS5 database: {e}")
-            if self._conn:
-                self._conn.close()
-                self._conn = None
-            return False
+                # Verify table exists
+                cursor = conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='docs_fts'"
+                )
+                if cursor.fetchone() is None:
+                    logger.error("FTS5 table 'docs_fts' not found in database")
+                    conn.close()
+                    return False
+
+                # Get doc count
+                cursor = conn.execute("SELECT count(*) FROM docs_fts")
+                self._doc_count = cursor.fetchone()[0]
+                if self._doc_count <= 0:
+                    logger.error("BM25 FTS5 database contains no documents")
+                    conn.close()
+                    self._doc_count = 0
+                    return False
+
+                self._conn = conn
+                self._is_loaded = True
+                load_time = time.perf_counter() - start
+                logger.info(
+                    f"BM25 FTS5 database opened: {self._doc_count:,} docs in {load_time:.2f}s"
+                )
+                return True
+
+            except Exception as e:
+                logger.error(f"Failed to open BM25 FTS5 database: {e}")
+                if self._conn:
+                    self._conn.close()
+                    self._conn = None
+                self._is_loaded = False
+                self._doc_count = 0
+                return False
 
     def search(
         self,
@@ -308,16 +331,71 @@ class BM25Service:
         """Check if BM25 FTS5 database is currently open."""
         return self._is_loaded
 
+    def warm(self) -> bool:
+        """Open and validate the BM25 database without running a search."""
+        return self._ensure_loaded()
+
+    def validate(self, smoke_query: str = "offentlighetsprincipen") -> Dict[str, Any]:
+        """
+        Validate that the BM25 index is usable, not merely present on disk.
+
+        Readiness uses this to make the first expensive open happen before real
+        user traffic and to reject corrupt, empty, or wrong-schema databases.
+        """
+        start = time.perf_counter()
+        result: Dict[str, Any] = {
+            "usable": False,
+            "validated": True,
+            "smoke_query": smoke_query,
+            "smoke_results": 0,
+            "latency_ms": 0.0,
+            "error": None,
+        }
+
+        if not self._ensure_loaded():
+            result["error"] = "BM25 database could not be opened or has no docs_fts rows"
+            result["latency_ms"] = round((time.perf_counter() - start) * 1000, 1)
+            self._last_validation = result
+            return result
+
+        if self._doc_count <= 0:
+            result["error"] = "BM25 database has zero documents"
+            result["latency_ms"] = round((time.perf_counter() - start) * 1000, 1)
+            self._last_validation = result
+            return result
+
+        try:
+            smoke_results = self.search(
+                smoke_query,
+                k=1,
+                return_docs=False,
+                use_compound_splitting=False,
+            )
+            result["smoke_results"] = len(smoke_results)
+            if smoke_results:
+                result["usable"] = True
+            else:
+                result["error"] = f"BM25 smoke query returned no results: {smoke_query}"
+        except Exception as exc:
+            result["error"] = str(exc)
+
+        result["latency_ms"] = round((time.perf_counter() - start) * 1000, 1)
+        self._last_validation = result
+        return result
+
     def get_stats(self) -> Dict[str, Any]:
         """Get BM25 index statistics."""
         return {
             "available": self.is_available(),
             "loaded": self._is_loaded,
+            "usable": bool(self._last_validation.get("usable")),
+            "validated": bool(self._last_validation.get("validated")),
             "index_path": str(self.index_path),
             "doc_count": self._doc_count,
             "stemmer": self.stemmer,
             "threads": self.threads,
             "backend": "sqlite_fts5",
+            "last_validation": dict(self._last_validation),
         }
 
     def unload(self) -> None:

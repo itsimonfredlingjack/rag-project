@@ -15,6 +15,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import CallToolResult, TextContent, ToolAnnotations
 
 from ..services.orchestrator_service import OrchestratorService, get_orchestrator_service
+from ..services.readiness_service import build_dependency_readiness
 from ..services.retrieval_service import RetrievalStrategy
 from ..utils.metrics import get_rag_metrics
 from .adapters import build_query_tool_payload
@@ -28,8 +29,6 @@ ALLOWED_MCP_HOSTS = [
     "127.0.0.1:*",
     "localhost:*",
     "[::1]:*",
-    "raggpt.fredlingautomation.dev",
-    "mcp-server.fredlingautomation.dev",
 ]
 ALLOWED_MCP_ORIGINS = [
     "http://127.0.0.1:*",
@@ -639,7 +638,9 @@ async def _run_query(
 async def _build_runtime_snapshot(orchestrator: OrchestratorService) -> dict[str, Any]:
     healthy = await orchestrator.health_check()
     services = orchestrator.get_status()
-    readiness_checks, collections = await _build_readiness_checks(orchestrator)
+    readiness = await build_dependency_readiness(orchestrator)
+    readiness_checks = readiness["checks"]
+    collections = readiness["collections"]
     metrics = get_rag_metrics().get_full_metrics()
     config = {
         "constitutional_model": getattr(orchestrator.config, "constitutional_model", "unknown"),
@@ -656,9 +657,7 @@ async def _build_runtime_snapshot(orchestrator: OrchestratorService) -> dict[str
         "timestamp": _now_iso(),
         "health": {"status": "healthy" if healthy else "degraded", "services": services},
         "readiness": {
-            "status": "ready"
-            if all(check["status"] in {"ok", "unknown"} for check in readiness_checks.values())
-            else "not_ready",
+            "status": readiness["status"],
             "checks": readiness_checks,
         },
         "services": services,
@@ -675,72 +674,8 @@ async def _build_runtime_snapshot(orchestrator: OrchestratorService) -> dict[str
 async def _build_readiness_checks(
     orchestrator: OrchestratorService,
 ) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]]]:
-    checks: dict[str, dict[str, Any]] = {}
-    collections: list[dict[str, Any]] = []
-
-    try:
-        if hasattr(orchestrator, "retrieval") and orchestrator.retrieval:
-            chromadb_healthy = await orchestrator.retrieval.health_check()
-            client = getattr(orchestrator.retrieval, "_chromadb_client", None)
-            if chromadb_healthy and client and hasattr(client, "list_collections"):
-                raw_collections = client.list_collections()
-                for collection in raw_collections:
-                    count = None
-                    try:
-                        if hasattr(collection, "count"):
-                            count = collection.count()
-                    except Exception:
-                        count = None
-                    collections.append({"name": collection.name, "document_count": count})
-                checks["chromadb"] = {
-                    "status": "ok",
-                    "details": {"collections": len(raw_collections)},
-                }
-            else:
-                checks["chromadb"] = {
-                    "status": "degraded" if chromadb_healthy else "error",
-                    "details": {"healthy": chromadb_healthy},
-                }
-        else:
-            checks["chromadb"] = {
-                "status": "error",
-                "details": {"error": "Retrieval service not available"},
-            }
-    except Exception as exc:
-        checks["chromadb"] = {"status": "error", "details": {"error": str(exc)}}
-
-    try:
-        if hasattr(orchestrator, "llm_service") and orchestrator.llm_service:
-            llm_healthy = await orchestrator.llm_service.health_check()
-            checks["llm_service"] = {
-                "status": "ok" if llm_healthy else "degraded",
-                "details": {
-                    "model": getattr(orchestrator.config, "constitutional_model", "unknown")
-                },
-            }
-        else:
-            checks["llm_service"] = {
-                "status": "error",
-                "details": {"error": "LLM service not available"},
-            }
-    except Exception as exc:
-        checks["llm_service"] = {"status": "error", "details": {"error": str(exc)}}
-
-    try:
-        embedding_service = getattr(orchestrator.retrieval, "_embedding_service", None)
-        if embedding_service and getattr(embedding_service, "is_initialized", False):
-            checks["embedding_service"] = {"status": "ok", "details": {}}
-        elif embedding_service:
-            checks["embedding_service"] = {
-                "status": "error",
-                "details": {"error": "Not initialized"},
-            }
-        else:
-            checks["embedding_service"] = {"status": "unknown", "details": {}}
-    except Exception as exc:
-        checks["embedding_service"] = {"status": "error", "details": {"error": str(exc)}}
-
-    return checks, collections
+    readiness = await build_dependency_readiness(orchestrator)
+    return readiness["checks"], readiness["collections"]
 
 
 def _build_project_snapshot() -> dict[str, Any]:
