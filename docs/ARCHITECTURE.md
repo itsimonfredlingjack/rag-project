@@ -1,24 +1,21 @@
-# Constitutional AI System Architecture
+# RAG System Architecture
 
 **Project**: Swedish Government Document Retrieval Augmented Generation (RAG) System  
 **Framework**: FastAPI 0.109+ (Python 3.12) backend + React 19 + TypeScript frontend  
-**Location**: `/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/`  
-**Last Updated**: 2026-02-12
-**Version**: 1.2
+**Repository root**: `rag-project/`
+**Last Updated**: 2026-05-16
+**Version**: 1.3
 
 ---
 
 ## Document status
 
-This is the canonical architecture reference for the active Constitutional AI
-stack.
+This is the canonical architecture reference for the RAG portfolio project.
 
 - **Status**: Canonical
-- **Last reviewed**: February 13, 2026
+- **Last reviewed**: May 16, 2026
 - **Canonical source of truth**: `docs/ARCHITECTURE.md`
-- **Model and stack guidance**: `docs/deep-research-by-claude.md`,
-  `docs/deep-research-by-chatgpt.md`,
-  `docs/README_DOCS_AND_RAG_INSTRUCTIONS.md`
+- **Documentation map**: `docs/README_DOCS_AND_RAG_INSTRUCTIONS.md`
 
 ---
 
@@ -42,14 +39,14 @@ stack.
 
 ### Purpose
 
-The Constitutional AI system serves as an intelligent document Q&A system for Swedish government materials (laws, regulations, parliamentary decisions). It uses a sophisticated Retrieval-Augmented Generation (RAG) pipeline to ground LLM responses in authoritative sources, ensuring legally accurate and verifiable answers.
+The system is a local RAG implementation for Swedish public documents such as laws, regulations, parliamentary material and agency texts. It uses retrieval-augmented generation to make source material visible in the answer flow. It is a portfolio project, not an authoritative legal service.
 
 ### Core Capabilities
 
 - **Multi-modal retrieval**: Dense semantic search + BM25 lexical search + adaptive routing
 - **Corrective RAG**: Automatic document relevance grading and query rewriting
 - **Intent-aware responses**: Different response formats based on query type (legal text, policy analysis, etc.)
-- **Guardrail validation**: Security checks, hallucination detection, confidence scoring
+- **Guardrail validation**: Security checks, confidence scoring and experimental hallucination-risk checks
 - **Streaming responses**: Real-time generation with Server-Sent Events (SSE)
 - **Agentic workflows**: LangGraph state machine for complex multi-step reasoning
 
@@ -63,7 +60,7 @@ The Constitutional AI system serves as an intelligent document Q&A system for Sw
 | **Backend Framework** | FastAPI | 0.109+ | REST/WebSocket API |
 | **Python** | Python | 3.12 | Runtime |
 | **Vector DB** | ChromaDB | — | Semantic search storage |
-| **LLM Backend** | llama.cpp (llama-server) | — | OpenAI-compatible local LLM (Ollama as optional fallback) |
+| **LLM Backend** | Configured via `CONST_LLM_BASE_URL` | — | Local LLM runtime such as Ollama or llama-server |
 | **RAG Framework** | LangChain + LangGraph | — | Chain orchestration & agentic flows |
 | **Embeddings** | Jina v3 | 570M | Asymmetric multilingual embeddings |
 | **Sparse Search** | BM25 | rank-bm25 | Lexical full-text search |
@@ -324,8 +321,8 @@ Return Swedish refusal: "Tyvärr kan jag inte besvara denna fråga utifrån de d
 ## API Endpoint Catalog
 
 ### Base URLs
-- **Development**: `http://localhost:8900`
-- **Production**: `http://localhost:8900`
+- **Local development**: `http://localhost:8900`
+- **Self-hosted experiments**: configured per environment
 
 ### Health & Monitoring
 
@@ -342,7 +339,7 @@ Return Swedish refusal: "Tyvärr kan jag inte besvara denna fråga utifrån de d
 |--------|----------|---------|------------|
 | POST | `/api/constitutional/agent/query` | Main RAG pipeline (batch) | question: 1-2000 chars ✓ |
 | POST | `/api/constitutional/agent/query/stream` | Streaming variant (SSE) | Same as above ✓ |
-| WS | `/ws/harvest` | Live indexing progress | WebSocket frames |
+| WS | `/ws/harvest` | Indexing progress | WebSocket frames |
 
 ### Document Management
 
@@ -357,19 +354,19 @@ Return Swedish refusal: "Tyvärr kan jag inte besvara denna fråga utifrån de d
 
 ### Overview
 
-ChromaDB stores all Swedish government documents embedded with Jina v3 multilingual embeddings.
+ChromaDB stores locally indexed documents embedded with Jina v3 multilingual embeddings. The database itself is not included in the repository.
 
 ### Collections (all suffixed `_jina_v3_1024`)
 
 | Collection | Purpose | Documents |
 |-----------|---------|-----------|
-| **swedish_gov_docs** | Government documents (myndigheter, propositioner) | ~304K |
-| **riksdag_documents_p1** | Parliamentary documents (motioner, betänkanden) | ~230K |
-| **sfs_lagtext** | Swedish law text (Författningssamling) | ~4K |
-| **procedural_guides** | Process guides for citizens | ~100 |
-| **diva_research** | DiVA academic research papers | ~829K |
+| **swedish_gov_docs** | Government documents (myndigheter, propositioner) | Historical local subset |
+| **riksdag_documents_p1** | Parliamentary documents (motioner, betänkanden) | Historical local subset |
+| **sfs_lagtext** | Swedish law text (Författningssamling) | Historical local subset |
+| **procedural_guides** | Process guides for citizens | Historical local subset |
+| **diva_research** | DiVA academic research metadata/text where available | Historical local subset |
 
-**Total**: 1.37M+ documents (538K legal/government + 829K DiVA research)
+**Historical local environment**: older project notes describe a larger local index across legal/government material and DiVA metadata. Treat this as local runtime history, not as a dataset included in the repo.
 
 ### Embedding Details
 
@@ -378,7 +375,7 @@ ChromaDB stores all Swedish government documents embedded with Jina v3 multiling
 - **Languages**: 100+ including Swedish
 - **Metric**: Cosine similarity
 - **Reranker**: jinaai/jina-reranker-v2-base-multilingual (cross-encoder, XLM-RoBERTa, 278M params)
-- **Storage**: ~37GB disk-backed (SQLite + parquet)
+- **Storage**: local disk-backed ChromaDB data, size depends on the corpus and is not distributed in Git
 
 ### Re-indexering
 
@@ -408,16 +405,16 @@ embedding-modellen.
 
 ### Retrieval Pipeline 2026
 
-Aktuell produktionspipeline för juridisk fråga-svar i Constitutional AI:
+Aktuell projektpipeline för fråga-svar i RAG-systemet:
 
 ```text
 User Query
-→ Query Expansion (Ministral LLM, 3 reformuleringar, GBNF-constrained)
+→ Query Expansion / rewriting
 → Parallel: Dense Retrieval (Jina v3, task=retrieval.query) + BM25 (expanded terms)
 → Reciprocal Rank Fusion (k=60)
 → Cross-Encoder Reranking (Jina Reranker v2, CPU, top-30 → top-5)
-→ CRAG Grading (Ministral, GBNF grammar, per dokument)
-→ LLM Generation (Ministral-3-14B)
+→ CRAG-inspired grading / confidence signals
+→ LLM Generation via configured local runtime
 ```
 
 Resursbudget (riktvärden):
@@ -436,23 +433,19 @@ Resursbudget (riktvärden):
 
 ## LLM Integration
 
-### Primary Backend: llama.cpp (llama-server)
+### Backend Runtime
 
-The system runs **llama-server** (from llama.cpp) as its primary LLM backend, exposing an OpenAI-compatible API on port 8080.
+The backend calls a local LLM runtime through the configured `CONST_LLM_BASE_URL`. In development this may be Ollama on port 11434 or an OpenAI-compatible llama-server setup.
 
 ```bash
-# Production configuration on ai-server
+# Example llama-server setup
 llama-server \
     -m /models/Ministral-3-14B-Instruct-2512-Q4_K_M.gguf \
     --host 0.0.0.0 --port 8080 \
     -c 8192 -ngl 99
 ```
 
-**Production Model**: Ministral-3-14B-Instruct-2512-Q4_K_M (14B params, Q4_K_M quantization)
-
-#### Optional Fallback: Ollama
-
-Ollama can be used as a fallback backend (not active in production). The `llm_service.py` supports dual-mode with `llama_server_enabled=True` as default.
+Model choice is environment-specific. The repo does not include model weights.
 
 ### LLMService
 
@@ -465,7 +458,7 @@ Methods:
 
 ### System Prompts
 
-Constitutional AI directives:
+Prompt directives:
 1. ONLY cite sources in retrieved documents
 2. Prioritize law text over interpretation
 3. Use official Swedish legal terminology
@@ -661,12 +654,11 @@ cd apps/konstitutionell-frontend
 npm install && npm run dev
 ```
 
-### Production
+### Deployment Templates
 
-Docker Compose or Systemd services (see docker-compose.yml, systemd/)
+Docker Compose and systemd templates are included for local/self-hosted experiments. They are not evidence of a public production service.
 
 ---
 
-**Document Version**: 1.2
-**Last Updated**: 2026-02-12
-**Author**: Claude Code
+**Document Version**: 1.3
+**Last Updated**: 2026-05-16

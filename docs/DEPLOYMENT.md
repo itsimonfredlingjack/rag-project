@@ -1,17 +1,15 @@
-# Deployment Guide — Constitutional AI
+# Deployment Guide
 
-Production deployment guide for the Swedish government document RAG system.
+Local/self-hosted deployment notes for the Swedish public-document RAG system. This is not a public service runbook.
 
 ## Document status
 
-This is the active deployment runbook for local and production-like setup.
+This is a deployment runbook for local and production-like experiments.
 
 - **Status:** Active
 - **Last reviewed:** February 13, 2026
 - **Canonical source of truth:** `docs/DEPLOYMENT.md`
-- **Model and stack guidance:** `docs/deep-research-by-claude.md`,
-  `docs/deep-research-by-chatgpt.md`,
-  `docs/README_DOCS_AND_RAG_INSTRUCTIONS.md`
+- **Documentation map:** `docs/README_DOCS_AND_RAG_INSTRUCTIONS.md`
 
 ## System Requirements
 
@@ -27,7 +25,7 @@ This is the active deployment runbook for local and production-like setup.
 ## Quick Start (Docker)
 
 ```bash
-cd 09_CONSTITUTIONAL-AI
+cd rag-project
 
 # 1. Configure
 cp backend/.env.example backend/.env
@@ -35,7 +33,7 @@ cp backend/.env.example backend/.env
 
 # 2. Download GGUF model (first time only)
 # Place the model file in the llama_models Docker volume.
-# Current production model: Ministral-3-14B-Instruct-2512 (see docs/MODEL_OPTIMIZATION.md and docs/deep-research-by-*.md)
+# Choose a local model/runtime and set backend environment variables accordingly.
 mkdir -p llama_models
 # Example (adjust URL to your chosen GGUF source):
 # wget -O llama_models/Ministral-3-14B-Instruct-2512-Q4_K_M.gguf \

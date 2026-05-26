@@ -1,93 +1,102 @@
-# Weekly Corpus Report - Quick Start
+# Quick Start
 
-## 30-Second Setup
+Den här guiden visar hur repot kan köras lokalt så långt det går utan privat ChromaDB-data, BM25-index och modellvikter. Full RAG-funktion kräver att du själv bygger eller pekar ut ett lokalt corpus.
+
+## Förutsättningar
+
+- Python 3.12+
+- Node.js 20+
+- Git
+- Valfritt för full RAG: ChromaDB-data, BM25/FTS5-index och lokal LLM-runtime, till exempel Ollama eller llama-server
+
+## 1. Backend
 
 ```bash
-# 1. Run setup assistant (5 minutes)
-cd /home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI
-./setup_telegram_workflow.sh
-
-# 2. Test the workflow (2 minutes)
-python3 test_corpus_report.py
-
-# 3. Check the output
-cat corpus_reports/$(ls -t corpus_reports/ | head -1) | jq .
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+cp .env.example .env
 ```
 
-## In n8n (5 minutes)
+Utan privat corpus kan du ändå köra delar av backend och tester. För full retrieval behöver `backend/.env` peka på lokala index:
 
-1. **Import Workflow**
-   - Click "+" → "Import from file"
-   - Select: `n8n_workflows/weekly_corpus_report.json`
-   - Save
-
-2. **Add Environment Variables**
-   - Settings → Environment Variables
-   - `TELEGRAM_BOT_TOKEN` = (from setup)
-   - `TELEGRAM_CHAT_ID` = (from setup)
-   - Save
-
-3. **Test It**
-   - Open workflow
-   - Click "Execute Workflow"
-   - Check Telegram for message
-
-4. **Done!**
-   - Workflow will run automatically every Sunday at 18:00
-
-## Files You Need
-
-| File | Purpose | Location |
-|------|---------|----------|
-| `weekly_corpus_report.json` | n8n workflow | `n8n_workflows/` |
-| `test_corpus_report.py` | Test script | Root directory |
-| `setup_telegram_workflow.sh` | Setup helper | Root directory |
-| `.env` | Credentials | Root directory (auto-created) |
-
-## What It Does
-
-- Runs every Sunday at 18:00
-- Counts documents in ChromaDB (535K+ docs)
-- Measures storage usage (34GB total)
-- Sends nice report to Telegram
-- Saves report to disk
-
-## Sample Report
-
-```
-📋 *VECKORAPPORT - CORPUS STATUS*
-
-📅 Vecka: 2025-12-08 - 2025-12-15
-⏰ Uppdaterad: 18:00:00
-
-📊 *DOKUMENTSAMLING*
-✅ Totalt indexerade dokument: 535,024
-📄 PDF-filer i cache: 6,912
-
-💾 *LAGRINGSANVÄNDNING*
-📦 ChromaDB total: 16G
-🗄️ Database fil: 14.14 GB
-📁 PDF cache: 18G
-
-🏢 *SAMLING-UPPDELNING*
-  • riksdag_documents: 10
-  • swedish_gov_docs: 304,871
-  • riksdag_documents_p1: 230,143
+```dotenv
+CONST_CHROMADB_PATH=/path/to/local/chromadb_data
+CONST_LLM_BASE_URL=http://localhost:11434
 ```
 
-## Troubleshooting
+Starta backend:
 
-| Problem | Fix |
-|---------|-----|
-| Bot token invalid | Re-run `./setup_telegram_workflow.sh` |
-| No Telegram message | Run `python3 test_corpus_report.py` to test |
-| Statistics wrong | Check `/chromadb_data/` permissions |
-| Scheduled execution fails | Check n8n is running: `systemctl status n8n` |
+```bash
+uvicorn app.main:app --host 127.0.0.1 --port 8900
+```
 
-## Full Documentation
+Kontrollera health endpoint:
 
-See `README_WEEKLY_CORPUS_REPORT.md` for complete details.
+```bash
+curl http://127.0.0.1:8900/api/constitutional/health
+```
 
----
+Swagger UI finns på `http://127.0.0.1:8900/docs` när backend kör.
 
-**That's it! Your corpus reporting is ready to go.** 🚀
+## 2. Frontend
+
+```bash
+cd apps/konstitutionell-frontend
+npm ci
+npm run lint
+npm run build
+npm run dev
+```
+
+Frontend kör normalt på `http://localhost:3003`.
+
+Om backend kör på annan adress:
+
+```bash
+cp .env.example .env
+```
+
+Ändra sedan:
+
+```dotenv
+VITE_BACKEND_URL=http://localhost:8900
+```
+
+## 3. Tester
+
+Backendtester som inte uttryckligen kräver integration/LLM kan köras så här:
+
+```bash
+cd backend
+source .venv/bin/activate
+CONST_CHROMADB_PATH=/tmp/test_chromadb \
+python -m pytest tests/ -v -m "not integration and not ollama and not slow" --tb=short
+```
+
+Frontend:
+
+```bash
+cd apps/konstitutionell-frontend
+npm run lint
+npm run build
+```
+
+Docs-check:
+
+```bash
+python scripts/check_docs_canonical.py
+```
+
+## 4. Vad Du Kan Förvänta Dig Utan Corpus
+
+Du kan verifiera att koden installerar, att frontend bygger, att backend importerar och att unit-tester körs. Däremot kan full fråga-till-svar med riktiga källor inte verifieras utan:
+
+- lokal ChromaDB-data,
+- lokalt BM25/FTS5-index,
+- tillgänglig lokal LLM-runtime,
+- rätt miljövariabler i `backend/.env`.
+
+Det är avsiktligt: stora databaser, PDF-cache och lokala runtimeartefakter ska inte ligga i Git.

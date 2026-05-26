@@ -1,23 +1,23 @@
-# Constitutional AI - System Overview
+# Historical Runtime Overview
+
+> Internal/historical operations note. This file is not part of the public first-read documentation.
 
 > Svenska myndighetsdokument - sökning, analys och RAG
 
-**Status:** Production
-**Dokument:** 1.37M+ (538K legal/gov + 829K DiVA research)
+**Status:** Historical operations snapshot
+**Dokument:** Historical local runtime numbers, not verified from a fresh clone
 **Updated:** 2026-02-07
 
 ---
 
 ## Document status
 
-This page is an active operations overview for the current runtime stack.
+This page is a historical operations overview for one local runtime stack.
 
-- **Status:** Active
+- **Status:** Historical
 - **Last reviewed:** February 13, 2026
-- **Canonical source of truth:** `docs/system-overview.md`
-- **Model and stack guidance:** `docs/deep-research-by-claude.md`,
-  `docs/deep-research-by-chatgpt.md`,
-  `docs/README_DOCS_AND_RAG_INSTRUCTIONS.md`
+- **Canonical public docs:** `docs/PORTFOLIO_CASE.md`, `docs/QUICK_START.md`, `docs/ARCHITECTURE.md`
+- **Documentation map:** `docs/README_DOCS_AND_RAG_INSTRUCTIONS.md`
 
 ---
 
@@ -25,7 +25,7 @@ This page is an active operations overview for the current runtime stack.
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 1.37M+ (538K legal/gov + 829K DiVA research) |
+| Total Documents | Historical local runtime number; re-verify before citing |
 | Vector Dimensions | 1024 |
 | Embedding Model | jinaai/jina-embeddings-v3 |
 | Storage | ChromaDB |
@@ -68,9 +68,9 @@ This page is an active operations overview for the current runtime stack.
          │                    │                    │
          ▼                    ▼                    ▼
 ┌─────────────┐      ┌─────────────┐      ┌─────────────┐
-│  ChromaDB   │      │llama-server │      │    n8n      │
+│  ChromaDB   │      │llama-server │      │ automation  │
 │    (local)  │      │   (8080)    │      │   (5678)    │
-│ 1.37M+ docs │      │Ministral-3  │      │  Workflows  │
+│ local docs  │      │Ministral-3  │      │  Workflows  │
 └─────────────┘      └─────────────┘      └─────────────┘
 ```
 
@@ -84,7 +84,7 @@ This page is an active operations overview for the current runtime stack.
 | ChromaDB | local | Active | Vector database |
 | llama-server | 8080 | Running | Local LLM inference (OpenAI-compatible) |
 | Ollama | 11434 | Optional | Optional fallback only |
-| n8n | 5678 | Running | Workflow automation |
+| Automation | local | Historical | Workflow automation |
 
 ### Backend Service Status
 
@@ -125,7 +125,7 @@ All collections are suffixed with `_jina_v3_1024`.
 |------------|-----------|------------|----------|
 | riksdag_documents_p1_jina_v3_1024 | 230K | 1024 | Riksdagen docs |
 | swedish_gov_docs_jina_v3_1024 | 308K | 1024 | Swedish gov docs |
-| diva_research_jina_v3_1024 | 829K | 1024 | DiVA research papers |
+| diva_research_jina_v3_1024 | historical local count | 1024 | DiVA research metadata |
 
 ---
 

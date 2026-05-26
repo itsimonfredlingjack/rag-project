@@ -1,4 +1,6 @@
-# Agent Guardrails
+# Historical Agent Guardrails
+
+> Internal/historical operations note. This file is not part of the public first-read documentation.
 
 ## Route Discovery (OBLIGATORISKT)
 
@@ -248,7 +250,7 @@ Don't keep trying random things - ask for help!
 3. Dokumentera ändringen i `docs/MODEL_OPTIMIZATION.md`
 
 **Best Practices:**
-- Prompts ska referera till korpusen (1.37M+ dokument: 538K legal/gov + 829K DiVA)
+- Prompts ska referera till tillgängliga lokala källor, inte till ovärderade dokumentantal.
 - Prompts ska instruera modellen att använda källor från ChromaDB
 - Prompts ska vara tydliga om vad modellen ska göra när källor saknas
 - Prompts ska prioritera SFS-källor (lagtext) över prop/sou

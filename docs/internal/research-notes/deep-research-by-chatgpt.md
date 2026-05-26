@@ -1,3 +1,12 @@
+# Historical Research Note: Local RAG Stack Options
+
+> Internal/historical research note. This file contains forward-looking stack
+> suggestions and model/runtime estimates from a prior investigation. Do not use
+> it as public project presentation, verified benchmark evidence, or current
+> run-status. For public documentation, start with `README.md`,
+> `docs/PORTFOLIO_CASE.md`, `docs/QUICK_START.md`, and
+> `docs/ARCHITECTURE.md`.
+
 # Best Practice Local RAG Stack on RTX 4070 12GB for Swedish Legal Documents — February 2026
 
 ## Recommended 2026 stack for your exact hardware and constraints
@@ -159,7 +168,7 @@ If you prefer Hugging Face–packaged artifacts for local deployment workflows, 
 
 **CPU-first pragmatic alternative:** FlashRank is explicitly designed to run on CPU without heavy framework dependencies and lists a multilingual reranker option (“ms-marco-MultiBERT-L-12”) with 100+ language support. That makes it attractive if you want to reserve your RTX 4070 entirely for the generator model. citeturn31search3
 
-### Re-indexing cost for 1.37M documents
+### Re-indexing cost for a larger local corpus
 
 A full embedding swap implies full re-embedding (and likely re-chunking decisions) of your corpus. The compute cost depends mostly on:
 
@@ -210,7 +219,7 @@ Your pipeline already aligns with this: document grading + query rewriting + evi
 ### Late-interaction retrieval remains “worth it,” but be realistic about ops on 500GB SSD
 
 ColBERTv2-style late interaction can outperform classic dense retrieval by keeping token-level signals, and it introduced compression techniques to reduce storage footprint. citeturn32search20turn32search16  
-That said, late interaction indexes can still be operationally heavier than a single-vector per chunk design, especially at 1.37M+ documents. If you go this route on a single node, treat it as an R&D branch rather than the core demo path unless you can quantify the benefit for Swedish legal queries. citeturn32search20turn32search16
+That said, late interaction indexes can still be operationally heavier than a single-vector per chunk design, especially at larger local corpus scale. If you go this route on a single node, treat it as an R&D branch rather than the core demo path unless you can quantify the benefit for Swedish legal queries. citeturn32search20turn32search16
 
 ## What’s worth changing now vs “good enough,” plus a 6‑month watchlist
 

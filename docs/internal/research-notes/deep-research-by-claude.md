@@ -1,3 +1,12 @@
+# Historical Research Note: Local RAG Stack Options
+
+> Internal/historical research note. This file contains forward-looking stack
+> suggestions and model/runtime estimates from a prior investigation. Do not use
+> it as public project presentation, verified benchmark evidence, or current
+> run-status. For public documentation, start with `README.md`,
+> `docs/PORTFOLIO_CASE.md`, `docs/QUICK_START.md`, and
+> `docs/ARCHITECTURE.md`.
+
 # Optimal local RAG stack for RTX 4070 in 2026
 
 **Your current Mistral-Nemo setup works but is no longer best-in-class.** Google's Gemma 3 12B IT and Mistral's Ministral 3 14B both represent meaningful upgrades in multilingual quality, context handling, and architecture — though each comes with practical trade-offs on 12GB VRAM. The bigger revelation: your Qwen 0.5B draft model was almost certainly never working correctly with Mistral-Nemo's unique Tekken tokenizer, meaning you were paying VRAM cost for near-zero speculative decoding benefit. Replacing the entire Chinese-origin component stack (BGE-M3, BGE-Reranker, Qwen draft) is feasible with a clean European alternative: Jina AI's embedding and reranker models match or exceed BGE quality while sharing a German origin and non-Chinese architecture. The recommended action is a phased migration — swap the LLM and draft model first, then re-index embeddings, and finally upgrade your RAG architecture with the highest-ROI improvements (cross-encoder reranking and hybrid search).
@@ -98,7 +107,7 @@ Key features that make it the right choice: **five task-specific LoRA adapters**
 
 **The hybrid retrieval gap**: BGE-M3's unique triple-mode retrieval (dense + learned sparse + ColBERT in a single model) has no direct non-Chinese equivalent. The practical workaround is a multi-component hybrid: Jina v3 for dense retrieval + BM25 (via Elasticsearch, Tantivy, or Qdrant's built-in BM25) for lexical/sparse retrieval, combined with **Reciprocal Rank Fusion**. This combination, paired with a cross-encoder reranker, **matches or exceeds** BGE-M3's standalone hybrid performance in practice.
 
-**Re-indexing 1.37M documents**: On GPU (RTX 4070, batch mode, LLM offline), Jina v3 processes approximately **150–300 documents/second**, completing the full corpus in **~1.5–2.5 hours**. On CPU (16 cores, ONNX Runtime), expect ~15–30 docs/sec and ~15–25 hours. The 1024-dimensional output matches BGE-M3's dimensions exactly, so ChromaDB/Qdrant index structure remains compatible — you only need to re-embed, not restructure.
+**Re-indexing a larger local corpus**: measure throughput on the exact hardware and chunk distribution before estimating duration. The 1024-dimensional output matches BGE-M3's dimensions exactly, so ChromaDB/Qdrant index structure remains compatible — you only need to re-embed, not restructure.
 
 ### Reranker: Jina Reranker v2 Base Multilingual
 
@@ -111,7 +120,7 @@ Key features that make it the right choice: **five task-specific LoRA adapters**
 | **Jina Reranker v2 Base** | 278M | ~100–200ms | ✅ 100+ langs | CC-BY-NC-4.0 | Jina (DE) |
 | mxbai-rerank-base-v2 | 500M | ~200–400ms | ✅ 100+ langs | Apache 2.0 | Mixedbread (DE) |
 | FlashRank Nano | 4MB | ~5ms | ❌ English | Open source | Community |
-| Jina Reranker v3 | 600M | ~150–300ms | ✅ Best quality | CC-BY-NC-4.0 | Jina (DE) |
+| Jina Reranker v3 | 600M | Needs local measurement | ✅ Best quality | CC-BY-NC-4.0 | Jina (DE) |
 
 **Warning about Jina Reranker v3**: Despite Jina being a German company, v3 is built on **Qwen3-0.6B** (Alibaba) as its base model — violating the Chinese-origin constraint. Similarly, **mxbai-rerank-base-v2** may use a Qwen base (verify before deploying). Jina Reranker v2 uses XLM-RoBERTa and is safe.
 
@@ -156,21 +165,21 @@ Research across the RAG landscape reveals three tiers of improvements ranked by 
 
 ### Tier 2: Structure improvements for legal documents
 
-**Summary-Augmented Chunking (SAC)** is a 2025 technique specifically validated for legal RAG. Prepend a single document-level summary to every chunk from that document. This prevents "Document-Level Retrieval Mismatch" — retrieving correct text from the wrong law — which is a critical problem in large legal databases with structurally similar documents. At **one LLM call per document** (1.37M calls), this is feasible over a few weeks of background processing. Full Anthropic-style Contextual Retrieval (one LLM call per *chunk*) is impractical at this scale — ~13.7M LLM calls would take months on consumer hardware.
+**Summary-Augmented Chunking (SAC)** is a 2025 technique specifically validated for legal RAG. Prepend a single document-level summary to every chunk from that document. This prevents "Document-Level Retrieval Mismatch" — retrieving correct text from the wrong law — which is a critical problem in large legal databases with structurally similar documents. The operational cost scales with document and chunk counts, so treat it as an experiment that needs local measurement.
 
 **Structure-aware chunking** for Swedish legal documents. SFS-formatted laws have well-defined hierarchies (Kapitel → Paragraf → Stycke → Punkt). Chunk at clause boundaries rather than fixed token counts, preserve hierarchy metadata, and implement parent-child retrieval — index at paragraph level but return the parent section for context.
 
-**Legal reference graphs without GraphRAG**: Full Microsoft GraphRAG is impractical at 1.37M documents on consumer hardware (the indexing cost alone would take months of continuous LLM inference). Instead, build targeted reference structures: parse SFS cross-references ("se 5 kap. 3 § arbetsmiljölagen") using regex, construct a citation graph in NetworkX, and during retrieval pull in referenced laws alongside primary results. Build a definitions graph by extracting definitions sections from laws and auto-injecting them when defined terms appear in retrieved chunks. These cost zero LLM calls and provide high value for legal queries.
+**Legal reference graphs without GraphRAG**: Full Microsoft GraphRAG can be impractical on consumer hardware for larger corpora. Instead, build targeted reference structures: parse SFS cross-references ("se 5 kap. 3 § arbetsmiljölagen") using regex, construct a citation graph in NetworkX, and during retrieval pull in referenced laws alongside primary results. Build a definitions graph by extracting definitions sections from laws and auto-injecting them when defined terms appear in retrieved chunks.
 
 ### Tier 3: Worth evaluating but lower priority
 
 **Late chunking** (Jina AI technique) embeds the full document first using a long-context model, then applies mean pooling within chunk boundaries. This preserves cross-chunk context without additional LLM calls. With Jina v3's 8192-token window, it produces **~3.6% relative improvement** over naive chunking — modest but free of additional compute cost at query time. Consider implementing when you switch to Jina v3.
 
-**ColBERT via RAGatouille** as a late-interaction reranker rather than primary retriever. The `answerai-colbert-small-v1` model (33M params) outperforms models 10× its size and uses only ~130MB RAM. However, ColBERT stores per-token embeddings, so indexing 13.7M chunks at ~128 dims × ~32 tokens could consume **15–30GB on disk** even with PLAID compression. Use it for reranking the top 100 results rather than as the primary index.
+**ColBERT via RAGatouille** as a late-interaction reranker rather than primary retriever. The `answerai-colbert-small-v1` model (33M params) is a compact option to evaluate, but ColBERT stores per-token embeddings and can grow quickly on disk. Use it for reranking a bounded candidate set rather than as the primary index unless storage and latency are measured locally.
 
 ### Migrate ChromaDB to Qdrant at this scale
 
-At **13.7M vectors** (1.37M documents × ~10 chunks each), ChromaDB is at the edge of its comfortable operating range. It lacks native hybrid search (BM25 + dense), sparse vector support, and sophisticated filtering. **Qdrant** (Rust-based, self-hosted) provides native hybrid search with BM25, sparse vector support for SPLADE-style retrieval, multi-vector storage (title + body embeddings), integrated pre-filtering on metadata (filter by SFS number, date, document type), and proven performance at billions of vectors with sub-30ms query latency. For a production legal RAG system, this migration is worth the effort.
+At larger vector counts, ChromaDB may become operationally limiting depending on hardware and query patterns. It lacks native hybrid search (BM25 + dense), sparse vector support, and sophisticated filtering. **Qdrant** (Rust-based, self-hosted) provides native hybrid search with BM25, sparse vector support for SPLADE-style retrieval, multi-vector storage (title + body embeddings), and integrated pre-filtering on metadata (filter by SFS number, date, document type). Treat any migration decision as something to validate with this project's own retrieval and ops measurements.
 
 ---
 

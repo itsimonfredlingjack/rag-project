@@ -1,7 +1,7 @@
 # Constitutional AI Architecture Map
 
 **Project**: Swedish Legal Document RAG System  
-**Base Path**: `/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/`  
+**Base Path**: repo root (`rag-project/`)
 **Framework**: FastAPI 0.109+ (Python 3.12) + React 19 + TypeScript  
 **Key Infrastructure**: ChromaDB, llama-server (llama.cpp), LangChain, XState (frontend)
 
@@ -11,7 +11,7 @@
 
 ### Root Layout
 ```
-09_CONSTITUTIONAL-AI/
+rag-project/
 ├── backend/              # FastAPI Python backend (13,196 lines of service code)
 │   ├── app/
 │   │   ├── main.py                    # FastAPI app setup, lifespan, routing
@@ -191,7 +191,7 @@
 | GET | `/collections` | — | List[`CollectionInfo`] | — | ChromaDB collections |
 | POST | `/agent/query` | `AgentQueryRequest` | `AgentQueryResponse` | ✓ min/max length | Main search endpoint |
 | POST | `/agent/query/stream` | `AgentQueryRequest` | Server-Sent Events | ✓ same as above | Streaming variant |
-| WS | `/ws/harvest` | — | WebSocket frames | — | Live indexing progress |
+| WS | `/ws/harvest` | — | WebSocket frames | — | Indexing progress |
 
 **Input Validation**:
 - `question`: 1–2000 chars ✓

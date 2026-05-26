@@ -1,7 +1,7 @@
 # Technical Debt Analysis - Constitutional AI Backend
 
 **Analysis Date:** 2026-01-11  
-**Codebase:** `/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/backend`  
+**Codebase:** `backend/`
 **Total Python Files:** 29 production files, 9 test files
 
 ## Executive Summary

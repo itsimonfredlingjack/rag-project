@@ -3,7 +3,7 @@
 ## Steg 1: Installera RAGAS
 
 ```bash
-cd /home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI
+cd /path/to/rag-project
 source venv/bin/activate
 pip install ragas datasets
 ```

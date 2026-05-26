@@ -1,7 +1,7 @@
 # Performance Analysis - Constitutional AI Backend
 
 **Analysis Date:** 2026-01-11  
-**Codebase:** `/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/backend`  
+**Codebase:** `backend/`
 **Framework:** FastAPI (Python 3.10+)
 
 ## Executive Summary

@@ -1,8 +1,9 @@
-# Constitutional AI - Development Guide
+# RAG Project - Development Guide
 
 ## Build/Test Commands
 ```bash
-# Frontend (React/Next.js)
+# Frontend (React/Vite)
+cd apps/konstitutionell-frontend
 npm run dev        # Development server
 npm run build      # Production build  
 npm run lint       # ESLint validation
@@ -11,7 +12,6 @@ npm run lint       # ESLint validation
 cd backend && python -m pytest tests/ -v
 
 # System Commands
-constitutional status                    # System status
 curl http://localhost:8900/api/constitutional/health   # Backend health check
 ```
 
@@ -31,7 +31,7 @@ curl http://localhost:8900/api/constitutional/health   # Backend health check
 - **AI Integration**: llama-server (llama.cpp) local models with jinaai/jina-embeddings-v3 embeddings (1024 dims)
 
 ### Architecture Patterns
-- **Agentic RAG**: Direct RAG pattern with Ministral-3-14B-Instruct-2512 via llama-server (port 8080). For stack and model choices, see **`docs/deep-research-by-claude.md`** and **`docs/deep-research-by-chatgpt.md`**.
+- **RAG pipeline**: FastAPI services for query processing, retrieval orchestration, reranking, generation and citations. For public project context, start with `README.md`, `docs/PORTFOLIO_CASE.md` and `docs/ARCHITECTURE.md`.
 - **Response Modes**: EVIDENCE (temp 0.15–0.2, strict), ASSIST (temp 0.4), CHAT (temp 0.7)
 - **Structured Outputs**: OpenAI-compatible JSON mode via llama-server with JSON Schema
 - **Swedish Processing**: Rate limiting for government APIs, Swedish text processing, ChromaDB vector operations
@@ -44,7 +44,7 @@ curl http://localhost:8900/api/constitutional/health   # Backend health check
 - **Swedish Terms**: Use proper Swedish terminology (myndighetsdokument, propositioner, riksdagen)
 
 ### Critical Notes
-- **Model Configuration**: Ministral-3-14B-Instruct-2512 (Q4_K_M) via llama-server with OpenAI-compatible API (port 8080). RAG stack and model decisions: see `docs/README_DOCS_AND_RAG_INSTRUCTIONS.md` and the deep-research docs.
+- **Model Configuration**: Local model runtime is environment-specific and configured through backend settings. Treat historical model research notes under `docs/internal/` as background, not current run status.
 - **Rate Limiting**: Always respect Swedish government site limits (5-10s between requests)
-- **ChromaDB**: 1.37M+ documents indexed (538K legal/gov + 829K DiVA research), use semantic search for legal document retrieval
-- **Git Workflow**: This is NOT a git repository, use direct file operations
+- **ChromaDB**: Local ChromaDB data is not included in Git. Treat documented corpus sizes as local runtime history unless re-verified.
+- **Git Workflow**: Work on a branch, keep generated corpus/runtime data out of Git.

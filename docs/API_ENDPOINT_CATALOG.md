@@ -118,7 +118,7 @@ use_agent: bool (optional, default false)
 
 ### 2.3 WS /ws/harvest
 
-**Purpose**: Live document harvesting progress  
+**Purpose**: Document harvesting progress
 **Validation**: No validation (WebSocket frames)  
 **Auth**: None  
 **Current Status**: Sends heartbeat every 30s (no actual harvest updates)

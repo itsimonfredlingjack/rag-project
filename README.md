@@ -1,234 +1,177 @@
 <div align="center">
 
-# Constitutional AI
+# RAG-system för svenska offentliga dokument
 
-### RAG-system för svenska myndighetsdokument
+### Constitutional AI - personligt lärande- och portföljprojekt
 
 [![CI](https://github.com/itsimonfredlingjack/rag-project/actions/workflows/ci.yml/badge.svg)](https://github.com/itsimonfredlingjack/rag-project/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
-[![ChromaDB](https://img.shields.io/badge/ChromaDB-1.37M_docs-FF6B35)](https://www.trychroma.com/)
 
-**Personligt lärande- och portföljprojekt** — inte en produkt eller tjänst.
+**Inte en produkt. Inte en publik tjänst. Ett tekniskt portföljcase.**
 
 </div>
 
 ---
 
-Jag byggde det här för att lära mig end-to-end hur ett modernt RAG-system fungerar i praktiken: från datainsamling och vektorindexering till LLM-inferens och streaming-svar. Allt körs lokalt på en RTX 4070 — inga molntjänster, inga abonnemangskostnader.
+Det här repot visar ett end-to-end RAG-system byggt för svenska offentliga dokument. Projektet är ett personligt lärandeprojekt som knyter ihop datainsamling, indexering, hybrid retrieval, lokal LLM-inferens, källhänvisade svar, backend, frontend, tester och CI.
 
-**Vad det gör:** tar en fråga på svenska → hämtar relevanta stycken ur 1,37 miljoner svenska myndighetsdokument → genererar ett källhänvisat svar med en lokal LLM (Gemma 3 12B via Ollama).
+Målet är att visa praktisk förståelse för hur ett RAG-system faktiskt sätts ihop: från dokumentkorpus och retrieval-strategier till osäkerhet, källurval, streaming och användargränssnitt.
 
-![Query results](docs/assets/query-results.png)
-![Pipeline details](docs/assets/pipeline-details-expanded.png)
+![Screenshot från tidigare lokal körning med matchade källor](docs/assets/portfolio-query-with-sources.png)
 
----
-
-## Varför jag byggde det
-
-Jag ville ha ett konkret projekt som demonstrerar att jag kan navigera ett komplext tekniklandskap med verkliga trade-offs: vektordatabaser, LLM-inferens, streaming-API:er och 30+ datakällor. Inte en tutorial — ett fungerande system som jag itererat på under flera månader.
-
-## Vad som funkar — och vad som är experiment
-
-✅ **Fungerar:** Pipeline end-to-end (fråga → hämtning → svar med källhänvisningar), SSE-streaming till React-frontend, CRAG-dokumentgradering (relevant/ambiguous/irrelevant), hybrid-sökning BM25 + vektor, eval-ramverk med 50+ testfiler.
-
-⚠️ **Halvfärdigt / under iteration:** Guardrail-systemet (Jail Warden v2) är grovkalibrerat — EVIDENCE-läget blockerar ~40 % av legitima svar. Critic-Revise-loopen är implementerad men sällan aktiverad i praktiken.
-
-❌ **Inte inkluderat i repot:** ChromaDB-datan (57 GB) körs lokalt och finns inte i git.
+_Screenshoten visar en tidigare lokal körning av frontendens källpanel. Full lokal retrieval kräver ChromaDB-/BM25-data och LLM-runtime som inte ingår i repot._
 
 ---
+
+## Vad Projektet Visar
+
+- End-to-end RAG-flöde: fråga, retrieval, reranking, generation och källvisning.
+- Hybrid retrieval med ChromaDB-vektorsökning och BM25/SQLite FTS5.
+- Lokal LLM-integration via konfigurerad `CONST_LLM_BASE_URL`.
+- Källhänvisade svar och frontendpanel för källor/citations.
+- FastAPI-backend med SSE-streaming till React/TypeScript/Vite-frontend.
+- Eval- och teststruktur för retrieval, prompts, API-kontrakt och pipelinebeteende.
+- GitHub Actions för docs-check, backendtester och frontend lint/build.
+- Praktisk hantering av retrievalkvalitet, avgränsningar, osäkerhet och hallucinationsrisk.
+
+## Vad Det Inte Är
+
+- Inte en färdig produkt eller en publik tjänst.
+- Inte en komplett eller auktoritativ databas över svenska offentliga dokument.
+- Inte ett löfte om juridiskt korrekta svar.
+- Inte en distribuerad demo med färdig ChromaDB, BM25-index eller modellvikter.
+- Inte ett benchmarkat system med verifierade precision-/recall-värden i detta repo.
+
+Lokala datavolymer som nämns i projektet beskriver en tidigare projektmiljö, inte data som följer med repot. Bygger du ett eget corpus kan antal dokument, lagringsstorlek och resultat skilja sig mycket.
+
+## Teknisk Översikt
+
+| Del | Teknik |
+|-----|--------|
+| Backend | FastAPI, Uvicorn, Pydantic v2 |
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS |
+| 3D/UI | Three.js, React Three Fiber, Drei, Framer Motion |
+| Vector DB | ChromaDB, lokal persistent lagring |
+| Sparse search | BM25 via SQLite FTS5 |
+| Embeddings | `jinaai/jina-embeddings-v3` |
+| Reranking | `jinaai/jina-reranker-v2-base-multilingual` |
+| Lokal LLM | Konfigurerad via `CONST_LLM_BASE_URL` (till exempel Ollama eller llama-server) |
+| Pipeline | Retrieval orchestration, RAG-Fusion/RRF, CRAG-inspirerad gradering |
+| Streaming | Server-Sent Events från backend till frontend |
+| CI | GitHub Actions: docs-check, pytest, ruff, mypy, eslint, TypeScript build |
 
 ## Arkitektur
 
 ```mermaid
 graph TD
-    A[Användare] -->|Fråga| B[React Frontend<br/>Three.js · Zustand · SSE]
-    B -->|POST /agent/query/stream| C[FastAPI Backend :8900]
+    A["Användare"] --> B["React/Vite frontend"]
+    B -->|"POST /api/constitutional/agent/query/stream"| C["FastAPI backend"]
 
-    C --> D[IntentClassifier]
-    D --> E[QueryRewriter]
-    E --> F[RetrievalOrchestrator]
+    C --> D["Intent classification"]
+    D --> E["Query rewriting / decontextualization"]
+    E --> F["Retrieval orchestrator"]
 
-    F --> F1[Fas 1: Parallell vektorsökning]
-    F --> F2[Fas 2: Query-dekontextualisering]
-    F --> F3[Fas 3: RAG-Fusion + RRF]
-    F --> F4[Fas 4: Adaptiv eskalering]
-
-    F1 & F2 & F3 & F4 --> G[ChromaDB<br/>1.37M dokument]
-    F1 & F2 & F3 & F4 --> H[BM25 FTS5\nSparse search]
-
-    G & H --> I[RerankingService\nJina cross-encoder]
-    I --> J[GraderService\nGemma 3 12B · 3-vägs]
-    J --> K[LLMService\nGemma 3 12B via Ollama]
-    K --> L[GuardrailService\nJail Warden v2]
-    L --> M[CriticService\nCritic-Revise loop]
-    M -->|SSE stream| B
+    F --> G["ChromaDB vector search"]
+    F --> H["BM25 / SQLite FTS5"]
+    G --> I["RAG-Fusion / RRF"]
+    H --> I
+    I --> J["Jina reranking"]
+    J --> K["Document grading / confidence signals"]
+    K --> L["Local LLM via CONST_LLM_BASE_URL"]
+    L --> M["Response shaping and citations"]
+    M -->|"SSE events"| B
+    B --> N["Answer, pipeline status and sources"]
 ```
 
----
+Se [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) för mer teknisk detalj.
 
-## Repo-struktur
+## Repo-Karta
 
-```
+```text
 rag-project/
-├── backend/                    # FastAPI RAG-backend
-│   ├── app/
-│   │   ├── api/                # Routes (constitutional, document)
-│   │   ├── services/           # 33 service-moduler
-│   │   │   ├── orchestrator_service.py
-│   │   │   ├── retrieval_orchestrator.py
-│   │   │   ├── llm_service.py
-│   │   │   └── ...
-│   │   ├── core/               # Auth, rate limiting, error handling
-│   │   └── config.py           # Pydantic settings (CONST_-prefix)
-│   └── tests/                  # 50+ testfiler (pytest)
-│
-├── apps/
-│   └── konstitutionell-frontend/   # React 19 + Three.js + Tailwind
-│       └── src/
-│           ├── components/3d/      # Three.js pipeline-visualisering
-│           └── components/ui/      # Chat, citations, source panel
-│
-├── scrapers/                   # Web scrapers, 30+ myndigheter
-│   ├── myndigheter/            # Per-myndighets scrapers (40 filer)
-│   ├── kommuner/               # Kommunala dokument
-│   └── akademi/                # DiVA OAI-PMH harvesting
-│
-├── indexers/                   # ChromaDB-indexeringsskript
-├── eval/                       # RAGAS + retrieval quality evaluation
-├── scripts/                    # Data pipeline utilities
-├── docs/                       # Teknisk dokumentation
-│   └── assets/                 # Screenshots
-├── systemd/                    # Systemd user services
-└── docker-compose.yml
+├── backend/                         FastAPI-backend, services, API-routes och tester
+├── apps/konstitutionell-frontend/   React/TypeScript/Vite-frontend
+├── eval/                            Eval-skript, testfrågor och retrieval-analyser
+├── backend/eval/                    Backendnära eval-dataset och körskript
+├── indexers/                        Skript för ChromaDB-indexering
+├── scripts/                         Pipeline-, BM25-, reindexerings- och utility-skript
+├── scrapers/                        Scrapers för offentliga svenska dokumentkällor
+├── docs/                            Publik dokumentation och screenshots
+└── .github/workflows/               CI för docs, backend och frontend
 ```
 
----
+## Datakorpus Och Begränsningar
 
-## Vad jag lärde mig
+Projektet har utvecklats mot en större lokal korpus av svenska offentliga dokument. I tidigare lokal miljö har dokumentationen beskrivit ungefär 1,37M indexerade poster, inklusive myndighets-/riksdagsmaterial och DiVA-metadata. Den siffran ska läsas som historik från utvecklingsmiljön, inte som något som kan verifieras direkt efter klon.
 
-- **RAG-pipeline i djupet:** vektorsökning (ChromaDB + Jina Embeddings v3, 1024-dim), BM25 sparse search, Reciprocal Rank Fusion
-- **CRAG-mönstret:** dokumentgradering + self-reflection för att minska hallucinationer
-- **Lokal LLM-inferens:** quantiserade modeller (Q4_K_M), context-hantering, GPU-minnesbegränsningar med RTX 4070 12 GB
-- **Systemdesign i skala:** ~1,37M vektorer, 33 tjänstemodulor, LangGraph state machine, SSE-streaming
-- **Datainsamling i praktiken:** web-scrapers för 30+ myndigheter, OAI-PMH-harvesting för DiVA-forskning (829K akademiska publikationer)
+Det som finns i repot är kod, dokumentation, testdata och eval-struktur. Det som inte finns i repot är:
 
----
+- ChromaDB-data.
+- BM25/FTS5-index.
+- Lokala modellvikter.
+- PDF-cache eller skrapad rådata.
+- Lokala secrets, tokens eller runtimefiler.
 
-## Tech Stack
+Det största lärandet i projektet är att kvaliteten i ett RAG-system avgörs lika mycket av retrieval, källurval, avgränsningar och eval som av modellen.
 
-### Backend (Python 3.12)
+## Kom Igång
 
-| Komponent | Teknik |
-|-----------|--------|
-| API | FastAPI 0.109+, Uvicorn, Pydantic v2 |
-| Vector DB | ChromaDB (~57 GB, 1,37M+ dokument) |
-| Embeddings | jinaai/jina-embeddings-v3 (1024 dim, asymmetrisk encoding) |
-| Reranker | jinaai/jina-reranker-v2-base-multilingual (cross-encoder, 278M params) |
-| LLM | Gemma 3 12B Q4_K_M (~8 GB) via Ollama |
-| Pipeline | LangGraph (CRAG med relevance grading + self-reflection) |
-| Sparse search | BM25 (SQLite FTS5) |
-| Fusion | RAG-Fusion med Reciprocal Rank Fusion |
-| Hallucinationsskydd | Jail Warden v2 (guardrail service) |
-
-### Frontend (TypeScript)
-
-| Komponent | Teknik |
-|-----------|--------|
-| UI | React 19, TypeScript 5.9, Vite 7 |
-| 3D | Three.js 0.182 via React Three Fiber 9 |
-| Styling | Tailwind CSS 4, Framer Motion 12 |
-| State | Zustand 5 |
-
-### Infrastruktur
-
-| Komponent | Teknik |
-|-----------|--------|
-| Hosting | Self-hosted, RTX 4070 12 GB VRAM |
-| LLM-runtime | Ollama port 11434 |
-| Process | 3 systemd user services |
-| CI/CD | GitHub Actions — ruff, mypy, pytest, eslint, tsc |
-
----
-
-## Kom igång
-
-### Förutsättningar
-
-- Python 3.12+, Node.js 20+
-- [Ollama](https://ollama.ai) med `gemma3:12b` nedladdat: `ollama pull gemma3:12b`
-- ChromaDB-data (inte inkluderat — se `indexers/` för att bygga eget corpus)
+Se även [docs/QUICK_START.md](docs/QUICK_START.md) för en kortare körguide.
 
 ### Backend
 
 ```bash
 cd backend
-python -m venv venv && source venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 cp .env.example .env
-uvicorn app.main:app --host 0.0.0.0 --port 8900
+uvicorn app.main:app --host 127.0.0.1 --port 8900
 ```
+
+Health check:
+
+```bash
+curl http://127.0.0.1:8900/api/constitutional/health
+```
+
+Backenden kan starta utan privat corpus, men full RAG-retrieval kräver att `CONST_CHROMADB_PATH` pekar på ett lokalt ChromaDB-index och att en lokal LLM-runtime är igång.
 
 ### Frontend
 
 ```bash
 cd apps/konstitutionell-frontend
-npm install
-npm run dev          # http://localhost:3003
+npm ci
+npm run lint
+npm run build
+npm run dev
 ```
+
+Frontend kör normalt på `http://localhost:3003` och använder `VITE_BACKEND_URL` för att hitta backend. Se [apps/konstitutionell-frontend/README.md](apps/konstitutionell-frontend/README.md).
 
 ### Tester
 
 ```bash
 cd backend
-pytest tests/ -v -m "not integration and not slow"       # snabbkörning
-RUN_INTEGRATION_TESTS=1 pytest -m integration            # integrationstester
-RUN_OLLAMA_TESTS=1 pytest -m ollama                      # kräver Ollama
+python -m pytest tests/ -v -m "not integration and not ollama and not slow" --tb=short
 ```
 
-### API
-
-Swagger UI: `http://localhost:8900/docs`
-
-| Metod | Route | Syfte |
-|-------|-------|-------|
-| GET | `/api/constitutional/health` | Hälsokontroll |
-| GET | `/api/constitutional/ready` | Djup readiness-check |
-| POST | `/api/constitutional/agent/query` | RAG-fråga (JSON) |
-| POST | `/api/constitutional/agent/query/stream` | RAG-fråga (SSE) |
-| POST | `/api/constitutional/search` | Dokumentsökning |
-
----
-
-## Konfiguration
-
-Alla miljövariabler prefixade med `CONST_` via `backend/app/config.py`:
-
-| Variabel | Default | Syfte |
-|----------|---------|-------|
-| `CONST_PORT` | 8900 | Backend-port |
-| `CONST_LLM_BASE_URL` | `http://localhost:11434` | Ollama URL |
-| `CONST_CRAG_ENABLED` | false | Aktivera CRAG |
-| `CONST_CRAG_ENABLE_SELF_REFLECTION` | false | CRAG self-reflection |
-| `CONST_DEBUG` | false | Debug-läge |
-
----
+Integrationstester och LLM-tester kräver lokala tjänster och körs bara när motsvarande miljö finns.
 
 ## Dokumentation
 
 | Dokument | Innehåll |
 |----------|----------|
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Systemarkitektur |
-| [QUICK_START.md](docs/QUICK_START.md) | Snabbstart |
-| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Driftsättning |
-| [MODEL_OPTIMIZATION.md](docs/MODEL_OPTIMIZATION.md) | LLM-tuning |
-| [TESTING_GUIDE.md](docs/TESTING_GUIDE.md) | Teststruktur |
-| [PERFORMANCE_ANALYSIS.md](docs/PERFORMANCE_ANALYSIS.md) | Benchmarks |
-
----
+| [docs/PORTFOLIO_CASE.md](docs/PORTFOLIO_CASE.md) | Kort case-sida för snabb överblick |
+| [docs/QUICK_START.md](docs/QUICK_START.md) | Lokal snabbstart utan privat databas |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Teknisk arkitektur och pipeline |
+| [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) | Teststrategi och körkommandon |
+| [apps/konstitutionell-frontend/README.md](apps/konstitutionell-frontend/README.md) | Frontendens körning, miljövariabler och komponenter |
 
 ## Licens
 
-MIT — se [LICENSE](LICENSE).
+MIT - se [LICENSE](LICENSE).

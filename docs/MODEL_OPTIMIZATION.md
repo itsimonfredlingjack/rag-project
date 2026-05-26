@@ -8,7 +8,7 @@
 
 ## Översikt
 
-Constitutional AI använder Ollama med lokala modeller för att svara på frågor baserat på en korpus med över 1.37M+ svenska dokument (538K legal/gov + 829K DiVA research).
+Projektet använder lokala modeller för att svara på frågor baserat på källor från en lokal dokumentkorpus. Korpusstorlek och modellruntime är miljöberoende och ingår inte i repot.
 
 ### Modeller
 
@@ -91,7 +91,7 @@ Constitutional AI använder Ollama med lokala modeller för att svara på frågo
 Du är Constitutional AI, en expert på svensk lag och myndighetsförvaltning.
 
 KUNSKAPSBAS:
-Du har tillgång till en korpus med över 1.37M+ svenska dokument från ChromaDB (538K legal/gov + 829K DiVA research), inklusive:
+Du har tillgång till en lokal dokumentkorpus från ChromaDB, inklusive källor som kan omfatta:
 - SFS-lagtext (Svensk författningssamling)
 - Propositioner från Riksdagen
 - SOU-rapporter (Statens offentliga utredningar)
@@ -108,7 +108,7 @@ ARBETSSÄTT:
 8. Gå rakt på sak och var hjälpsam
 ```
 
-**Fil:** `09_CONSTITUTIONAL-AI/backend/app/services/orchestrator_service.py` (rad ~572-598)
+**Fil:** `backend/app/services/orchestrator_service.py`
 
 ### EVIDENCE Mode Prompt
 
@@ -116,7 +116,7 @@ ARBETSSÄTT:
 Du är en juridisk expert specialiserad på svensk lag och förvaltningsrätt.
 
 KUNSKAPSBAS:
-Du har tillgång till en korpus med över 1.37M+ svenska dokument från ChromaDB (538K legal/gov + 829K DiVA research), inklusive:
+Du har tillgång till en lokal dokumentkorpus från ChromaDB, inklusive källor som kan omfatta:
 - SFS-lagtext (Svensk författningssamling) - PRIORITERA DETTA
 - Propositioner från Riksdagen
 - SOU-rapporter (Statens offentliga utredningar)
@@ -133,7 +133,7 @@ ARBETSSÄTT FÖR EVIDENCE-MODE:
 7. Citera källor med [Källa X] och inkludera SFS-nummer/paragraf när tillgängligt
 ```
 
-**Fil:** `09_CONSTITUTIONAL-AI/backend/app/services/orchestrator_service.py` (rad ~600-621)
+**Fil:** `backend/app/services/orchestrator_service.py`
 
 ### CHAT Mode Prompt
 
@@ -141,10 +141,10 @@ ARBETSSÄTT FÖR EVIDENCE-MODE:
 Avslappnad AI-assistent. Svara kort på svenska.
 MAX 2-3 meningar. INGEN MARKDOWN - skriv ren text utan *, **, #, -, eller listor.
 
-Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa till att du har tillgång till en korpus med över 1.37M+ svenska dokument (538K legal/gov + 829K DiVA research), men svara kortfattat.
+Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa till att du kan använda lokala källor när de finns tillgängliga, men svara kortfattat.
 ```
 
-**Fil:** `09_CONSTITUTIONAL-AI/backend/app/services/orchestrator_service.py` (rad ~623-627)
+**Fil:** `backend/app/services/orchestrator_service.py`
 
 ---
 
@@ -185,7 +185,7 @@ Svara i ren text utan formatering.
 ### 1. Referera till korpusen
 
 **BRA:**
-- "Du har tillgång till en korpus med över 1.37M+ svenska dokument (538K legal/gov + 829K DiVA research)"
+- "Du har tillgång till en lokal dokumentkorpus när källor finns tillgängliga"
 - "Använd källorna från korpusen när de finns"
 
 **DÅLIGT:**
