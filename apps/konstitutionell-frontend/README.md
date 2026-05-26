@@ -1,6 +1,6 @@
 # Frontend: RAG-system för svenska offentliga dokument
 
-React/TypeScript-frontend för portföljprojektet. Gränssnittet är en chat-first forskningsyta där användaren ställer frågor, följer streaming-svar och granskar källor, pipeline-status och källdetaljer från FastAPI-backenden.
+React/TypeScript-frontend för portföljprojektet. Gränssnittet är en chat-first RAG-app där användaren ställer frågor inom samhällspolitik, politisk historia, offentliga institutioner och relaterat vetenskapligt material, följer streaming-svar och granskar källor, pipeline-status och källdetaljer från FastAPI-backenden.
 
 Det här är inte en fristående publik tjänst. Frontenden kräver en körande backend för verkliga RAG-svar.
 
@@ -74,7 +74,7 @@ src/
 ```
 
 The old 3D substrate/source viewer prototype has been removed. Current UI work
-should optimize the chat-first research workflow: questions, streaming answers,
+should optimize the chat-first RAG workflow: questions, streaming answers,
 source/citation review, pipeline status, filters, history and document reading.
 
 ## Backendkoppling

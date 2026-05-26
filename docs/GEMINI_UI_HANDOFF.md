@@ -1,8 +1,9 @@
 # Gemini chat-first UI/UX handoff
 
-This brief is for using Gemini as a visual UI/UX implementation assistant on the
-constitutional RAG project. Keep its task narrow. Do not ask it to redesign the
-backend, indexing, retrieval logic, runtime config or data pipeline.
+This brief is for using Gemini as a visual frontend implementation assistant on
+the constitutional RAG project. Keep its task narrow: make the app nicer to use
+and nicer to look at. Do not ask it to redesign the backend, indexing, retrieval
+logic, runtime config or data pipeline.
 
 ## Current Status
 
@@ -35,12 +36,12 @@ Electron should only be touched for shell/runtime behavior, not visual design.
 ## Product Shape
 
 This is not a marketing landing page and not a dashboard-first tool. It is a
-chat-first research application for Swedish public-document RAG.
+chat-first RAG app for people who want to explore material in samhällspolitik,
+political history, public institutions and related scientific sources.
 
 The primary object is the conversation. The first screen should immediately feel
-like a serious research chat where the user can ask a question, see whether the
-system is ready, and understand that answers will be grounded in public-document
-sources.
+like a useful chat app: the user can ask something, get a streamed answer, and
+open the sources behind the answer without the interface getting in the way.
 
 The chat should be the center of gravity:
 
@@ -50,14 +51,29 @@ The chat should be the center of gravity:
 - compact readiness/model/runtime status where it matters
 - recent questions or history available without dominating the screen
 
-Cool supporting features should exist around the chat, not replace it:
+Cool supporting features should exist around the chat, but they must stay
+grounded in real data from the backend:
 
 - source and citation drawer
 - document reader or source detail panel
 - pipeline/status timeline
 - filters/facets for narrowing sources
 - technical inspector as an advanced secondary view
-- keyboard-friendly controls for repeated research queries
+- keyboard-friendly controls for repeated queries
+
+## Context Hygiene
+
+Do not let old markdown files redefine the product. For Gemini UI work, treat
+only these files as current context unless the user explicitly points to
+something else:
+
+- `docs/GEMINI_UI_HANDOFF.md`
+- `apps/konstitutionell-frontend/README.md`
+- `apps/konstitutionell-frontend/src/**`
+
+Historical notes, old screenshots, old prototype descriptions and broad AI
+architecture docs are not visual requirements. If a document conflicts with the
+current UI or API implementation, follow the implementation.
 
 ## Hard Constraints
 
@@ -66,10 +82,12 @@ Cool supporting features should exist around the chat, not replace it:
 - Do not change API endpoint paths or response contracts.
 - Do not remove SSE streaming behavior.
 - Do not fake live data, source scores, citations or readiness.
-- Do not present the system as a public product or legal advice tool.
+- Do not write political opinions, slogans, conclusions, guarantees or product
+  promises into the UI.
 - Do not add new design frameworks unless explicitly approved.
 - Keep `nodeIntegration: false` and `contextIsolation: true` in Electron.
-- Keep Swedish domain terminology accurate.
+- Keep Swedish domain terminology accurate, but avoid writing policy claims or
+  generated explanatory essays in the UI.
 
 Allowed write scope for visual UI work:
 
@@ -91,12 +109,12 @@ Ask before touching:
 
 ## Visual Direction
 
-Prefer a calm, professional chat-first research workspace:
+Prefer a cool, polished chat-first RAG frontend:
 
 - dense but readable layout
 - strong information hierarchy
 - chat as the primary first impression
-- clear source review
+- clear source access
 - less decorative motion
 - restrained dark theme or polished neutral theme
 - accessible contrast
@@ -111,7 +129,7 @@ Avoid:
 - dashboard-first layouts that make the query feel secondary
 - oversized gradients and glowing decoration
 - hiding citations behind pretty cards
-- UI text that claims the system is production-ready
+- UI text that invents capabilities, ideology, guarantees or product promises
 
 ## Current Frontend Files To Inspect First
 
@@ -155,16 +173,16 @@ unless there is a narrow, justified reason.
 Use this as the starting prompt:
 
 ```text
-You are working only on the React/Vite frontend of a Swedish public-document RAG application.
+You are working only on the React/Vite frontend of a Swedish domain RAG app.
 
 Repo path: apps/konstitutionell-frontend
 
 Read docs/GEMINI_UI_HANDOFF.md and apps/konstitutionell-frontend/README.md first.
 
 Goal:
-Improve the visual UI/UX of the existing app as a chat-first research experience without changing backend contracts, SSE behavior, data models, or runtime scripts.
+Make the existing app feel like a cool, polished, chat-first RAG frontend for samhällspolitik, political history, public institutions and related scientific material.
 
-Make chat the center of gravity. Cool features should support the chat, not replace it.
+Make chat the center of gravity. Cool features should support the chat, not replace it. Do not invent product claims, political framing, AI safety text, fake readiness, fake citations or fake source scores.
 
 Primary screens:
 - initial chat/search state
@@ -176,7 +194,7 @@ Primary screens:
 - technical inspector as a secondary advanced view
 
 Design direction:
-Professional research chat, dense but readable, source-first, calm, high-trust Swedish public-document tooling. Do not make a marketing landing page or a dashboard-first layout. Do not fake readiness, citations or live data.
+Polished chat app, dense but readable, source-aware, visually sharp, useful for repeated personal use. Do not make a marketing landing page or a dashboard-first layout. Do not add long explanatory AI text. Do not fake readiness, citations or live data.
 
 Allowed write scope:
 - apps/konstitutionell-frontend/src/**
