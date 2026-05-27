@@ -160,7 +160,7 @@ export function HeroSection() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3 px-1">
           {/* Brand with subtle gradient accent */}
           <h1 className="text-xl sm:text-2xl font-light tracking-widest text-stone-900">
-            <span className="bg-gradient-to-r from-stone-900 via-teal-800 to-stone-900 bg-clip-text text-transparent animate-gradient">KONSTITUTIONELLA SWERAG</span>{" "}
+            <span className="bg-gradient-to-r from-stone-900 via-teal-800 to-stone-900 bg-clip-text text-transparent animate-gradient">SVENSK RAG</span>{" "}
             <span className="text-teal-700 font-mono text-[10px] sm:text-xs ml-1 sm:ml-2">v3.0</span>
           </h1>
 

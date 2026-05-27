@@ -1,5 +1,5 @@
 [project]
-name = "constitutional-ai"
+name = "svensk-rag"
 version = "1.0.0"
 description = "Swedish government document RAG system with 535K+ indexed documents"
 readme = "README.md"

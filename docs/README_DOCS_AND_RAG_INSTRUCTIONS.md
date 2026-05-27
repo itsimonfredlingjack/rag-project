@@ -4,6 +4,8 @@
 
 ## Kanoniska RAG-instruktioner (hur projektet ska byggas)
 
+**Rule:** “Before major backend/frontend/RAG changes, run/update the system snapshot and update Mermaid diagrams if architecture changed.”
+
 För **modellval, stack, retrieval-arkitektur och migrationsbeslut** gäller:
 
 - **`docs/deep-research-by-claude.md`** – Rekommenderad 2026-stack (Jina v3, Gemma 3 / Ministral 3, n-gram speculation, hybrid search, Qdrant, etc.)
