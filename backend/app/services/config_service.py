@@ -1,6 +1,6 @@
 """
-Config Service - Centralized Configuration for Constitutional AI
-Wraps pydantic-settings with environment variable support
+Config Service - Centralized configuration for Svensk RAG.
+Wraps pydantic-settings with environment variable support.
 """
 
 import os
@@ -26,7 +26,7 @@ class ConfigSettings(BaseSettings):
     )
 
     # Application
-    app_name: str = "Constitutional AI"
+    app_name: str = "Svensk RAG"
     app_version: str = "2.0.0"
     debug: bool = False
 
@@ -53,7 +53,7 @@ class ConfigSettings(BaseSettings):
     expected_embedding_dim: int = 1024
     embedding_collection_suffix: str = "_jina_v3_1024"
 
-    # LLM Configuration (Constitutional AI)
+    # LLM Configuration (legacy key names kept for compatibility)
     constitutional_model: str = "gemma3:12b"
     # Intentionally same as primary — no separate fallback model downloaded
     constitutional_fallback: str = "gemma3:12b"
@@ -183,7 +183,7 @@ class ConfigSettings(BaseSettings):
     # Mock Data (for local development only)
     use_mock_data: bool = False
 
-    # Structured Output & Critic→Revise Loop (Constitutional AI)
+    # Structured Output & Critic→Revise Loop
     structured_output_enabled: bool = True
     critic_revise_enabled: bool = True  # Enabled for answer quality improvement
     critic_max_revisions: int = 1  # One revision attempt before fallback

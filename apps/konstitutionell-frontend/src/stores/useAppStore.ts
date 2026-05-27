@@ -13,7 +13,7 @@ import type {
 } from "../types/queryResult";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8900";
-const API_ENDPOINT = `${BACKEND_URL}/api/constitutional/agent/query/stream`;
+const API_ENDPOINT = `${BACKEND_URL}/api/svensk-rag/agent/query/stream`;
 
 // Prevent overlapping streams when user iterates quickly.
 let activeAbortController: AbortController | null = null;

@@ -34,7 +34,7 @@ export function TrustHull() {
           <Shield className="w-5 h-5 text-teal-700" strokeWidth={1.5} />
           {!isHeroMode && (
             <span className="text-sm font-medium tracking-wider">
-              <span className="bg-gradient-to-r from-stone-800 via-teal-700 to-stone-800 bg-clip-text text-transparent animate-gradient">KONSTITUTIONELLA SWERAG</span>{" "}
+              <span className="bg-gradient-to-r from-stone-800 via-teal-700 to-stone-800 bg-clip-text text-transparent animate-gradient">SVENSK RAG</span>{" "}
               <span className="text-text-muted font-mono text-xs">v3.0</span>
             </span>
           )}

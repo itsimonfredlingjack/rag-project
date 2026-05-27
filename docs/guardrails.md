@@ -32,7 +32,7 @@ Innan du påstår att en endpoint saknas:
 
 | Tjänst                    | Status     | Port | Autostart   |
 |---------------------------|------------|------|-------------|
-| Constitutional AI Backend | 🟢 Active  | 8900 | ✅ Enabled  |
+| Svensk RAG Backend | 🟢 Active  | 8900 | ✅ Enabled  |
 | Simons AI Backend         | 🔴 Removed | -    | ❌ Disabled |
 
 ### Before Starting Anything

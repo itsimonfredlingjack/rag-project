@@ -3,14 +3,14 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "constitutional-ai-backend"
+name = "svensk-rag-backend"
 version = "2.0.0"
-description = "Backend for Constitutional AI - Swedish legal document RAG system"
+description = "Backend for Svensk RAG - Swedish legal document RAG system"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "Constitutional AI", email = "constitutional@example.com"}
+    {name = "Svensk RAG", email = "contact@example.com"}
 ]
 keywords = ["rag", "legal", "swedish", "chromadb", "fastapi", "llama-cpp"]
 classifiers = [
@@ -49,7 +49,7 @@ dev = [
 ]
 
 [project.scripts]
-constitutional-ai = "app.main:main"
+svensk-rag = "app.main:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

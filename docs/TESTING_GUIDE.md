@@ -1,7 +1,7 @@
-# Constitutional AI - Testing Guide
+# Svensk RAG - Testing Guide
 
 ## Overview
-Comprehensive testing guide for Constitutional AI RAG system.
+Comprehensive testing guide for Svensk RAG RAG system.
 
 ## Quick Start
 

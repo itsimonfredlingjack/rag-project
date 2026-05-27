@@ -1,4 +1,4 @@
-# Constitutional AI Architecture Map
+# Svensk RAG Architecture Map
 
 **Project**: Swedish Legal Document RAG System  
 **Base Path**: `/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/`  

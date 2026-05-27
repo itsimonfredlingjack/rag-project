@@ -1,4 +1,4 @@
-# Architectural Analysis - Constitutional AI Backend
+# Architectural Analysis - Svensk RAG Backend
 
 **Date**: 2025-01-15  
 **Codebase**: `/backend/app/`  
@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-The Constitutional AI backend follows a **Service-Oriented Architecture (SOA)** with a central **Orchestrator Pattern**. The architecture demonstrates good separation of concerns with clear service boundaries, but shows signs of architectural debt in the form of an oversized orchestrator service and tight coupling through singleton factories.
+The Svensk RAG backend follows a **Service-Oriented Architecture (SOA)** with a central **Orchestrator Pattern**. The architecture demonstrates good separation of concerns with clear service boundaries, but shows signs of architectural debt in the form of an oversized orchestrator service and tight coupling through singleton factories.
 
 **Overall Assessment**: ⚠️ **Good foundation, but needs refactoring for scalability**
 

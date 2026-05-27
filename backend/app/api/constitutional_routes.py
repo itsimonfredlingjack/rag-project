@@ -1,5 +1,5 @@
 """
-Constitutional AI Dashboard API Routes v2
+Svensk RAG Dashboard API Routes v2
 Refactored with Service Layer Architecture
 """
 
@@ -23,7 +23,7 @@ from ..services.retrieval_service import RetrievalStrategy
 from ..services.sse_stream_service import SSEStreamService
 from ..services.stream_resumption_service import get_stream_resumption_service
 
-router = APIRouter(prefix="/api/constitutional", tags=["constitutional"])
+router = APIRouter(tags=["constitutional"])
 logger = logging.getLogger(__name__)
 
 
@@ -277,7 +277,7 @@ async def health_check(
     orchestrator: OrchestratorService = Depends(get_orchestrator_service),
 ):
     """
-    Health check for Constitutional AI services.
+    Health check for Svensk RAG services.
     Returns Orchestrator status and child service health.
     """
     status = await orchestrator.health_check()
@@ -782,7 +782,7 @@ async def agent_query_stream_resume(
 async def harvest_websocket(websocket: WebSocket):
     """
     WebSocket endpoint for live harvest progress updates.
-    Constitutional AI document harvesting status.
+    Svensk RAG document harvesting status.
     """
     await websocket.accept()
     try:

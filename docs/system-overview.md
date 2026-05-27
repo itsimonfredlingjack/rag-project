@@ -1,4 +1,4 @@
-# Constitutional AI - System Overview
+# Svensk RAG - System Overview
 
 > Svenska myndighetsdokument - sökning, analys och RAG
 
@@ -80,7 +80,7 @@ This page is an active operations overview for the current runtime stack.
 
 | Service | Port | Status | Purpose |
 |---------|------|--------|---------|
-| Constitutional AI Backend | 8900 | 🟢 Active | FastAPI RAG API |
+| Svensk RAG Backend | 8900 | 🟢 Active | FastAPI RAG API |
 | ChromaDB | local | Active | Vector database |
 | llama-server | 8080 | Running | Local LLM inference (OpenAI-compatible) |
 | Ollama | 11434 | Optional | Optional fallback only |
@@ -90,7 +90,7 @@ This page is an active operations overview for the current runtime stack.
 
 | Tjänst                    | Status     | Port | Autostart   |
 |---------------------------|------------|------|-------------|
-| Constitutional AI Backend | 🟢 Active  | 8900 | ✅ Enabled  |
+| Svensk RAG Backend | 🟢 Active  | 8900 | ✅ Enabled  |
 | Simons AI Backend         | 🔴 Removed | -    | ❌ Disabled |
 
 **Bekräftade Ändringar:**
@@ -113,7 +113,7 @@ journalctl --user -u constitutional-ai-backend -f
 
 **API Base URL:** `http://localhost:8900/api/constitutional`
 
-All Constitutional AI-logik är nu fristående i `09_CONSTITUTIONAL-AI/backend/` med egen systemd service! 🚀
+All Svensk RAG-logik är nu fristående i `09_CONSTITUTIONAL-AI/backend/` med egen systemd service! 🚀
 
 ---
 

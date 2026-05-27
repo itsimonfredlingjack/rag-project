@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 
 echo -e "${CYAN}"
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║       CONSTITUTIONAL AI RAG - OLLAMA FALLBACK               ║"
+echo "║          SVENSK RAG - OLLAMA FALLBACK                       ║"
 echo "║          12GB VRAM - OpenAI Compatible API                 ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"

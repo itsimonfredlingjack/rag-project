@@ -1,4 +1,4 @@
-# Modelloptimering - Constitutional AI
+# Modelloptimering - Svensk RAG
 
 > Dokumentation av modellparametrar, system prompts och best practices för prompt engineering
 
@@ -8,7 +8,7 @@
 
 ## Översikt
 
-Constitutional AI använder Ollama med lokala modeller för att svara på frågor baserat på en korpus med över 1.37M+ svenska dokument (538K legal/gov + 829K DiVA research).
+Svensk RAG använder Ollama med lokala modeller för att svara på frågor baserat på en korpus med över 1.37M+ svenska dokument (538K legal/gov + 829K DiVA research).
 
 ### Modeller
 
@@ -88,7 +88,7 @@ Constitutional AI använder Ollama med lokala modeller för att svara på frågo
 ### ASSIST Mode Prompt
 
 ```
-Du är Constitutional AI, en expert på svensk lag och myndighetsförvaltning.
+Du är Svensk RAG, en expert på svensk lag och myndighetsförvaltning.
 
 KUNSKAPSBAS:
 Du har tillgång till en korpus med över 1.37M+ svenska dokument från ChromaDB (538K legal/gov + 829K DiVA research), inklusive:

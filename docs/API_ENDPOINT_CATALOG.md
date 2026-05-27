@@ -1,6 +1,6 @@
 # API Endpoint Catalog & Validation Status
 
-**Project**: Constitutional AI Backend
+**Project**: Svensk RAG Backend
 **Framework**: FastAPI 0.109+
 **Base URL**: \`http://localhost:8900\`
 **API Version**: v2
@@ -23,7 +23,7 @@
 
 ### 1.1 GET /api/constitutional/health
 
-**Purpose**: Health check for Constitutional AI services  
+**Purpose**: Health check for Svensk RAG services  
 **Validation**: Full Pydantic validation ✓  
 **Auth**: None (public)
 

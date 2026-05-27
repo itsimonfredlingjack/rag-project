@@ -1,4 +1,4 @@
-# Technical Debt Analysis - Constitutional AI Backend
+# Technical Debt Analysis - Svensk RAG Backend
 
 **Analysis Date:** 2026-01-11  
 **Codebase:** `/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/backend`  

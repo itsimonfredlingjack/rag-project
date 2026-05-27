@@ -1,6 +1,6 @@
 """
-Application configuration for Constitutional AI Backend
-Environment variables and settings
+Application configuration for Svensk RAG Backend.
+Environment variables and settings.
 """
 
 from functools import lru_cache
@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     """Application settings with environment variable support"""
 
     # Application
-    app_name: str = "Constitutional AI Backend"
+    app_name: str = "Svensk RAG Backend"
     app_version: str = "2.0.0"
     debug: bool = False
 

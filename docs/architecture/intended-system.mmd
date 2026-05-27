@@ -1,0 +1,33 @@
+flowchart TB
+  classDef current fill:#ecfeff,stroke:#0ea5e9,color:#0f172a;
+  classDef target fill:#f0fdf4,stroke:#22c55e,color:#0f172a;
+  classDef governance fill:#fff7ed,stroke:#f97316,color:#0f172a;
+
+  subgraph Experience[Produktupplevelse]
+    FE[Frontend + SSE + evidensvy]:::current
+    OBS[Runbook + snapshot-regel\n(obligatorisk uppdatering före större ändringar)]:::governance
+  end
+
+  subgraph Runtime[Svensk RAG Runtime]
+    API[API-prefix: /api/svensk-rag/*\nlegacy /api/constitutional/* under avveckling]:::target
+    ORCH[OrchestratorService + guardrails]:::current
+    RET[Hybrid retrieval\nDense + BM25 + EPR]:::current
+    LLM[LLMService via Ollama/lokal modell]:::current
+  end
+
+  subgraph Data[Dataplattform]
+    CHROMA[ChromaDB collections]:::current
+    BM25[BM25 FTS5 index]:::current
+    SNAP[docs/SYSTEM_SNAPSHOT.md\nmaskingenererad källfil]:::target
+    MMD[current-system.mmd + intended-system.mmd]:::target
+  end
+
+  FE --> API --> ORCH --> RET
+  RET --> CHROMA
+  RET --> BM25
+  ORCH --> LLM --> FE
+
+  OBS --> SNAP
+  OBS --> MMD
+  SNAP --> API
+  SNAP --> RET

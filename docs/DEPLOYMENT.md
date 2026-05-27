@@ -1,4 +1,4 @@
-# Deployment Guide — Constitutional AI
+# Deployment Guide — Svensk RAG
 
 Production deployment guide for the Swedish government document RAG system.
 
