@@ -1,4 +1,4 @@
-# Constitutional AI Backend API Documentation
+# Svensk RAG Backend API Documentation
 
 **Version:** 2.0.0  
 **Base URL:** `http://localhost:8900`  

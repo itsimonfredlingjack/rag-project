@@ -1,11 +1,11 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Constitutional AI Backend API",
+    "title": "Svensk RAG Backend API",
     "description": "FastAPI backend for Swedish legal document RAG system",
     "version": "2.0.0",
     "contact": {
-      "name": "Constitutional AI",
+      "name": "Svensk RAG",
       "email": "constitutional@example.com"
     },
     "license": {
@@ -25,7 +25,7 @@
   "tags": [
     {
       "name": "constitutional",
-      "description": "Constitutional AI RAG endpoints"
+      "description": "Svensk RAG RAG endpoints"
     },
     {
       "name": "health",

@@ -1,4 +1,4 @@
-# Constitutional AI - Development Guide
+# Svensk RAG - Development Guide
 
 ## Build/Test Commands
 ```bash
