@@ -92,6 +92,42 @@ product guarantees.
 Result artifact:
 `backend/evals/results/public_demo_eval_ais155_20260530.json`
 
+## Restore Released Public Corpus
+
+The generated public JSONL and BM25/FTS5 index are published outside Git as a
+GitHub Release asset. They are intentionally not committed to the repository.
+
+| Field | Value |
+| --- | --- |
+| Release tag | `public-riksdag-corpus-20260602` |
+| Asset | `public-riksdag-corpus-20260602.tar.zst` |
+| Bundle SHA256 | `e2f9154e122b01cd93133888fa0476f274cd8f00b6a3fbce822bb946e8b0bbac` |
+| Extracted size | `4120238080` bytes |
+
+Restore the corpus to the runtime default path:
+
+```bash
+curl -L \
+  -o /tmp/public-riksdag-corpus-20260602.tar.zst \
+  https://github.com/itsimonfredlingjack/rag-project/releases/download/public-riksdag-corpus-20260602/public-riksdag-corpus-20260602.tar.zst
+
+echo "e2f9154e122b01cd93133888fa0476f274cd8f00b6a3fbce822bb946e8b0bbac  /tmp/public-riksdag-corpus-20260602.tar.zst" \
+  | sha256sum -c -
+
+mkdir -p /home/ai-server2/rag/local-data-public
+tar -I zstd -xf /tmp/public-riksdag-corpus-20260602.tar.zst \
+  -C /home/ai-server2/rag/local-data-public
+```
+
+The archive contains:
+
+- `riksdag/docs.jsonl`
+- `riksdag/bm25_fts5/bm25.db`
+- `riksdag/manifest.json`
+- `riksdag/docs.checkpoint.json`
+- `SHA256SUMS`
+- `README.md`
+
 ## Build The Public JSONL
 
 Run from the repository root. The default input path falls back to the recovered
@@ -106,7 +142,7 @@ Useful explicit form:
 
 ```bash
 python3 scripts/build_public_riksdag_jsonl.py \
-  --input /home/ai-server2/rag/local-data-private/docs.jsonl \
+  --input /path/to/recovered-riksdag-source/docs.jsonl \
   --output /home/ai-server2/rag/local-data-public/riksdag/docs.jsonl \
   --start-row 7842 \
   --end-row 237984
