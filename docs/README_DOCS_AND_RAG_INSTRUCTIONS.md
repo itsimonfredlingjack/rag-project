@@ -9,6 +9,7 @@ delas offentligt som portföljcase.
 - `docs/PORTFOLIO_CASE.md` - kortare case-sida för snabb överblick.
 - `docs/QUICK_START.md` - lokal snabbstart utan privat ChromaDB-data.
 - `docs/ARCHITECTURE.md` - teknisk arkitektur.
+- `docs/MODEL_POLICY.md` - modellval, godkända runtime-principer och ändringsprocess.
 - `docs/TESTING_GUIDE.md` - testkommandon och vad som kräver lokal runtime.
 
 ## Historiskt Och Internt Material
@@ -24,7 +25,7 @@ delas offentligt som portföljcase.
 Kör gärna docs-checken innan publicering:
 
 ```bash
-python scripts/check_docs_canonical.py
+python3 scripts/check_docs_canonical.py
 ```
 
 Publika docs ska inte innehålla secrets, privata absoluta servervägar eller

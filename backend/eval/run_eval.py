@@ -34,7 +34,7 @@ import httpx
 from .golden_dataset import DifficultyLevel, EvalMode, load_golden_dataset
 from .ragas_eval import EvalHarness, PipelineResponse
 
-API_BASE = "http://localhost:8900/api/constitutional"
+API_BASE = "http://localhost:8900/api/svensk-ragg"
 QUERY_ENDPOINT = f"{API_BASE}/agent/query"
 HEALTH_ENDPOINT = f"{API_BASE}/health"
 
@@ -126,7 +126,7 @@ async def run_eval(
 
     total = len(items)
     print(f"\n{'=' * 60}")
-    print("  Constitutional AI — RAG Evaluation")
+    print("  Svensk Ragg — RAG Evaluation")
     print(f"  Dataset: golden_{dataset.version} ({dataset.count} items)")
     print(f"  Running: {total} items", end="")
     if mode_filter:

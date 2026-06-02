@@ -1,5 +1,5 @@
 """
-RAG Pipeline Models — Data containers for the Constitutional AI RAG system.
+RAG Pipeline Models — Data containers for the Svensk Ragg RAG system.
 
 Extracted from orchestrator_service.py to enable clean imports without
 pulling in the entire orchestrator dependency chain.
@@ -245,6 +245,9 @@ class RAGResult:
     thought_chain: Optional[str] = None
     citations: List[Citation] = field(default_factory=list)
     intent: Optional[str] = None
+    retrieval_metadata: Dict[str, Any] = field(default_factory=dict)
+    refusal_reason: Optional[str] = None
+    data_source_attribution: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-serializable dict"""

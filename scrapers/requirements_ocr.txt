@@ -1,4 +1,4 @@
-# OCR Dependencies for Constitutional AI
+# OCR Dependencies for Svensk Ragg
 # Install with: pip install -r requirements_ocr.txt
 
 # PDF Processing

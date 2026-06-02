@@ -1,5 +1,5 @@
 """
-LLM Service - Ollama Wrapper for Constitutional AI
+LLM Service - Ollama Wrapper for Svensk Ragg
 Handles all LLM interactions with streaming and model fallback
 """
 

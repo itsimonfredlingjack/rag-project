@@ -1,26 +1,28 @@
-"""
-Simple API key authentication for write operations.
+"""API key authentication for write operations."""
 
-Usage:
-    @router.post("/endpoint")
-    async def endpoint(api_key: str = Depends(require_write_access)):
-        ...
-
-Configure via environment variable:
-    CONST_API_KEY=your-secret-key
-
-If CONST_API_KEY is not set, write operations are open (development mode).
-"""
-
+import hmac
 import os
 from typing import Optional
 
 from fastapi import Header, HTTPException, status
 
+PUBLIC_PROFILE = "public-riksdag-demo"
+PRIVATE_PROFILE = "private-swedish-legal-lab"
+TRUE_VALUES = {"1", "true", "yes", "on"}
+
 
 def _get_configured_api_key() -> Optional[str]:
     """Get the configured API key from environment."""
-    return os.environ.get("CONST_API_KEY")
+    api_key = os.environ.get("CONST_API_KEY", "").strip()
+    return api_key or None
+
+
+def _env_truthy(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in TRUE_VALUES
+
+
+def _current_profile() -> str:
+    return os.environ.get("CONST_PROFILE", PRIVATE_PROFILE).strip() or PRIVATE_PROFILE
 
 
 async def require_write_access(
@@ -29,16 +31,31 @@ async def require_write_access(
     """
     Dependency that requires a valid API key for write operations.
 
-    If CONST_API_KEY is not configured, all requests are allowed (dev mode).
-    If configured, requests must include a matching X-API-Key header.
+    Write access is fail-closed by default. Unauthenticated writes are only
+    allowed for non-public local development when explicitly enabled with
+    CONST_ALLOW_UNAUTHENTICATED_WRITES=true.
     """
+    profile = _current_profile()
+    if profile == PUBLIC_PROFILE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Document writes are disabled in the public demo profile.",
+        )
+
     configured_key = _get_configured_api_key()
 
     if configured_key is None:
-        # No API key configured — open access (development mode)
-        return None
+        if _env_truthy("CONST_ALLOW_UNAUTHENTICATED_WRITES"):
+            return None
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Document writes require CONST_API_KEY. Set "
+                "CONST_ALLOW_UNAUTHENTICATED_WRITES=true only for local non-public development."
+            ),
+        )
 
-    if not x_api_key or x_api_key != configured_key:
+    if not x_api_key or not hmac.compare_digest(x_api_key, configured_key):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing API key. Provide X-API-Key header.",

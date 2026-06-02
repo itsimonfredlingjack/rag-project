@@ -18,12 +18,12 @@ Innan du påstår att en endpoint saknas:
 
 3. **Read source:**
    ```bash
-   cat 09_CONSTITUTIONAL-AI/backend/app/api/constitutional_routes.py
+   cat 09_CONSTITUTIONAL-AI/backend/app/api/svensk-ragg_routes.py
    ```
 
 4. **Verify endpoint exists:**
    ```bash
-   curl -X POST http://localhost:8900/api/constitutional/search \
+   curl -X POST http://localhost:8900/api/svensk-ragg/search \
      -H "Content-Type: application/json" \
      -d '{"query":"test","limit":10}'
    ```
@@ -34,7 +34,7 @@ Innan du påstår att en endpoint saknas:
 
 | Tjänst                    | Status     | Port | Autostart   |
 |---------------------------|------------|------|-------------|
-| Constitutional AI Backend | 🟢 Active  | 8900 | ✅ Enabled  |
+| Svensk Ragg Backend | 🟢 Active  | 8900 | ✅ Enabled  |
 | Simons AI Backend         | 🔴 Removed | -    | ❌ Disabled |
 
 ### Before Starting Anything
@@ -46,8 +46,8 @@ lsof -i :3001    # Frontend
 lsof -i :8080    # llama-server
 
 # Check systemd services
-systemctl --user status constitutional-ai-backend
-systemctl --user status constitutional-gpt
+systemctl --user status svensk-ragg-backend
+systemctl --user status svensk-ragg-frontend
 
 # Check llama-server health
 curl localhost:8080/health
@@ -61,22 +61,22 @@ curl localhost:8080/health
 
 ```bash
 # Status
-systemctl --user status constitutional-ai-backend
+systemctl --user status svensk-ragg-backend
 
 # Restart
-systemctl --user restart constitutional-ai-backend
+systemctl --user restart svensk-ragg-backend
 
 # Live logs
-journalctl --user -u constitutional-ai-backend -f
+journalctl --user -u svensk-ragg-backend -f
 
 # Stop vid behov
-systemctl --user stop constitutional-ai-backend
+systemctl --user stop svensk-ragg-backend
 ```
 
 ### API Base URL
 
 ```
-http://localhost:8900/api/constitutional
+http://localhost:8900/api/svensk-ragg
 ```
 
 ### Rules
@@ -138,7 +138,7 @@ http://localhost:8900/api/constitutional
 curl http://localhost:8900/api/health | jq .
 
 # Search test
-curl -X POST http://localhost:8900/api/constitutional/search \
+curl -X POST http://localhost:8900/api/svensk-ragg/search \
   -H "Content-Type: application/json" \
   -d '{"query":"regeringsformen","limit":5}' | jq .
 
@@ -192,7 +192,7 @@ constitutional eval --quick --provider lightweight
 npm run dev  # Port 3001 already in use!
 
 # Restarting service without asking
-systemctl --user restart constitutional-gpt  # NEVER without permission!
+systemctl --user restart svensk-ragg-frontend  # NEVER without permission!
 
 # Assuming endpoint exists
 curl http://localhost:8900/api/chat  # Doesn't exist!

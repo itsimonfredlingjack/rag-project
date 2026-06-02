@@ -1,5 +1,5 @@
 """
-Config Service - Centralized Configuration for Constitutional AI
+Config Service - Centralized Configuration for Svensk Ragg
 Wraps pydantic-settings with environment variable support
 """
 
@@ -8,11 +8,31 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from ..utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+EXCLUDED_MODEL_FAMILIES: tuple[str, ...] = ("qwen", "qwq", "deepseek")
+PRIVATE_LAB_PROFILE = "private-swedish-legal-lab"
+PUBLIC_RIKSDAG_PROFILE = "public-riksdag-demo"
+PRIVATE_CORPUS_SCOPE = "mixed_recovered_corpus"
+PUBLIC_RIKSDAG_CORPUS_SCOPE = "riksdagen_open_data_only"
+PUBLIC_RIKSDAG_DATA_ROOT = "/home/ai-server2/rag/local-data-public/riksdag"
+PUBLIC_RIKSDAG_MODEL = "gemma3:4b"
+
+
+def _enforce_model_policy(model_id: str) -> str:
+    """Reject runtime model families excluded by repository policy."""
+    normalized = (model_id or "").casefold()
+    if any(family in normalized for family in EXCLUDED_MODEL_FAMILIES):
+        raise ValueError(
+            "model family is excluded by repo model policy; "
+            "choose an approved local model family such as Gemma or Mistral"
+        )
+    return model_id
 
 
 class ConfigSettings(BaseSettings):
@@ -23,18 +43,22 @@ class ConfigSettings(BaseSettings):
         env_file_encoding="utf-8",
         env_prefix="CONST_",  # All env vars start with CONST_
         extra="ignore",  # Ignore extra env vars
+        populate_by_name=True,
     )
 
     # Application
-    app_name: str = "Constitutional AI"
+    app_name: str = "Svensk Ragg"
     app_version: str = "2.0.0"
     debug: bool = False
+    profile: str = PRIVATE_LAB_PROFILE
+    corpus_scope: str = PRIVATE_CORPUS_SCOPE
 
     # Server
     host: str = "0.0.0.0"
     port: int = 8900
 
     # ChromaDB Configuration
+    chromadb_enabled: bool = True
     chromadb_path: str = "chromadb_data"
     pdf_cache_path: str = "pdf_cache"
 
@@ -53,10 +77,18 @@ class ConfigSettings(BaseSettings):
     expected_embedding_dim: int = 1024
     embedding_collection_suffix: str = "_jina_v3_1024"
 
-    # LLM Configuration (Constitutional AI)
-    constitutional_model: str = "gemma3:12b"
+    # LLM Configuration (Svensk Ragg)
+    constitutional_model: str = Field(
+        default="gemma4:e2b",
+        validation_alias=AliasChoices("CONST_SVENSK_RAGG_MODEL", "CONST_CONSTITUTIONAL_MODEL"),
+    )
     # Intentionally same as primary — no separate fallback model downloaded
-    constitutional_fallback: str = "gemma3:12b"
+    constitutional_fallback: str = Field(
+        default="gemma4:e2b",
+        validation_alias=AliasChoices(
+            "CONST_SVENSK_RAGG_FALLBACK", "CONST_CONSTITUTIONAL_FALLBACK"
+        ),
+    )
     llm_timeout: float = 60.0
 
     # LLM Base URL (Ollama, OpenAI-compatible)
@@ -64,7 +96,7 @@ class ConfigSettings(BaseSettings):
     llama_server_base_url: str = "http://localhost:11434"
     llama_server_enabled: bool = False
     llama_server_timeout: float = 120.0
-    gguf_primary_model: str = "gemma3:12b"
+    gguf_primary_model: str = "gemma4:e2b"
     gguf_context_window: int = 16384
     ollama_num_ctx: int = 0  # 0 = let Ollama decide; set to align with source budgeting
 
@@ -184,7 +216,7 @@ class ConfigSettings(BaseSettings):
     # Mock Data (for local development only)
     use_mock_data: bool = False
 
-    # Structured Output & Critic→Revise Loop (Constitutional AI)
+    # Structured Output & Critic→Revise Loop (Svensk Ragg)
     structured_output_enabled: bool = True
     critic_revise_enabled: bool = True  # Enabled for answer quality improvement
     critic_max_revisions: int = 1  # One revision attempt before fallback
@@ -197,7 +229,7 @@ class ConfigSettings(BaseSettings):
     crag_enabled: bool = True  # Enabled - filters irrelevant docs before LLM generation
     crag_grade_threshold: float = 0.15  # Relevance threshold (lowered for better edge-case recall)
     crag_max_rewrite_attempts: int = 2  # Max query rewrite attempts if no relevant docs
-    crag_grader_model: str = "gemma3:12b"  # Same as primary — single model setup
+    crag_grader_model: str = "gemma4:e2b"  # Same as primary — single model setup
     crag_enable_self_reflection: bool = False  # Chain of Thought before answering
     crag_max_concurrent_grading: int = 5  # Max parallel document grading
     crag_grade_timeout: float = 10.0  # Timeout per document grading in seconds
@@ -221,6 +253,95 @@ class ConfigSettings(BaseSettings):
     intent_llm_fallback_enabled: bool = False  # Off by default — uses GPU for classification
     intent_llm_fallback_timeout: float = 3.0  # Timeout for LLM classification call
     intent_llm_fallback_confidence_threshold: float = 0.50  # Trigger when rule-based < this
+
+    @model_validator(mode="before")
+    @classmethod
+    def apply_runtime_profile_defaults(cls, data):
+        """
+        Apply hard runtime profiles before field validation.
+
+        Public demo mode is deliberately fail-closed: profile-owned paths and
+        feature flags are forced so private/lab stores cannot leak in through
+        inherited environment variables.
+        """
+        values = dict(data or {})
+        profile = str(values.get("profile", PRIVATE_LAB_PROFILE)).strip()
+        if profile != PUBLIC_RIKSDAG_PROFILE:
+            return values
+
+        public_root = PUBLIC_RIKSDAG_DATA_ROOT
+        values.update(
+            {
+                "corpus_scope": PUBLIC_RIKSDAG_CORPUS_SCOPE,
+                "chromadb_enabled": False,
+                "chromadb_path": f"{public_root}/chromadb",
+                "pdf_cache_path": f"{public_root}/pdf_cache",
+                "default_collections": ["riksdag_documents_p1"],
+                "bm25_enabled": True,
+                "bm25_index_path": f"{public_root}/bm25_fts5/bm25.db",
+                "reranking_enabled": False,
+                "crag_enabled": False,
+                "critic_revise_enabled": False,
+                "structured_output_enabled": True,
+                "intent_llm_fallback_enabled": False,
+                "constitutional_model": PUBLIC_RIKSDAG_MODEL,
+                "constitutional_fallback": PUBLIC_RIKSDAG_MODEL,
+                "gguf_primary_model": PUBLIC_RIKSDAG_MODEL,
+                "crag_grader_model": PUBLIC_RIKSDAG_MODEL,
+                "gguf_context_window": 4096,
+                "ollama_num_ctx": 4096,
+                "mode_evidence_temperature": 0.05,
+                "mode_assist_temperature": 0.10,
+                "mode_chat_temperature": 0.20,
+                "CONST_SVENSK_RAGG_MODEL": PUBLIC_RIKSDAG_MODEL,
+                "CONST_CONSTITUTIONAL_MODEL": PUBLIC_RIKSDAG_MODEL,
+                "CONST_SVENSK_RAGG_FALLBACK": PUBLIC_RIKSDAG_MODEL,
+                "CONST_CONSTITUTIONAL_FALLBACK": PUBLIC_RIKSDAG_MODEL,
+                "CONST_GGUF_PRIMARY_MODEL": PUBLIC_RIKSDAG_MODEL,
+                "CONST_CRAG_GRADER_MODEL": PUBLIC_RIKSDAG_MODEL,
+            }
+        )
+        return values
+
+    @model_validator(mode="after")
+    def enforce_public_profile_defaults(self):
+        """Keep public profile hard defaults even when env aliases are present."""
+        if self.profile != PUBLIC_RIKSDAG_PROFILE:
+            return self
+
+        public_root = PUBLIC_RIKSDAG_DATA_ROOT
+        self.corpus_scope = PUBLIC_RIKSDAG_CORPUS_SCOPE
+        self.chromadb_enabled = False
+        self.chromadb_path = f"{public_root}/chromadb"
+        self.pdf_cache_path = f"{public_root}/pdf_cache"
+        self.default_collections = ["riksdag_documents_p1"]
+        self.bm25_enabled = True
+        self.bm25_index_path = f"{public_root}/bm25_fts5/bm25.db"
+        self.reranking_enabled = False
+        self.crag_enabled = False
+        self.critic_revise_enabled = False
+        self.structured_output_enabled = True
+        self.intent_llm_fallback_enabled = False
+        self.constitutional_model = PUBLIC_RIKSDAG_MODEL
+        self.constitutional_fallback = PUBLIC_RIKSDAG_MODEL
+        self.gguf_primary_model = PUBLIC_RIKSDAG_MODEL
+        self.crag_grader_model = PUBLIC_RIKSDAG_MODEL
+        self.gguf_context_window = 4096
+        self.ollama_num_ctx = 4096
+        self.mode_evidence_temperature = 0.05
+        self.mode_assist_temperature = 0.10
+        self.mode_chat_temperature = 0.20
+        return self
+
+    @field_validator(
+        "constitutional_model",
+        "constitutional_fallback",
+        "gguf_primary_model",
+        "crag_grader_model",
+    )
+    @classmethod
+    def validate_runtime_model_policy(cls, model_id: str) -> str:
+        return _enforce_model_policy(model_id)
 
 
 class ConfigService:
@@ -285,12 +406,24 @@ class ConfigService:
         return self._settings.debug
 
     @property
+    def profile(self) -> str:
+        return self._settings.profile
+
+    @property
+    def corpus_scope(self) -> str:
+        return self._settings.corpus_scope
+
+    @property
     def host(self) -> str:
         return self._settings.host
 
     @property
     def port(self) -> int:
         return self._settings.port
+
+    @property
+    def chromadb_enabled(self) -> bool:
+        return self._settings.chromadb_enabled
 
     @property
     def chromadb_path(self) -> str:

@@ -31,21 +31,17 @@ cd rag-project
 cp backend/.env.example backend/.env
 # Edit backend/.env — set CONST_CHROMADB_PATH, CONST_API_KEY, etc.
 
-# 2. Download GGUF model (first time only)
-# Place the model file in the llama_models Docker volume.
-# Choose a local model/runtime and set backend environment variables accordingly.
-mkdir -p llama_models
-# Example (adjust URL to your chosen GGUF source):
-# wget -O llama_models/Ministral-3-14B-Instruct-2512-Q4_K_M.gguf \
-#     https://huggingface.co/.../Ministral-3-14B-Instruct-2512-Q4_K_M.gguf
+# 2. Prepare local model/runtime
+# Current local-demo profile uses Ollama with gemma4:e2b.
+ollama pull gemma4:e2b
 
-# 3. Start services
+# 3. Start backend services
 docker compose up -d
 
 # 4. Verify
-curl http://localhost:8080/health          # llama-server healthy
-curl http://localhost:8900/api/constitutional/health
-curl http://localhost:8900/api/constitutional/ready
+curl http://localhost:11434/api/tags       # Ollama reachable
+curl http://localhost:8900/api/svensk-ragg/health
+curl http://localhost:8900/api/svensk-ragg/ready
 ```
 
 ## Manual Installation (without Docker)
@@ -62,29 +58,36 @@ mkdir -p /path/to/chromadb_data
 
 ### 2. LLM Server
 
-Option A: **llama.cpp (llama-server)** — primary, used in production
+Option A: **Ollama** — current local-demo profile
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull gemma4:e2b
+OLLAMA_MODEL=gemma4:e2b ./start_rag_server_ollama.sh
+```
+
+Set:
+
+```dotenv
+CONST_LLM_BASE_URL=http://localhost:11434
+CONST_SVENSK_RAGG_MODEL=gemma4:e2b
+CONST_SVENSK_RAGG_FALLBACK=gemma4:e2b
+```
+
+Option B: **llama.cpp (llama-server)** — advanced/manual profile
 ```bash
 # Build llama.cpp with CUDA support
 git clone https://github.com/ggerganov/llama.cpp
 cd llama.cpp && make -j$(nproc) LLAMA_CUDA=1
 
-# Download model (current production: Ministral-3-14B-Instruct-2512; see docs/MODEL_OPTIMIZATION.md)
-# wget -O /path/to/models/Ministral-3-14B-Instruct-2512-Q4_K_M.gguf \
-#     https://huggingface.co/.../Ministral-3-14B-Instruct-2512-Q4_K_M.gguf
+# Download a policy-approved GGUF model and set backend environment variables
+# to match the server endpoint and model identifier.
 
 # Start server (OpenAI-compatible API on port 8080)
 ./llama-server \
-    -m /path/to/models/Ministral-3-14B-Instruct-2512-Q4_K_M.gguf \
+    -m /path/to/models/approved-model.gguf \
     --host 0.0.0.0 --port 8080 \
     -c 8192 -ngl 99
-```
-
-Option B: **Ollama** (optional fallback — not used in production)
-```bash
-curl -fsSL https://ollama.com/install.sh | sh
-ollama pull <compatible-model>
-# Runs on http://localhost:11434
-# To use: set CONST_LLM_BASE_URL=http://localhost:11434/v1
 ```
 
 ### 3. Backend
@@ -111,13 +114,13 @@ uvicorn app.main:app --host 0.0.0.0 --port 8900
 
 ```bash
 # Health check (basic)
-curl http://localhost:8900/api/constitutional/health
+curl http://localhost:8900/api/svensk-ragg/health
 
 # Readiness check (deep — verifies ChromaDB, LLM, embeddings)
-curl http://localhost:8900/api/constitutional/ready
+curl http://localhost:8900/api/svensk-ragg/ready
 
 # Test query
-curl -X POST http://localhost:8900/api/constitutional/agent/query \
+curl -X POST http://localhost:8900/api/svensk-ragg/agent/query \
     -H "Content-Type: application/json" \
     -d '{"question": "Vad är personuppgiftslagen?"}'
 ```
@@ -162,13 +165,13 @@ CONST_CORS_ORIGINS=["http://localhost:5173","http://your-frontend:3000"]
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/constitutional/health` | GET | Basic health check |
-| `/api/constitutional/ready` | GET | Deep readiness check |
-| `/api/constitutional/agent/query` | POST | RAG query (30 req/min limit) |
-| `/api/constitutional/agent/query/stream` | POST | SSE streaming RAG (20 req/min) |
-| `/api/constitutional/stats/overview` | GET | Document statistics |
-| `/api/constitutional/collections` | GET | ChromaDB collections |
-| `/api/constitutional/metrics` | GET | RAG pipeline metrics |
+| `/api/svensk-ragg/health` | GET | Basic health check |
+| `/api/svensk-ragg/ready` | GET | Deep readiness check |
+| `/api/svensk-ragg/agent/query` | POST | RAG query (30 req/min limit) |
+| `/api/svensk-ragg/agent/query/stream` | POST | SSE streaming RAG (20 req/min) |
+| `/api/svensk-ragg/stats/overview` | GET | Document statistics |
+| `/api/svensk-ragg/collections` | GET | ChromaDB collections |
+| `/api/svensk-ragg/metrics` | GET | RAG pipeline metrics |
 
 ### Rate Limits
 
@@ -192,10 +195,10 @@ curl -X POST http://localhost:8900/api/documents/ \
 
 ```bash
 # Quick: is the server running?
-GET /api/constitutional/health
+GET /api/svensk-ragg/health
 
 # Deep: are all dependencies (ChromaDB, LLM, embeddings) available?
-GET /api/constitutional/ready
+GET /api/svensk-ragg/ready
 ```
 
 ### Logs
@@ -208,7 +211,7 @@ With `CONST_LOG_JSON=true`, logs are structured JSON for easy parsing:
 ### Prometheus Metrics
 
 ```bash
-GET /api/constitutional/metrics/prometheus
+GET /api/svensk-ragg/metrics/prometheus
 ```
 
 ## Troubleshooting
@@ -219,8 +222,8 @@ GET /api/constitutional/metrics/prometheus
 - Check if another process is holding a lock on the SQLite DB
 
 ### LLM timeouts
-- Verify llama-server is running: `curl http://localhost:8080/health`
-- Check model availability: `curl http://localhost:8080/v1/models`
+- Verify Ollama is running: `curl http://localhost:11434/api/tags`
+- Check model availability: `ollama list | grep gemma4:e2b`
 - Increase timeout: `CONST_LLM_TIMEOUT=120`
 - Check GPU memory — the model may not be fully loaded
 
@@ -234,7 +237,6 @@ GET /api/constitutional/metrics/prometheus
 - Wait for the `retry_after` period indicated in the 429 response
 
 ### Out of GPU memory
-- Reduce context window: `-c 16384` in llama-server command
-- Use a smaller model quantization (Q4_K_M instead of Q5_K_M)
-- Reduce GPU layers: `-ngl 40` instead of `-ngl 99`
+- Reduce `CONST_CONTEXT_WINDOW`
+- Use the smaller current demo profile (`gemma4:e2b`) before testing larger candidates
 - Disable reranking: `CONST_RERANKING_ENABLED=false`

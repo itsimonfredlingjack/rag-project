@@ -1,4 +1,4 @@
-# Technical Debt Analysis - Constitutional AI Backend
+# Technical Debt Analysis - Svensk Ragg Backend
 
 **Analysis Date:** 2026-01-11  
 **Codebase:** `backend/`

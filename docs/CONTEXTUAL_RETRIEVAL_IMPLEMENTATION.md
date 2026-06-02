@@ -86,7 +86,7 @@ print(f"Indexed {result['total_chunks_indexed']} chunks from {result['documents_
 ## 🔧 Konfiguration
 
 ### LLM för Kontextgenerering
-- **Default**: Qwen2.5-0.5B-Instruct-Q8_0.gguf (lättviktig modell)
+- **Default**: samma policy-godkända lokala LLM som används av backendprofilen
 - **Temperature**: 0.3 (låg för faktabaserade sammanfattningar)
 - **Max tokens**: 150 (korta sammanfattningar)
 

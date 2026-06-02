@@ -1,0 +1,22 @@
+[Unit]
+Description=Svensk Ragg Backend
+After=network.target svensk-ragg-llm.service
+Wants=svensk-ragg-llm.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/rag-project/backend
+Environment="PATH=/opt/rag-project/backend/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="RAG_SIMILARITY_THRESHOLD=0.01"
+ExecStart=/opt/rag-project/backend/.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8900
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Graceful shutdown
+TimeoutStopSec=30
+KillMode=mixed
+
+[Install]
+WantedBy=default.target

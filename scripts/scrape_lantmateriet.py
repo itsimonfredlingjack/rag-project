@@ -53,7 +53,7 @@ class LantmaterietScraper:
     def __init__(self):
         self.session = requests.Session()
         self.session.headers.update(
-            {"User-Agent": "Mozilla/5.0 (Government Document Archiver; Constitutional AI Research)"}
+            {"User-Agent": "Mozilla/5.0 (Government Document Archiver; Svensk Ragg Research)"}
         )
 
         self.chroma_client = chromadb.PersistentClient(

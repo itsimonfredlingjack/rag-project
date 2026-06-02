@@ -1,5 +1,5 @@
 """
-Rate Limiting — Request throttling for Constitutional AI API.
+Rate Limiting — Request throttling for Svensk Ragg API.
 
 Uses slowapi (built on limits + starlette).
 Configure via CONST_RATE_LIMIT_* environment variables.

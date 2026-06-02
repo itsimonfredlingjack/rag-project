@@ -1,4 +1,4 @@
-"""Unit tests for Constitutional AI API endpoints."""
+"""Unit tests for Svensk Ragg API endpoints."""
 
 import json
 
@@ -237,7 +237,8 @@ async def test_documents_list_empty(async_client, mock_retrieval_service):
 
 
 @pytest.mark.unit
-async def test_documents_create_happy_path(async_client, mock_retrieval_service):
+async def test_documents_create_happy_path(async_client, mock_retrieval_service, monkeypatch):
+    monkeypatch.setenv("CONST_API_KEY", "test-secret")
     mock_coll = MagicMock()
     mock_coll.add = MagicMock()
     mock_coll.get = MagicMock(return_value={"ids": []})
@@ -245,6 +246,7 @@ async def test_documents_create_happy_path(async_client, mock_retrieval_service)
     mock_retrieval_service._chromadb_client.get_collection = MagicMock(return_value=mock_coll)
     response = await async_client.post(
         "/api/documents",
+        headers={"X-API-Key": "test-secret"},
         json={"content": "All offentlig makt utgar fran folket.", "collection": "testcoll"},
     )
     assert response.status_code == 201
@@ -254,18 +256,22 @@ async def test_documents_create_happy_path(async_client, mock_retrieval_service)
 
 
 @pytest.mark.unit
-async def test_documents_create_invalid_collection(async_client):
+async def test_documents_create_invalid_collection(async_client, monkeypatch):
+    monkeypatch.setenv("CONST_API_KEY", "test-secret")
     response = await async_client.post(
         "/api/documents",
+        headers={"X-API-Key": "test-secret"},
         json={"content": "Some content", "collection": "invalid$name!"},
     )
     assert response.status_code == 422
 
 
 @pytest.mark.unit
-async def test_documents_create_missing_content(async_client):
+async def test_documents_create_missing_content(async_client, monkeypatch):
+    monkeypatch.setenv("CONST_API_KEY", "test-secret")
     response = await async_client.post(
         "/api/documents",
+        headers={"X-API-Key": "test-secret"},
         json={"collection": "test_collection"},
     )
     assert response.status_code == 422

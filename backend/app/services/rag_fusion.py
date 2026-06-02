@@ -22,6 +22,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set
 
+from ..shared.public_source_guard import validate_public_records
+
 logger = logging.getLogger("constitutional.rag_fusion")
 
 
@@ -531,6 +533,7 @@ def hybrid_reciprocal_rank_fusion(
     bm25_results: Optional[List[Dict[str, Any]]] = None,
     k: float = 60.0,
     bm25_weight: float = 1.0,
+    public_guard_enabled: bool = False,
 ) -> List[Dict[str, Any]]:
     """
     Hybrid RRF that combines dense and BM25 results.
@@ -559,13 +562,31 @@ def hybrid_reciprocal_rank_fusion(
             bm25_weight=1.5,
         )
     """
+    for idx, result_set in enumerate(dense_result_sets):
+        validate_public_records(
+            result_set,
+            stage=f"rag_fusion_dense_q{idx}",
+            enabled=public_guard_enabled,
+        )
+    validate_public_records(
+        bm25_results or [],
+        stage="rag_fusion_bm25",
+        enabled=public_guard_enabled,
+    )
+
     if not dense_result_sets:
         if bm25_results:
             # Only BM25 results - return as-is with RRF scores
-            return [
+            merged = [
                 {**doc, "rrf_score": 1.0 / (k + rank + 1), "query_appearances": 1}
                 for rank, doc in enumerate(bm25_results)
             ]
+            validate_public_records(
+                merged,
+                stage="rag_fusion_merged",
+                enabled=public_guard_enabled,
+            )
+            return merged
         return []
 
     # Combine all result sets
@@ -631,6 +652,12 @@ def hybrid_reciprocal_rank_fusion(
         doc["retriever_sources"] = list(doc_sources[doc_id])
         doc["found_by_bm25"] = "bm25" in doc_sources[doc_id]
         merged_results.append(doc)
+
+    validate_public_records(
+        merged_results,
+        stage="rag_fusion_merged",
+        enabled=public_guard_enabled,
+    )
 
     logger.info(
         f"Hybrid RRF: {len(dense_result_sets)} dense + "

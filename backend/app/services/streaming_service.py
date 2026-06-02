@@ -320,7 +320,7 @@ async def stream_query(
             user_query=question,
             thought_chain=thought_chain,
         )
-        system_prompt = system_prompt.replace("{{CONSTITUTIONAL_EXAMPLES}}", examples_text)
+        system_prompt = system_prompt.replace("{{SVENSK_RAGG_EXAMPLES}}", examples_text)
 
         messages = [
             {"role": "system", "content": system_prompt},

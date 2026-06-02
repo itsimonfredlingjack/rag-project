@@ -3,7 +3,14 @@ set -euo pipefail
 
 BACKEND_PORT="${BACKEND_PORT:-8900}"
 FRONTEND_PORT="${FRONTEND_PORT:-3003}"
-MODEL="${OLLAMA_MODEL:-gemma4:26b}"
+RUNTIME_PROFILE="${CONST_PROFILE:-public-riksdag-demo}"
+if [ "${OLLAMA_MODEL:-}" ]; then
+  MODEL="$OLLAMA_MODEL"
+elif [ "$RUNTIME_PROFILE" = "public-riksdag-demo" ]; then
+  MODEL="gemma3:4b"
+else
+  MODEL="gemma4:e2b"
+fi
 
 check_url() {
   local label="$1"
@@ -15,13 +22,19 @@ check_url() {
   fi
 }
 
-echo "Constitutional AI local demo status"
+echo "Svensk Ragg local demo status"
+echo "Profile: $RUNTIME_PROFILE"
+echo "Model:   $MODEL"
 echo
 
 echo "[GPU]"
 if command -v nvidia-smi >/dev/null 2>&1; then
-  nvidia-smi --query-gpu=name,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits |
-    awk -F', ' '{printf "OK       %s, VRAM %s/%s MB, temp %s C\n", $1, $2, $3, $4}'
+  if GPU_OUTPUT="$(nvidia-smi --query-gpu=name,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits 2>&1)"; then
+    printf "%s\n" "$GPU_OUTPUT" |
+      awk -F', ' '{printf "OK       %s, VRAM %s/%s MB, temp %s C\n", $1, $2, $3, $4}'
+  else
+    echo "WARN     nvidia-smi present but unavailable: $(printf "%s" "$GPU_OUTPUT" | head -1)"
+  fi
 else
   echo "MISSING  nvidia-smi"
 fi
@@ -47,15 +60,17 @@ fi
 echo
 
 echo "[Backend]"
-check_url "health" "http://localhost:$BACKEND_PORT/api/constitutional/health"
-if curl -fsS "http://localhost:$BACKEND_PORT/api/constitutional/ready" >/tmp/constitutional-ready.json 2>/dev/null; then
+check_url "health" "http://localhost:$BACKEND_PORT/api/svensk-ragg/health"
+if curl -fsS "http://localhost:$BACKEND_PORT/api/svensk-ragg/ready" >/tmp/svensk-ragg-ready.json 2>/dev/null; then
   python3 - <<'PY'
 import json
 from pathlib import Path
 
 try:
-    payload = json.loads(Path("/tmp/constitutional-ready.json").read_text())
+    payload = json.loads(Path("/tmp/svensk-ragg-ready.json").read_text())
     print(f"INFO     readiness: {payload.get('status', 'unknown')}")
+    print(f"INFO     profile: {payload.get('profile', 'unknown')}")
+    print(f"INFO     corpus_scope: {payload.get('corpus_scope', 'unknown')}")
     checks = payload.get("checks", {})
     chroma = checks.get("chromadb", {}).get("details", {})
     if chroma:
@@ -69,18 +84,33 @@ try:
             print("INFO     chroma missing: " + ", ".join(missing))
         if empty:
             print("INFO     chroma empty: " + ", ".join(empty))
-    bm25 = checks.get("bm25", {}).get("details", {})
+    bm25 = checks.get("bm25", {}).get("details", {}) or payload.get("bm25", {})
     if bm25:
+        if "documents_count" in bm25:
+            print(
+                "INFO     bm25: "
+                f"status={bm25.get('status')} docs={bm25.get('documents_count')} "
+                f"fts={bm25.get('fts_count')} provenance={bm25.get('provenance_status')} "
+                f"path={bm25.get('path')}"
+            )
+        else:
+            print(
+                "INFO     bm25: "
+                f"usable={bm25.get('usable')} loaded={bm25.get('loaded')} "
+                f"docs={bm25.get('doc_count')} path={bm25.get('index_path')}"
+            )
+    llm = checks.get("llm_service", {}).get("details", {}) or payload.get("llm", {})
+    if llm:
         print(
-            "INFO     bm25: "
-            f"usable={bm25.get('usable')} loaded={bm25.get('loaded')} "
-            f"docs={bm25.get('doc_count')} path={bm25.get('index_path')}"
+            "INFO     llm: "
+            f"status={llm.get('status')} model={llm.get('model')} "
+            f"available={llm.get('primary_available')}"
         )
 except Exception:
     print("INFO     readiness: unknown")
 PY
 else
-  echo "MISSING  readiness http://localhost:$BACKEND_PORT/api/constitutional/ready"
+  echo "MISSING  readiness http://localhost:$BACKEND_PORT/api/svensk-ragg/ready"
 fi
 echo
 

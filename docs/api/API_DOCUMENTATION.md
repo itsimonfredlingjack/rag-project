@@ -1,4 +1,4 @@
-# Constitutional AI Backend API Documentation
+# Svensk Ragg Backend API Documentation
 
 **Version:** 2.0.0  
 **Base URL:** `http://localhost:8900`  
@@ -8,10 +8,10 @@
 
 ```bash
 # Health check
-curl http://localhost:8900/api/constitutional/health
+curl http://localhost:8900/api/svensk-ragg/health
 
 # Query
-curl -X POST http://localhost:8900/api/constitutional/agent/query \
+curl -X POST http://localhost:8900/api/svensk-ragg/agent/query \
   -H "Content-Type: application/json" \
   -d '{"question": "Vad är regeringens klimatpolitik?", "mode": "evidence"}'
 ```
@@ -19,7 +19,7 @@ curl -X POST http://localhost:8900/api/constitutional/agent/query \
 ## Endpoints
 
 ### Health Check
-**GET** `/api/constitutional/health`
+**GET** `/api/svensk-ragg/health`
 
 Returns service health status.
 
@@ -37,7 +37,7 @@ Returns service health status.
 ```
 
 ### Agent Query
-**POST** `/api/constitutional/agent/query`
+**POST** `/api/svensk-ragg/agent/query`
 
 Execute RAG query with question answering.
 
@@ -65,7 +65,7 @@ Execute RAG query with question answering.
 ```
 
 ### Streaming Query
-**POST** `/api/constitutional/agent/query/stream`
+**POST** `/api/svensk-ragg/agent/query/stream`
 
 Server-Sent Events (SSE) streaming response.
 
@@ -88,7 +88,7 @@ Server-Sent Events (SSE) streaming response.
 
 ### JavaScript
 ```javascript
-const response = await fetch('http://localhost:8900/api/constitutional/agent/query', {
+const response = await fetch('http://localhost:8900/api/svensk-ragg/agent/query', {
   method: 'POST',
   headers: {'Content-Type': 'application/json'},
   body: JSON.stringify({
@@ -105,7 +105,7 @@ import httpx
 
 async with httpx.AsyncClient() as client:
     response = await client.post(
-        'http://localhost:8900/api/constitutional/agent/query',
+        'http://localhost:8900/api/svensk-ragg/agent/query',
         json={'question': 'Vad är regeringens klimatpolitik?', 'mode': 'evidence'}
     )
     data = response.json()
@@ -113,7 +113,7 @@ async with httpx.AsyncClient() as client:
 
 ### cURL
 ```bash
-curl -X POST http://localhost:8900/api/constitutional/agent/query \
+curl -X POST http://localhost:8900/api/svensk-ragg/agent/query \
   -H "Content-Type: application/json" \
   -d '{"question": "Vad är regeringens klimatpolitik?", "mode": "evidence"}'
 ```

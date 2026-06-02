@@ -4,7 +4,7 @@ set -euo pipefail
 BACKEND_PORT="${BACKEND_PORT:-8900}"
 FRONTEND_PORT="${FRONTEND_PORT:-3003}"
 
-echo "Stopping Constitutional AI local demo"
+echo "Stopping Svensk Ragg local demo"
 
 if fuser -k "$BACKEND_PORT/tcp" >/dev/null 2>&1; then
   echo "Stopped backend on port $BACKEND_PORT"

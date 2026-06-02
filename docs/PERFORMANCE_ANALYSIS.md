@@ -1,4 +1,4 @@
-# Performance Analysis - Constitutional AI Backend
+# Performance Analysis - Svensk Ragg Backend
 
 **Analysis Date:** 2026-01-11  
 **Codebase:** `backend/`

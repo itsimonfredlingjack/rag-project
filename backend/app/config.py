@@ -1,10 +1,10 @@
 """
-Application configuration for Constitutional AI Backend
+Application configuration for Svensk Ragg Backend
 Environment variables and settings
 """
 
 from functools import lru_cache
-from typing import Optional
+from typing import ClassVar, Optional
 
 from pydantic_settings import BaseSettings
 
@@ -12,10 +12,17 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     """Application settings with environment variable support"""
 
+    PUBLIC_PROFILE: ClassVar[str] = "public-riksdag-demo"
+
     # Application
-    app_name: str = "Constitutional AI Backend"
+    app_name: str = "Svensk Ragg Backend"
     app_version: str = "2.0.0"
     debug: bool = False
+    profile: str = "private-swedish-legal-lab"
+    api_docs_enabled: Optional[bool] = None
+    operator_routes_enabled: Optional[bool] = None
+    legacy_sse_enabled: Optional[bool] = None
+    harvest_ws_enabled: Optional[bool] = None
 
     # Server
     host: str = "0.0.0.0"
@@ -70,6 +77,34 @@ class Settings(BaseSettings):
         "env_file_encoding": "utf-8",
         "extra": "ignore",
     }
+
+    @property
+    def is_public_profile(self) -> bool:
+        return self.profile.strip() == self.PUBLIC_PROFILE
+
+    @property
+    def api_docs_exposed(self) -> bool:
+        if self.api_docs_enabled is not None:
+            return self.api_docs_enabled
+        return not self.is_public_profile
+
+    @property
+    def local_operator_routes_exposed(self) -> bool:
+        if self.operator_routes_enabled is not None:
+            return self.operator_routes_enabled
+        return not self.is_public_profile
+
+    @property
+    def legacy_sse_exposed(self) -> bool:
+        if self.legacy_sse_enabled is not None:
+            return self.legacy_sse_enabled
+        return self.local_operator_routes_exposed
+
+    @property
+    def harvest_ws_exposed(self) -> bool:
+        if self.harvest_ws_enabled is not None:
+            return self.harvest_ws_enabled
+        return self.local_operator_routes_exposed
 
 
 @lru_cache()

@@ -8,7 +8,7 @@ Simpler, SFS-focused eval runner that measures:
 - Answer coverage: gold terms present in answer?
 
 Supports --before / --after flags for baseline comparison.
-Uses POST /api/constitutional/agent/query endpoint.
+Uses POST /api/svensk-ragg/agent/query endpoint.
 
 Usage:
     python eval/run_eval.py --before                    # Save baseline
@@ -56,7 +56,7 @@ def run_query(backend_url: str, query: str, mode: str = "evidence") -> dict:
 
     Returns dict with 'answer', 'sources', 'latency_ms'.
     """
-    url = f"{backend_url}/api/constitutional/agent/query"
+    url = f"{backend_url}/api/svensk-ragg/agent/query"
     payload = {
         "question": query,
         "mode": mode,

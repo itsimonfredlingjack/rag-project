@@ -5,7 +5,7 @@ Covers:
 - build_llm_context (source formatting)
 - build_system_prompt (EVIDENCE / ASSIST / CHAT modes)
 - is_truncated_answer (truncation detection heuristics)
-- format_constitutional_examples (RetICL formatting)
+- format_svensk_ragg_examples (RetICL formatting)
 """
 
 import pytest
@@ -14,7 +14,7 @@ from unittest.mock import MagicMock
 from app.services.prompt_service import (
     build_llm_context,
     build_system_prompt,
-    format_constitutional_examples,
+    format_svensk_ragg_examples,
     is_truncated_answer,
 )
 
@@ -91,7 +91,7 @@ class TestBuildLLMContext:
 class TestBuildSystemPrompt:
     def test_evidence_contains_identity(self):
         prompt = build_system_prompt("evidence", [], "context")
-        assert "Konstitutionell AI" in prompt
+        assert "Svensk Ragg" in prompt
         assert "ALDRIG ändras" in prompt
 
     def test_evidence_contains_grounding_evidence(self):
@@ -115,7 +115,7 @@ class TestBuildSystemPrompt:
 
     def test_evidence_has_examples_placeholder(self):
         prompt = build_system_prompt("evidence", [], "context")
-        assert "{{CONSTITUTIONAL_EXAMPLES}}" in prompt
+        assert "{{SVENSK_RAGG_EXAMPLES}}" in prompt
 
     def test_evidence_includes_context_text(self):
         prompt = build_system_prompt("evidence", [], "my custom context goes here")
@@ -132,11 +132,11 @@ class TestBuildSystemPrompt:
 
     def test_assist_has_examples_placeholder(self):
         prompt = build_system_prompt("assist", [], "context")
-        assert "{{CONSTITUTIONAL_EXAMPLES}}" in prompt
+        assert "{{SVENSK_RAGG_EXAMPLES}}" in prompt
 
     def test_chat_returns_chat_prompt(self):
         prompt = build_system_prompt("chat", [], "context")
-        assert "Konstitutionell AI" in prompt
+        assert "Svensk Ragg" in prompt
         assert "INGEN MARKDOWN" in prompt
 
     def test_chat_does_not_contain_json_instruction(self):
@@ -191,14 +191,14 @@ class TestIsTruncatedAnswer:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# format_constitutional_examples
+# format_svensk_ragg_examples
 # ═══════════════════════════════════════════════════════════════════
 
 
 @pytest.mark.unit
 class TestFormatConstitutionalExamples:
     def test_empty_list_returns_empty_string(self):
-        assert format_constitutional_examples([]) == ""
+        assert format_svensk_ragg_examples([]) == ""
 
     def test_with_examples_contains_header(self):
         examples = [
@@ -207,8 +207,8 @@ class TestFormatConstitutionalExamples:
                 "assistant": {"svar": "RF reglerar...", "mode": "EVIDENCE"},
             }
         ]
-        result = format_constitutional_examples(examples)
-        assert "KONSTITUTIONELLA EXEMPEL" in result
+        result = format_svensk_ragg_examples(examples)
+        assert "SVENSK RAGG-EXEMPEL" in result
 
     def test_with_examples_contains_content(self):
         examples = [
@@ -217,7 +217,7 @@ class TestFormatConstitutionalExamples:
                 "assistant": {"svar": "Testsvar"},
             }
         ]
-        result = format_constitutional_examples(examples)
+        result = format_svensk_ragg_examples(examples)
         assert "Test fråga" in result
         assert "Testsvar" in result
 
@@ -226,6 +226,6 @@ class TestFormatConstitutionalExamples:
             {"user": "Q1", "assistant": {"svar": "A1"}},
             {"user": "Q2", "assistant": {"svar": "A2"}},
         ]
-        result = format_constitutional_examples(examples)
+        result = format_svensk_ragg_examples(examples)
         assert "Exempel 1:" in result
         assert "Exempel 2:" in result

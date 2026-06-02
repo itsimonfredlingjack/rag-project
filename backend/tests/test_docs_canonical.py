@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from scripts.check_docs_canonical import scan_docs
+from scripts.check_docs_canonical import scan_docs, scan_env_example_references
 
 
 def _write(path: Path, content: str) -> None:
@@ -54,3 +54,32 @@ def test_flags_legacy_term_without_migration_context(tmp_path: Path) -> None:
 
     assert len(violations) == 1
     assert violations[0].term == "bge-m3"
+
+
+def test_flags_excluded_model_family_without_migration_context(tmp_path: Path) -> None:
+    docs_root = tmp_path / "docs"
+    _write(docs_root / "MODEL_POLICY.md", "Runtime model: Qwen 3.5 9B\n")
+
+    violations = scan_docs(docs_root)
+
+    assert len(violations) == 1
+    assert violations[0].term == "qwen"
+
+
+def test_flags_missing_env_example_reference(tmp_path: Path) -> None:
+    _write(tmp_path / "docs" / "QUICK_START.md", "Copy backend/.env.example first.\n")
+
+    violations = scan_env_example_references(tmp_path)
+
+    assert len(violations) == 1
+    assert violations[0].term == "missing-env-example"
+    assert violations[0].path == "docs/QUICK_START.md"
+
+
+def test_allows_existing_env_example_reference(tmp_path: Path) -> None:
+    _write(tmp_path / "docs" / "QUICK_START.md", "Copy backend/.env.example first.\n")
+    _write(tmp_path / "backend" / ".env.example", "CONST_PROFILE=private-swedish-legal-lab\n")
+
+    violations = scan_env_example_references(tmp_path)
+
+    assert violations == []

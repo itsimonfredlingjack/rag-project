@@ -4,12 +4,14 @@ The "Brain" that binds together all services for the complete RAG pipeline
 """
 
 import asyncio
+import inspect
 import json
 import time
 from functools import lru_cache
 from typing import AsyncGenerator, List, Optional
 
 from ..core.exceptions import SecurityViolationError
+from ..shared.public_source_guard import is_public_profile, validate_public_records
 from ..utils.logging import get_logger
 from ..utils.metrics import get_rag_metrics, log_structured_metric
 from .base_service import BaseService
@@ -40,6 +42,13 @@ from .intent_classifier import QueryIntent
 logger = get_logger(__name__)
 
 
+async def build_dependency_readiness(orchestrator) -> dict:
+    """Late-bound readiness import to avoid an orchestrator/readiness import cycle."""
+    from .readiness_service import build_dependency_readiness as _build_dependency_readiness
+
+    return await _build_dependency_readiness(orchestrator)
+
+
 def autocut_scores(scores: list[float], sensitivity: float = 0.15) -> int:
     """Find the optimal cutoff point in a sorted descending score list via gap detection."""
     if len(scores) <= 1:
@@ -64,9 +73,9 @@ from .prompt_service import (  # noqa: E402
     build_llm_context as _build_llm_context_fn,
     build_system_prompt as _build_system_prompt_fn,
     calculate_source_budget as _calculate_source_budget_fn,
-    format_constitutional_examples as _format_constitutional_examples_fn,
+    format_svensk_ragg_examples as _format_svensk_ragg_examples_fn,
     is_truncated_answer as _is_truncated_answer_fn,
-    retrieve_constitutional_examples as _retrieve_constitutional_examples_fn,
+    retrieve_svensk_ragg_examples as _retrieve_svensk_ragg_examples_fn,
 )
 
 from .crag_service import (  # noqa: E402
@@ -168,13 +177,17 @@ class OrchestratorService(BaseService):
         await self.llm_service.initialize()
         await self.query_processor.initialize()
         await self.guardrail.initialize()
-        await self.retrieval.initialize()
-        if self.reranker:
+        public_profile = is_public_profile(self.config)
+        if public_profile:
+            logger.info("Public Riksdagen profile: skipping Chroma retrieval initialization")
+        else:
+            await self.retrieval.initialize()
+        if self.reranker and not public_profile:
             await self.reranker.initialize()
         await self.structured_output.initialize()  # NEW
-        if self.critic:
+        if self.critic and not public_profile:
             await self.critic.initialize()  # NEW
-        if self.grader:
+        if self.grader and not public_profile:
             await self.grader.initialize()  # NEW
 
         self._mark_initialized()
@@ -201,22 +214,38 @@ class OrchestratorService(BaseService):
         Returns:
             True if all services healthy, False otherwise
         """
+
+        async def check_service_health(service) -> bool:
+            health_check = getattr(service, "health_check", None)
+            if not callable(health_check):
+                return True
+            result = health_check()
+            if inspect.isawaitable(result):
+                result = await result
+            return result is True
+
+        public_profile = is_public_profile(self.config)
         tasks = [
-            self.llm_service.health_check(),
-            self.query_processor.health_check(),
-            self.guardrail.health_check(),
-            self.retrieval.health_check(),
+            check_service_health(self.llm_service),
+            check_service_health(self.query_processor),
+            check_service_health(self.guardrail),
         ]
-        if self.reranker:
-            tasks.append(self.reranker.health_check())
-        if self.critic:
-            tasks.append(self.critic.health_check())
-        if self.grader:
-            tasks.append(self.grader.health_check())
+        if hasattr(self, "structured_output") and self.structured_output:
+            tasks.append(check_service_health(self.structured_output))
+
+        if not public_profile:
+            tasks.append(check_service_health(self.retrieval))
+
+        if self.reranker and not public_profile:
+            tasks.append(check_service_health(self.reranker))
+        if self.critic and not public_profile:
+            tasks.append(check_service_health(self.critic))
+        if self.grader and not public_profile:
+            tasks.append(check_service_health(self.grader))
 
         health_checks = await asyncio.gather(*tasks, return_exceptions=True)
 
-        all_healthy = all(h for h in health_checks if h)
+        all_healthy = all(check is True for check in health_checks)
 
         logger.info(f"Orchestrator health check: {'OK' if all_healthy else 'DEGRADED'}")
         return all_healthy
@@ -275,6 +304,17 @@ class OrchestratorService(BaseService):
         Returns:
             RAGResult with answer, sources, metrics, etc.
         """
+        if is_public_profile(self.config):
+            from .public_bm25_query_service import process_public_bm25_query
+
+            readiness = await build_dependency_readiness(self)
+            return await process_public_bm25_query(
+                orchestrator=self,
+                question=question,
+                mode=mode,
+                readiness=readiness,
+            )
+
         # NEW: Route to agentic flow if flag is set
         if use_agent:
             self.logger.info("Using agentic LangGraph flow")
@@ -364,6 +404,7 @@ class OrchestratorService(BaseService):
 
             # Initialize sources from retrieval result
             sources = retrieval_result.results
+            self._guard_public_sources(sources, stage="orchestrator_retrieval_results")
 
             # STEP 3.5: Reranking BEFORE CRAG grading
             # Rerank first while GPU is free (before Ollama grading fills VRAM).
@@ -412,6 +453,7 @@ class OrchestratorService(BaseService):
                                         snippet=original.snippet,
                                         score=rerank_score,
                                         source=original.source,
+                                        source_scope=getattr(original, "source_scope", None),
                                         doc_type=original.doc_type,
                                         date=original.date,
                                         retriever=original.retriever,
@@ -436,6 +478,7 @@ class OrchestratorService(BaseService):
                                         snippet=original.snippet,
                                         score=rerank_result.reranked_scores[i],
                                         source=original.source,
+                                        source_scope=getattr(original, "source_scope", None),
                                         doc_type=original.doc_type,
                                         date=original.date,
                                         retriever=original.retriever,
@@ -564,6 +607,7 @@ class OrchestratorService(BaseService):
 
             # Extract CRAG results
             sources = crag_result.sources
+            self._guard_public_sources(sources, stage="orchestrator_crag_results")
             grade_ms = crag_result.grade_ms
             grade_count = crag_result.grade_count
             relevant_count = crag_result.relevant_count
@@ -584,13 +628,13 @@ class OrchestratorService(BaseService):
             # Get mode-specific configuration
             llm_config = self.query_processor.get_mode_config(resolved_mode.value)
 
-            # RetICL: Retrieve constitutional examples before building prompt
-            constitutional_examples = await self._retrieve_constitutional_examples(
+            # RetICL: Retrieve Svensk Ragg examples before building prompt
+            svensk_ragg_examples = await self._retrieve_svensk_ragg_examples(
                 query=question,
                 mode=resolved_mode.value,
                 k=2,
             )
-            examples_text = self._format_constitutional_examples(constitutional_examples)
+            examples_text = self._format_svensk_ragg_examples(svensk_ragg_examples)
 
             # Build messages (inject thought_chain + citation_plan so LLM can use its reflection)
             system_prompt = self._build_system_prompt(
@@ -603,7 +647,7 @@ class OrchestratorService(BaseService):
                 citation_plan=citation_plan,
             )
             # Replace placeholder with actual examples
-            system_prompt = system_prompt.replace("{{CONSTITUTIONAL_EXAMPLES}}", examples_text)
+            system_prompt = system_prompt.replace("{{SVENSK_RAGG_EXAMPLES}}", examples_text)
 
             # Inject intent-specific answer contract for better answer relevancy
             if retrieval_result.intent:
@@ -783,6 +827,8 @@ class OrchestratorService(BaseService):
                 model=final_stats.model_used if final_stats else "",
             )
 
+            self._guard_public_sources(sources, stage="orchestrator_response_sources")
+
             return RAGResult(
                 answer=final_answer,
                 sources=sources,
@@ -917,15 +963,26 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
             system_prompt_overhead=2500,  # Role + rules + JSON instruction + reflection ~2500 tokens
             response_reserve=num_predict,
         )
-        return _build_llm_context_fn(sources, max_context_tokens=budget)
+        return _build_llm_context_fn(
+            sources,
+            max_context_tokens=budget,
+            public_guard_enabled=is_public_profile(self.config),
+        )
 
-    async def _retrieve_constitutional_examples(self, query: str, mode: str, k: int = 2):
-        """Retrieve constitutional examples. Delegates to prompt_service."""
-        return await _retrieve_constitutional_examples_fn(self.config, query, mode, k)
+    def _guard_public_sources(self, sources, *, stage: str) -> None:
+        validate_public_records(
+            list(sources or []),
+            stage=stage,
+            enabled=is_public_profile(self.config),
+        )
 
-    def _format_constitutional_examples(self, examples):
-        """Format constitutional examples. Delegates to prompt_service."""
-        return _format_constitutional_examples_fn(examples)
+    async def _retrieve_svensk_ragg_examples(self, query: str, mode: str, k: int = 2):
+        """Retrieve Svensk Ragg examples. Delegates to prompt_service."""
+        return await _retrieve_svensk_ragg_examples_fn(self.config, query, mode, k)
+
+    def _format_svensk_ragg_examples(self, examples):
+        """Format Svensk Ragg examples. Delegates to prompt_service."""
+        return _format_svensk_ragg_examples_fn(examples)
 
     def _build_system_prompt(
         self,
@@ -959,6 +1016,81 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
         where_filter: Optional[dict] = None,
     ) -> AsyncGenerator[str, None]:
         """Stream RAG pipeline with SSE. Delegates to streaming_service."""
+        if is_public_profile(self.config):
+            try:
+                result = await self.process_query(
+                    question=question,
+                    mode=mode,
+                    k=k,
+                    retrieval_strategy=retrieval_strategy,
+                    history=history,
+                    where_filter=where_filter,
+                )
+                if result.sources:
+                    validate_public_records(
+                        result.sources,
+                        stage="public_stream_query_response",
+                        enabled=True,
+                    )
+
+                retrieval_metadata = getattr(result, "retrieval_metadata", None) or {}
+                total_ms = round(float(result.metrics.total_pipeline_ms or 0.0), 1)
+                sources_metadata = []
+                for source in result.sources or []:
+                    source_payload = {
+                        "id": source.id,
+                        "document_id": getattr(source, "document_id", None) or source.id,
+                        "title": source.title,
+                        "snippet": source.snippet,
+                        "score": float(source.score),
+                        "doc_type": source.doc_type,
+                        "source": source.source,
+                        "source_scope": getattr(source, "source_scope", None),
+                        "date": getattr(source, "date", None),
+                        "url": getattr(source, "url", None),
+                        "retriever": getattr(source, "retriever", None),
+                        "retriever_source": getattr(source, "retriever_source", None),
+                    }
+                    sources_metadata.append(
+                        {key: value for key, value in source_payload.items() if value is not None}
+                    )
+
+                metadata_event = {
+                    "type": "metadata",
+                    "mode": retrieval_metadata.get("mode", "public_bm25_only"),
+                    "sources": sources_metadata,
+                    "search_time_ms": round(float(result.metrics.retrieval_ms or 0.0), 1),
+                    "latency_ms": total_ms,
+                    "evidence_level": result.evidence_level,
+                    "retrieval": retrieval_metadata,
+                    "citations": [
+                        {
+                            "claim": citation.claim,
+                            "source_id": citation.source_id,
+                            "source_title": citation.source_title,
+                            "source_collection": citation.source_collection,
+                            "tier": citation.tier,
+                        }
+                        for citation in getattr(result, "citations", [])
+                    ],
+                }
+                data_source_attribution = getattr(result, "data_source_attribution", None)
+                if data_source_attribution is not None:
+                    metadata_event["data_source_attribution"] = data_source_attribution
+                refusal_reason = getattr(result, "refusal_reason", None)
+                if refusal_reason is not None:
+                    metadata_event["refusal"] = True
+                    metadata_event["refusal_reason"] = refusal_reason
+                if stream_session_id:
+                    metadata_event["stream_session_id"] = stream_session_id
+
+                yield f"data: {json.dumps(metadata_event)}\n\n"
+                yield f"data: {json.dumps({'type': 'token', 'content': result.answer})}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'total_time_ms': total_ms})}\n\n"
+            except Exception as exc:
+                yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+            return
+
         async for event in _stream_query_fn(
             config=self.config,
             query_processor=self.query_processor,
@@ -970,8 +1102,8 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
             critic=self.critic,
             resolve_mode_fn=self._resolve_query_mode,
             build_llm_context_fn=self._build_llm_context,
-            retrieve_examples_fn=self._retrieve_constitutional_examples,
-            format_examples_fn=self._format_constitutional_examples,
+            retrieve_examples_fn=self._retrieve_svensk_ragg_examples,
+            format_examples_fn=self._format_svensk_ragg_examples,
             build_system_prompt_fn=self._build_system_prompt,
             question=question,
             mode=mode,
@@ -1096,8 +1228,12 @@ Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa t
         }
 
 
-# Dependency injection function for FastAPI
 @lru_cache()
+def _get_default_orchestrator_service() -> OrchestratorService:
+    return OrchestratorService(config=get_config_service())
+
+
+# Dependency injection function for FastAPI
 def get_orchestrator_service(
     config=None,
     llm_service=None,
@@ -1121,6 +1257,20 @@ def get_orchestrator_service(
     Returns:
         Cached OrchestratorService instance
     """
+    if all(
+        service is None
+        for service in (
+            config,
+            llm_service,
+            query_processor,
+            guardrail,
+            retrieval,
+            reranker,
+            structured_output,
+        )
+    ):
+        return _get_default_orchestrator_service()
+
     if config is None:
         config = get_config_service()
 

@@ -122,7 +122,7 @@ class KommunDocumentScraper:
         self.session = requests.Session()
         self.session.headers.update(
             {
-                "User-Agent": "KommunDokumentBot/1.0 (Constitutional AI Research; kontakt@example.se)",
+                "User-Agent": "KommunDokumentBot/1.0 (Svensk Ragg Research; kontakt@example.se)",
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                 "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8",
             }

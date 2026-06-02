@@ -62,7 +62,7 @@ class ContextualIngestor:
     1. Chunking text into ~750 token pieces with paragraph-aware boundaries
     2. Generating context summary for each chunk via LLM
     3. Prepending summary to chunk for embedding
-    4. Embedding enriched text with BGE-M3
+4. Embedding enriched text with the configured embedding model
     5. Storing in ChromaDB with original text in metadata
     """
 
@@ -79,19 +79,19 @@ class ContextualIngestor:
 
         Args:
             llm_base_url: Base URL for LLM API (default: from config)
-            embedding_model: Embedding model name (default: BGE-M3 from config)
-            context_model: Model for context generation (default: Qwen 0.5B)
+            embedding_model: Embedding model name (default: from config)
+            context_model: Model for context generation (default: from runtime config)
             chunk_size_tokens: Target chunk size in tokens
             chunk_overlap_tokens: Overlap between chunks in tokens
         """
         # Get config service
         self.config = get_config_service()
 
-        # LLM for context generation (use lightweight model)
-        self.context_model = context_model or "Qwen2.5-0.5B-Instruct-Q8_0.gguf"
+        # LLM for context generation.
+        self.context_model = context_model or self.config.constitutional_model
         self.llm_base_url = llm_base_url or self.config.llm_base_url
 
-        # Embedding model (BGE-M3)
+        # Embedding model.
         self.embedding_model_name = embedding_model or self.config.embedding_model
         self.embedding_service = get_embedding_service(self.config)
 
@@ -417,7 +417,7 @@ Sammanfattning av kontexten:"""
 
     def embed_chunks(self, contextual_chunks: list[ContextualChunk]) -> list[list[float]]:
         """
-        Embed contextual chunks using BGE-M3
+        Embed contextual chunks using the configured embedding model.
 
         Args:
             contextual_chunks: List of ContextualChunk objects
@@ -428,7 +428,7 @@ Sammanfattning av kontexten:"""
         # Extract enriched texts for embedding
         enriched_texts = [chunk.enriched_text for chunk in contextual_chunks]
 
-        # Embed using BGE-M3
+        # Embed using the configured embedding service.
         embeddings = self.embedding_service.embed(enriched_texts)
 
         logger.info(f"Embedded {len(embeddings)} chunks")

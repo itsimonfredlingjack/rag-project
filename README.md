@@ -2,7 +2,7 @@
 
 # RAG-system för svenska offentliga dokument
 
-### Constitutional AI - personligt lärande- och portföljprojekt
+### Svensk Ragg - personligt lärande- och portföljprojekt
 
 [![CI](https://github.com/itsimonfredlingjack/rag-project/actions/workflows/ci.yml/badge.svg)](https://github.com/itsimonfredlingjack/rag-project/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -68,7 +68,7 @@ Lokala datavolymer som nämns i projektet beskriver en tidigare projektmiljö, i
 ```mermaid
 graph TD
     A["Användare"] --> B["React/Vite frontend"]
-    B -->|"POST /api/constitutional/agent/query/stream"| C["FastAPI backend"]
+    B -->|"POST /api/svensk-ragg/agent/query/stream"| C["FastAPI backend"]
 
     C --> D["Intent classification"]
     D --> E["Query rewriting / decontextualization"]
@@ -93,7 +93,7 @@ Se [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) för mer teknisk detalj.
 ```text
 rag-project/
 ├── backend/                         FastAPI-backend, services, API-routes och tester
-├── apps/konstitutionell-frontend/   React/TypeScript/Vite-frontend
+├── apps/svensk-ragg-frontend/   React/TypeScript/Vite-frontend
 ├── eval/                            Eval-skript, testfrågor och retrieval-analyser
 ├── backend/eval/                    Backendnära eval-dataset och körskript
 ├── indexers/                        Skript för ChromaDB-indexering
@@ -136,22 +136,28 @@ uvicorn app.main:app --host 127.0.0.1 --port 8900
 Health check:
 
 ```bash
-curl http://127.0.0.1:8900/api/constitutional/health
+curl http://127.0.0.1:8900/api/svensk-ragg/health
 ```
 
-Backenden kan starta utan privat corpus, men full RAG-retrieval kräver att `CONST_CHROMADB_PATH` pekar på ett lokalt ChromaDB-index och att en lokal LLM-runtime är igång.
+Readiness check:
+
+```bash
+curl http://127.0.0.1:8900/api/svensk-ragg/ready
+```
+
+Backenden kan starta utan privat corpus, men full privat RAG-retrieval kräver att `CONST_CHROMADB_PATH` pekar på ett lokalt ChromaDB-index och att en lokal LLM-runtime är igång. Den publika Riksdagen-demoprofilen (`CONST_PROFILE=public-riksdag-demo`) använder public BM25 och `gemma3:4b`; operator-/legacy-ytor som `/mcp`, `/sse`, `/ws/harvest`, och generated docs är avstängda där som standard.
 
 ### Frontend
 
 ```bash
-cd apps/konstitutionell-frontend
+cd apps/svensk-ragg-frontend
 npm ci
 npm run lint
 npm run build
 npm run dev
 ```
 
-Frontend kör normalt på `http://localhost:3003` och använder `VITE_BACKEND_URL` för att hitta backend. Se [apps/konstitutionell-frontend/README.md](apps/konstitutionell-frontend/README.md).
+Frontend kör normalt på `http://localhost:3003` och använder `VITE_BACKEND_URL` för att hitta backend. Se [apps/svensk-ragg-frontend/README.md](apps/svensk-ragg-frontend/README.md).
 
 ### Tester
 
@@ -170,7 +176,7 @@ Integrationstester och LLM-tester kräver lokala tjänster och körs bara när m
 | [docs/QUICK_START.md](docs/QUICK_START.md) | Lokal snabbstart utan privat databas |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Teknisk arkitektur och pipeline |
 | [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) | Teststrategi och körkommandon |
-| [apps/konstitutionell-frontend/README.md](apps/konstitutionell-frontend/README.md) | Frontendens körning, miljövariabler och komponenter |
+| [apps/svensk-ragg-frontend/README.md](apps/svensk-ragg-frontend/README.md) | Frontendens körning, miljövariabler och komponenter |
 
 ## Licens
 

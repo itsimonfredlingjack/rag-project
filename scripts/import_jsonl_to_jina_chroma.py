@@ -42,6 +42,12 @@ ALL_COLLECTIONS = [
     COLLECTION_PROCEDURAL,
 ]
 
+TRUNCATION_MARKER = "\n\n[TRUNCATED_FOR_EMBEDDING]"
+DEFAULT_MAX_TEXT_CHARS = int(os.environ.get("CONST_IMPORT_MAX_TEXT_CHARS", "12000"))
+DEFAULT_MODEL_MAX_SEQ_LENGTH = int(os.environ.get("CONST_IMPORT_MODEL_MAX_SEQ_LENGTH", "1024"))
+DEFAULT_ENCODE_BATCH_SIZE = int(os.environ.get("CONST_IMPORT_ENCODE_BATCH_SIZE", "4"))
+DEFAULT_BM25_INDEX_PATH = REPO_ROOT.parent / "local-data" / "bm25_fts5" / "bm25.db"
+
 # The restored docs.jsonl is ordered by the original export pipeline.
 LINE_BANDS = [
     (1, 7_841, COLLECTION_SFS, "sfs"),
@@ -82,6 +88,11 @@ def parse_args() -> argparse.Namespace:
         default=str(REPO_ROOT / "migration_checkpoints" / "jsonl_to_jina_chroma.json"),
         help="Checkpoint JSON path.",
     )
+    parser.add_argument(
+        "--manifest-file",
+        default=str(REPO_ROOT / "logs" / "rag_corpus_manifest.json"),
+        help="Output manifest JSON path.",
+    )
     parser.add_argument("--model", default="jinaai/jina-embeddings-v3", help="Embedding model.")
     parser.add_argument(
         "--device",
@@ -90,6 +101,24 @@ def parse_args() -> argparse.Namespace:
         help="Embedding device. Use gpu only when Ollama/backend are stopped.",
     )
     parser.add_argument("--batch-size", type=int, default=32, help="Embedding batch size.")
+    parser.add_argument(
+        "--encode-batch-size",
+        type=int,
+        default=DEFAULT_ENCODE_BATCH_SIZE,
+        help="Batch size passed to SentenceTransformer.encode.",
+    )
+    parser.add_argument(
+        "--max-text-chars",
+        type=int,
+        default=DEFAULT_MAX_TEXT_CHARS,
+        help="Maximum characters embedded per document. Use 0 to disable.",
+    )
+    parser.add_argument(
+        "--model-max-seq-length",
+        type=int,
+        default=DEFAULT_MODEL_MAX_SEQ_LENGTH,
+        help="Maximum token sequence length set on the embedding model. Use 0 to keep model default.",
+    )
     parser.add_argument(
         "--allow-count-mismatch",
         action="store_true",
@@ -122,6 +151,13 @@ def count_lines(path: Path) -> int:
         return sum(1 for _ in f)
 
 
+def file_size_or_zero(path: Path) -> int:
+    try:
+        return path.stat().st_size if path.exists() else 0
+    except OSError:
+        return 0
+
+
 def resolve_device(requested: str) -> str:
     if requested == "cpu":
         return "cpu"
@@ -147,16 +183,39 @@ def load_model(model_name: str, device: str) -> SentenceTransformer:
         return SentenceTransformer(model_name, device=device)
 
 
-def encode_passages(model: SentenceTransformer, texts: list[str]) -> list[list[float]]:
+def configure_model_limits(model: SentenceTransformer, max_seq_length: int) -> int | None:
+    if max_seq_length <= 0 or not hasattr(model, "max_seq_length"):
+        return None
+
+    current = getattr(model, "max_seq_length", None)
+    if current is None or int(current) > max_seq_length:
+        setattr(model, "max_seq_length", max_seq_length)
+        return max_seq_length
+    return int(current)
+
+
+def encode_passages(
+    model: SentenceTransformer,
+    texts: list[str],
+    *,
+    encode_batch_size: int = DEFAULT_ENCODE_BATCH_SIZE,
+) -> list[list[float]]:
+    encode_batch_size = max(1, int(encode_batch_size))
     try:
         embeddings = model.encode(
             texts,
             task="retrieval.passage",
+            batch_size=encode_batch_size,
             convert_to_numpy=True,
             show_progress_bar=False,
         )
     except TypeError:
-        embeddings = model.encode(texts, convert_to_numpy=True, show_progress_bar=False)
+        embeddings = model.encode(
+            texts,
+            batch_size=encode_batch_size,
+            convert_to_numpy=True,
+            show_progress_bar=False,
+        )
     return embeddings.tolist()
 
 
@@ -175,7 +234,28 @@ def derive_title(doc_id: str, text: str) -> str:
     return first_line[:240] if first_line else doc_id
 
 
-def metadata_for(line_no: int, doc_id: str, text: str, collection: str, doc_type: str) -> dict[str, Any]:
+def bounded_passage_text(text: str, max_chars: int) -> tuple[str, bool]:
+    if max_chars <= 0 or len(text) <= max_chars:
+        return text, False
+
+    if max_chars <= len(TRUNCATION_MARKER):
+        return text[:max_chars], True
+
+    body_limit = max_chars - len(TRUNCATION_MARKER)
+    return text[:body_limit].rstrip() + TRUNCATION_MARKER, True
+
+
+def metadata_for(
+    line_no: int,
+    doc_id: str,
+    text: str,
+    collection: str,
+    doc_type: str,
+    *,
+    embedded_text: str | None = None,
+    text_truncated: bool = False,
+) -> dict[str, Any]:
+    embedded = text if embedded_text is None else embedded_text
     metadata: dict[str, Any] = {
         "source_doc_id": str(doc_id),
         "collection": collection,
@@ -183,6 +263,9 @@ def metadata_for(line_no: int, doc_id: str, text: str, collection: str, doc_type
         "import_source": "restored_bm25_jsonl",
         "doc_type": doc_type,
         "title": derive_title(doc_id, text),
+        "original_text_chars": len(text),
+        "embedded_text_chars": len(embedded),
+        "embedding_text_truncated": bool(text_truncated),
     }
     if doc_id.startswith("sfs_"):
         parts = doc_id.split("_")
@@ -193,6 +276,27 @@ def metadata_for(line_no: int, doc_id: str, text: str, collection: str, doc_type
         if len(parts) >= 5:
             metadata["paragraf"] = parts[4]
     return metadata
+
+
+def prepare_import_item(line_no: int, obj: dict[str, Any], max_text_chars: int) -> dict[str, Any]:
+    doc_id = str(obj["id"])
+    original_text = str(obj.get("text", ""))
+    embedded_text, truncated = bounded_passage_text(original_text, max_text_chars)
+    collection_name, doc_type = classify_line(line_no)
+    return {
+        "id": doc_id,
+        "text": embedded_text,
+        "collection": collection_name,
+        "metadata": metadata_for(
+            line_no,
+            doc_id,
+            original_text,
+            collection_name,
+            doc_type,
+            embedded_text=embedded_text,
+            text_truncated=truncated,
+        ),
+    }
 
 
 def collection_metadata(collection_name: str) -> dict[str, Any]:
@@ -221,6 +325,7 @@ def flush_batch(
     collections: dict[str, Any],
     batch: list[dict[str, Any]],
     dry_run: bool,
+    encode_batch_size: int,
 ) -> int:
     if not batch:
         return 0
@@ -232,7 +337,7 @@ def flush_batch(
 
     for collection_name, items in by_collection.items():
         texts = [item["text"] for item in items]
-        embeddings = encode_passages(model, texts)
+        embeddings = encode_passages(model, texts, encode_batch_size=encode_batch_size)
         if not dry_run:
             collections[collection_name].upsert(
                 ids=[item["id"] for item in items],
@@ -267,12 +372,16 @@ def import_procedural_guides(
     collection: Any,
     procedural_path: Path,
     dry_run: bool,
+    max_text_chars: int,
+    encode_batch_size: int,
 ) -> int:
     guides = json.loads(procedural_path.read_text(encoding="utf-8"))
     if not isinstance(guides, list):
         raise ValueError(f"Expected procedural guide list in {procedural_path}")
     ids = [str(item["id"]) for item in guides]
-    documents = [str(item.get("content", "")) for item in guides]
+    originals = [str(item.get("content", "")) for item in guides]
+    bounded_documents = [bounded_passage_text(text, max_text_chars) for text in originals]
+    documents = [text for text, _truncated in bounded_documents]
     metadatas = [
         {
             "source_doc_id": str(item["id"]),
@@ -281,10 +390,13 @@ def import_procedural_guides(
             "doc_type": str(item.get("doc_type", "procedural_guide")),
             "source": str(item.get("source", "procedural_guides")),
             "title": str(item.get("title", item["id"])),
+            "original_text_chars": len(originals[index]),
+            "embedded_text_chars": len(documents[index]),
+            "embedding_text_truncated": bool(bounded_documents[index][1]),
         }
-        for item in guides
+        for index, item in enumerate(guides)
     ]
-    embeddings = encode_passages(model, documents)
+    embeddings = encode_passages(model, documents, encode_batch_size=encode_batch_size)
     if not dry_run:
         collection.upsert(ids=ids, documents=documents, metadatas=metadatas, embeddings=embeddings)
     return len(guides)
@@ -299,6 +411,7 @@ def write_manifest(
     model_name: str,
     collections: dict[str, Any],
     total_jsonl_count: int,
+    manifest_path: Path,
 ) -> None:
     counts = {}
     for name, collection in collections.items():
@@ -307,9 +420,7 @@ def write_manifest(
         except Exception:
             counts[name] = None
 
-    bm25_path = Path(
-        os.environ.get("CONST_BM25_INDEX_PATH", "/home/simon/rag/local-data/bm25_fts5/bm25.db")
-    )
+    bm25_path = Path(os.environ.get("CONST_BM25_INDEX_PATH", str(DEFAULT_BM25_INDEX_PATH)))
     parent_path = REPO_ROOT / "data" / "parent_store" / "parents.db"
     manifest = {
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -323,19 +434,18 @@ def write_manifest(
         },
         "bm25": {
             "path": str(bm25_path),
-            "bytes": bm25_path.stat().st_size if bm25_path.exists() else 0,
+            "bytes": file_size_or_zero(bm25_path),
         },
         "parent_store": {
             "path": str(parent_path),
-            "bytes": parent_path.stat().st_size if parent_path.exists() else 0,
+            "bytes": file_size_or_zero(parent_path),
         },
         "collections": counts,
         "checkpoint": str(checkpoint_path),
     }
-    out = REPO_ROOT / "logs" / "rag_corpus_manifest.json"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-    log(f"Wrote manifest: {out}")
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    log(f"Wrote manifest: {manifest_path}")
 
 
 def main() -> None:
@@ -344,6 +454,7 @@ def main() -> None:
     procedural_path = Path(args.procedural)
     chroma_path = Path(args.chroma)
     checkpoint_path = Path(args.checkpoint_file)
+    manifest_path = Path(args.manifest_file)
 
     if not input_path.exists():
         raise SystemExit(f"Input JSONL not found: {input_path}")
@@ -366,6 +477,9 @@ def main() -> None:
 
     device = resolve_device(args.device)
     model = load_model(args.model, device)
+    applied_seq_length = configure_model_limits(model, args.model_max_seq_length)
+    if applied_seq_length:
+        log(f"Embedding model max_seq_length={applied_seq_length}")
     client = chromadb.PersistentClient(
         path=str(chroma_path),
         settings=Settings(anonymized_telemetry=False),
@@ -374,6 +488,7 @@ def main() -> None:
 
     log(
         f"Starting import at line>{start_after_line:,}, batch={args.batch_size}, "
+        f"encode_batch={args.encode_batch_size}, max_text_chars={args.max_text_chars}, "
         f"dry_run={args.dry_run}, chroma={chroma_path}"
     )
 
@@ -383,17 +498,7 @@ def main() -> None:
     target_rows = min(args.limit, total_rows - start_after_line) if args.limit else total_rows - start_after_line
     with tqdm(total=target_rows, unit="docs", desc="Importing JSONL") as pbar:
         for line_no, obj in iter_jsonl(input_path, start_after_line, args.limit):
-            doc_id = str(obj["id"])
-            text = str(obj.get("text", ""))
-            collection_name, doc_type = classify_line(line_no)
-            batch.append(
-                {
-                    "id": doc_id,
-                    "text": text,
-                    "collection": collection_name,
-                    "metadata": metadata_for(line_no, doc_id, text, collection_name, doc_type),
-                }
-            )
+            batch.append(prepare_import_item(line_no, obj, args.max_text_chars))
             last_line = line_no
 
             if len(batch) >= args.batch_size:
@@ -402,6 +507,7 @@ def main() -> None:
                     collections=collections,
                     batch=batch,
                     dry_run=args.dry_run,
+                    encode_batch_size=args.encode_batch_size,
                 )
                 written_total += written
                 pbar.update(written)
@@ -423,6 +529,7 @@ def main() -> None:
                 collections=collections,
                 batch=batch,
                 dry_run=args.dry_run,
+                encode_batch_size=args.encode_batch_size,
             )
             written_total += written
             pbar.update(written)
@@ -433,6 +540,8 @@ def main() -> None:
             collection=collections[COLLECTION_PROCEDURAL],
             procedural_path=procedural_path,
             dry_run=args.dry_run,
+            max_text_chars=args.max_text_chars,
+            encode_batch_size=args.encode_batch_size,
         )
         log(f"Imported procedural guides: {count}")
         procedural_done = True
@@ -442,6 +551,8 @@ def main() -> None:
             collection=collections[COLLECTION_PROCEDURAL],
             procedural_path=procedural_path,
             dry_run=True,
+            max_text_chars=args.max_text_chars,
+            encode_batch_size=args.encode_batch_size,
         )
         log(f"Dry-run embedded procedural guides: {count}")
 
@@ -466,6 +577,7 @@ def main() -> None:
             model_name=args.model,
             collections=collections,
             total_jsonl_count=total_rows,
+            manifest_path=manifest_path,
         )
 
 

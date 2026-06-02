@@ -3,7 +3,7 @@ Retrieval Source Integration Tests
 
 P0: The RAG pipeline must return sources for known-good queries.
 If sources are empty, the system is hallucinating — unacceptable for
-a constitutional verification tool.
+a Svensk Ragg verification tool.
 
 These tests exist because commit d34cf1f introduced a MIN_SCORE filter
 that silently killed ALL sources when RAG-Fusion (RRF) was active,
@@ -25,7 +25,7 @@ import httpx
 BASE_URL = "http://localhost:8900"
 TIMEOUT = 120.0
 
-# Queries that MUST return sources — these are core Swedish constitutional law
+# Queries that MUST return sources — these are core Swedish source-backed public law
 MUST_HAVE_SOURCES = [
     ("Vad säger yttrandefrihetsgrundlagen?", "sfs"),
     ("Vad säger Regeringsformen om yttrandefrihet?", "sfs"),
@@ -49,7 +49,7 @@ async def test_known_queries_return_sources(query: str, expected_collection_pref
     P0: Queries about well-known Swedish laws must return at least 1 source.
 
     If this fails, retrieval is broken — the system will hallucinate answers
-    about constitutional law without any grounding.
+    about source-backed public law without any grounding.
     """
     async with httpx.AsyncClient(timeout=TIMEOUT, base_url=BASE_URL) as client:
         response = await client.post(
@@ -188,7 +188,7 @@ async def test_evidence_mode_refuses_when_no_sources():
     In EVIDENCE mode, if no sources are found, the system must return
     the refusal template — never generate a hallucinated answer.
 
-    This is the core guardrail for a constitutional verification tool.
+    This is the core guardrail for a Svensk Ragg verification tool.
     """
     query = "xyzzy plugh fee fie foe fum nonsense gibberish 12345"
 

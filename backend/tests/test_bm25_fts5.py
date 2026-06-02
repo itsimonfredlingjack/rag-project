@@ -68,6 +68,59 @@ def fts5_db(tmp_path) -> Path:
 
 
 @pytest.fixture
+def provenance_fts5_db(tmp_path) -> Path:
+    """Create a temporary FTS5 database with public provenance metadata."""
+    db_path = tmp_path / "test_bm25_public.db"
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("""
+        CREATE TABLE documents (
+            id TEXT PRIMARY KEY,
+            document_id TEXT NOT NULL,
+            source TEXT NOT NULL,
+            source_scope TEXT NOT NULL,
+            title TEXT NOT NULL,
+            date TEXT NOT NULL,
+            url TEXT NOT NULL,
+            text TEXT NOT NULL,
+            metadata_json TEXT NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE VIRTUAL TABLE docs_fts USING fts5(
+            doc_id UNINDEXED,
+            content,
+            tokenize='unicode61 remove_diacritics 2',
+            detail='column'
+        )
+    """)
+    conn.execute(
+        """
+        INSERT INTO documents(
+            id, document_id, source, source_scope, title, date, url, text, metadata_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            "H803222",
+            "H803222",
+            "riksdagen",
+            "riksdagen_open_data_only",
+            "Anpassningar av svensk lag",
+            "2021-09-13",
+            "https://data.riksdagen.se/dokument/H803222",
+            "Riksdagen behandlar offentlighetsprincipen och personuppgifter.",
+            '{"source":"riksdagen","source_scope":"riksdagen_open_data_only"}',
+        ),
+    )
+    conn.execute(
+        "INSERT INTO docs_fts(doc_id, content) VALUES (?, ?)",
+        ("H803222", "Riksdagen behandlar offentlighetsprincipen och personuppgifter."),
+    )
+    conn.commit()
+    conn.close()
+    return db_path
+
+
+@pytest.fixture
 def bm25_service(fts5_db) -> BM25Service:
     """Create a BM25Service pointing to the test FTS5 database."""
     with patch("app.services.bm25_service.get_compound_splitter") as mock_splitter_fn:
@@ -177,6 +230,23 @@ class TestBM25Search:
         assert "score" in result
         assert "source" in result
         assert result["source"] == "bm25"
+
+    def test_public_schema_search_preserves_source_scope(self, provenance_fts5_db):
+        with patch("app.services.bm25_service.get_compound_splitter") as mock_fn:
+            mock_fn.return_value = MagicMock(is_available=MagicMock(return_value=False))
+            service = BM25Service(index_path=str(provenance_fts5_db))
+
+        results = service.search("offentlighetsprincipen", k=5, return_docs=True)
+
+        assert len(results) == 1
+        result = results[0]
+        assert result["id"] == "H803222"
+        assert result["document_id"] == "H803222"
+        assert result["source"] == "riksdagen"
+        assert result["source_scope"] == "riksdagen_open_data_only"
+        assert result["retriever_source"] == "bm25"
+        assert result["metadata"]["source_scope"] == "riksdagen_open_data_only"
+        assert "offentlighetsprincipen" in result["text"]
 
     def test_return_docs(self, bm25_service):
         results = bm25_service.search("avtal", k=5, return_docs=True)

@@ -111,7 +111,7 @@ Services use **Singleton Factory Pattern** with `@lru_cache()` decorators for la
 ```
 Frontend Query (AgentQueryRequest)
     ↓
-POST /api/constitutional/agent/query
+POST /api/svensk-ragg/agent/query
     ↓
 OrchestratorService.process_query()
     ↓
@@ -257,7 +257,7 @@ GuardrailService checks:
 
 #### Phase 6: LLM Generation
 
-- Build system prompt with Constitutional AI directives
+- Build system prompt with Svensk Ragg directives
 - Insert retrieved sources as context
 - Stream tokens or batch generation via LLMService
 
@@ -292,7 +292,7 @@ Build AgentQueryResponse:
 
 ### Document Grading
 
-Uses lightweight LLM (Qwen 0.5B) to classify each document:
+Uses the configured local LLM to classify each document when CRAG grading is enabled:
 - RELEVANT: Keep for context
 - PARTIALLY_RELEVANT: Conditional inclusion
 - IRRELEVANT: Filter out
@@ -328,25 +328,29 @@ Return Swedish refusal: "Tyvärr kan jag inte besvara denna fråga utifrån de d
 
 | Method | Endpoint | Purpose | Response |
 |--------|----------|---------|----------|
-| GET | `/api/constitutional/health` | Health check | {status, services, timestamp} |
-| GET | `/api/constitutional/metrics` | RAG metrics (aggregated) | {total_queries, avg_latency, by_mode} |
-| GET | `/api/constitutional/metrics/prometheus` | Prometheus export | text/plain format |
-| GET | `/api/constitutional/ready` | Readiness check | {status, checks, timestamp} |
+| GET | `/api/svensk-ragg/health` | Health check | {status, services, timestamp} |
+| GET | `/api/svensk-ragg/metrics` | Local/operator RAG metrics; 404 in public profile | {total_queries, avg_latency, by_mode} |
+| GET | `/api/svensk-ragg/metrics/prometheus` | Local/operator Prometheus export; 404 in public profile | text/plain format |
+| GET | `/api/svensk-ragg/ready` | Readiness check | {status, checks, timestamp} |
 
 ### Query & Retrieval
 
 | Method | Endpoint | Purpose | Validation |
 |--------|----------|---------|------------|
-| POST | `/api/constitutional/agent/query` | Main RAG pipeline (batch) | question: 1-2000 chars ✓ |
-| POST | `/api/constitutional/agent/query/stream` | Streaming variant (SSE) | Same as above ✓ |
-| WS | `/ws/harvest` | Indexing progress | WebSocket frames |
+| POST | `/api/svensk-ragg/agent/query` | Main RAG pipeline (batch) | question: 1-2000 chars ✓ |
+| POST | `/api/svensk-ragg/agent/query/stream` | Streaming variant (SSE) | Same as above ✓ |
+| POST | `/api/svensk-ragg/agent/query/stream/resume` | SSE replay when enabled | session_id + last_event_id ✓ |
+
+Operator-only routes such as `/mcp`, legacy `/sse`, `/sse/message`, `/ws/harvest`,
+and generated docs are local/private by default. In `public-riksdag-demo`, they
+are not registered unless an explicit local review flag enables docs.
 
 ### Document Management
 
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
-| GET | `/api/constitutional/collections` | List ChromaDB collections |
-| GET | `/api/constitutional/stats/overview` | Document statistics |
+| GET | `/api/svensk-ragg/collections` | Local/operator ChromaDB collection listing; 404 in public profile |
+| GET | `/api/svensk-ragg/stats/overview` | Local/operator document statistics; 404 in public profile |
 
 ---
 
@@ -420,7 +424,8 @@ User Query
 Resursbudget (riktvärden):
 
 - **GPU (12 GB)**:
-  - Ministral-3-14B Q4_K_M: ~8.2 GB
+  - Gemma 4 E2B via Ollama: ~7.2 GB model download, current local-demo default
+  - Gemma 4 26B: ~18 GB model download, validate GPU/RAM headroom before use
   - KV cache (q8_0, 8K context): ~1.0-1.8 GB beroende på kontextlängd och parallellism
   - CUDA/runtime-overhead: ~0.5-1.0 GB
 - **CPU/RAM**:
@@ -438,14 +443,13 @@ Resursbudget (riktvärden):
 The backend calls a local LLM runtime through the configured `CONST_LLM_BASE_URL`. In development this may be Ollama on port 11434 or an OpenAI-compatible llama-server setup.
 
 ```bash
-# Example llama-server setup
-llama-server \
-    -m /models/Ministral-3-14B-Instruct-2512-Q4_K_M.gguf \
-    --host 0.0.0.0 --port 8080 \
-    -c 8192 -ngl 99
+# Current local-demo profile
+ollama pull gemma4:e2b
+OLLAMA_MODEL=gemma4:e2b ./start_rag_server_ollama.sh
 ```
 
-Model choice is environment-specific. The repo does not include model weights.
+Model choice is environment-specific. The repo does not include model weights,
+and runtime model identifiers are checked against the repository model policy.
 
 ### LLMService
 
@@ -524,7 +528,7 @@ Sprint 2 refactored the monolithic orchestrator_service.py (originally 2,517 lin
 ### Structure
 
 ```
-apps/konstitutionell-frontend/src/
+apps/svensk-ragg-frontend/src/
 ├── App.tsx                    # Root component
 ├── components/
 │   ├── QueryBar.tsx          # User input
@@ -576,8 +580,8 @@ Stores:
 ### API Integration
 
 Fetch wrapper with error handling for:
-- `/api/constitutional/agent/query` (POST)
-- `/api/constitutional/agent/query/stream` (POST SSE)
+- `/api/svensk-ragg/agent/query` (POST)
+- `/api/svensk-ragg/agent/query/stream` (POST SSE)
 
 ---
 
@@ -591,18 +595,18 @@ FASTAPI_ENV=development
 API_BASE_URL=http://localhost:8900
 
 # LLM
-CONST_LLM_BASE_URL=http://localhost:8080/v1
-CONST_CONSTITUTIONAL_MODEL=Ministral-3-14B-Instruct-2512-Q4_K_M.gguf
-CONST_LLM_TIMEOUT=60000
+CONST_LLM_BASE_URL=http://localhost:11434
+CONST_SVENSK_RAGG_MODEL=gemma4:e2b
+CONST_SVENSK_RAGG_FALLBACK=gemma4:e2b
+CONST_LLM_TIMEOUT=120.0
 
 # ChromaDB
-CHROMA_PATH=chromadb_data
-RAG_SIMILARITY_THRESHOLD=0.5
-RAG_TOP_K=10
+CONST_CHROMADB_PATH=/path/to/local/chromadb
+CONST_BM25_INDEX_PATH=/path/to/local/bm25_fts5/bm25.db
 
 # Features
-CRAG_ENABLED=true
-STRUCTURED_OUTPUT_ENABLED=true
+CONST_CRAG_ENABLED=false
+CONST_STRUCTURED_OUTPUT_ENABLED=true
 CRITIC_ENABLED=true
 
 # Logging
@@ -626,7 +630,8 @@ Structured logging via `get_logger()` in all services.
 
 ### Metrics
 
-Available via `/metrics` and `/metrics/prometheus`:
+Available in local/private profiles via `/metrics` and `/metrics/prometheus`
+and disabled in the public profile:
 - Total queries
 - Latency (avg/p95/p99)
 - Evidence refusal rate
@@ -650,7 +655,7 @@ cd backend && pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8900
 
 # Frontend
-cd apps/konstitutionell-frontend
+cd apps/svensk-ragg-frontend
 npm install && npm run dev
 ```
 

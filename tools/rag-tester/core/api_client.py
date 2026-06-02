@@ -1,4 +1,4 @@
-"""Async streaming client for the Constitutional RAG API."""
+"""Async streaming client for the Svensk Ragg API."""
 
 import asyncio
 import json
@@ -10,7 +10,7 @@ import httpx
 
 # Default to local backend, can be overridden via environment
 BACKEND_URL = os.environ.get("RAG_BACKEND_URL", "http://localhost:8900")
-API_ENDPOINT = f"{BACKEND_URL}/api/constitutional/agent/query/stream"
+API_ENDPOINT = f"{BACKEND_URL}/api/svensk-ragg/agent/query/stream"
 
 
 @dataclass
@@ -34,11 +34,11 @@ class StreamEvent:
 
 
 class RAGClient:
-    """Client for querying the Constitutional RAG API."""
+    """Client for querying the Svensk Ragg API."""
 
     def __init__(self, base_url: str | None = None, timeout: float = 120.0):
         self.base_url = base_url or BACKEND_URL
-        self.endpoint = f"{self.base_url}/api/constitutional/agent/query/stream"
+        self.endpoint = f"{self.base_url}/api/svensk-ragg/agent/query/stream"
         self.timeout = timeout
 
     async def query(self, question: str, mode: str = "auto") -> AsyncIterator[StreamEvent]:

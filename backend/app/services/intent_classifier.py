@@ -1,5 +1,5 @@
 """
-Intent Classifier for Constitutional-AI RAG
+Intent Classifier for Svensk Ragg RAG
 Detects query intent to route to appropriate collections.
 
 Intent Types:

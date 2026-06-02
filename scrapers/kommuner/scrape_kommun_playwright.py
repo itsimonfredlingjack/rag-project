@@ -110,7 +110,7 @@ class PlaywrightKommunScraper:
         self.playwright = sync_playwright().start()
         self.browser = self.playwright.chromium.launch(headless=self.headless)
         self.context = self.browser.new_context(
-            user_agent="KommunDokumentBot/1.0 (Constitutional AI Research)", locale="sv-SE"
+            user_agent="KommunDokumentBot/1.0 (Svensk Ragg Research)", locale="sv-SE"
         )
         self.page = self.context.new_page()
         self.page.set_default_timeout(30000)  # 30 seconds

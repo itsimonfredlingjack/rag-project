@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   # ═══════════════════════════════════════════════════════════════════
   # ChromaDB — Vector Database
@@ -21,36 +19,6 @@ services:
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════
-  # llama-server — Local LLM Inference (llama.cpp, GPU)
-  # ═══════════════════════════════════════════════════════════════════
-  llama-server:
-    image: ghcr.io/ggerganov/llama.cpp:server-cuda
-    ports:
-      - "8080:8080"
-    volumes:
-      - llama_models:/models
-    command: >
-      /llama-server
-      -m /models/Ministral-3-14B-Instruct-2512-Q4_K_M.gguf
-      -c 8192 -ngl 99
-      -ctk q8_0 -ctv q8_0
-      --host 0.0.0.0 --port 8080
-      -fa on
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
-  # ═══════════════════════════════════════════════════════════════════
   # Backend — FastAPI RAG Pipeline
   # ═══════════════════════════════════════════════════════════════════
   backend:
@@ -64,19 +32,23 @@ services:
     environment:
       - CONST_HOST=0.0.0.0
       - CONST_PORT=8900
-      - CONST_LLM_BASE_URL=http://llama-server:8080/v1
+      - CONST_LLM_BASE_URL=http://host.docker.internal:11434
+      - CONST_SVENSK_RAGG_MODEL=gemma4:e2b
+      - CONST_SVENSK_RAGG_FALLBACK=gemma4:e2b
+      - CONST_GGUF_PRIMARY_MODEL=gemma4:e2b
+      - CONST_CRAG_GRADER_MODEL=gemma4:e2b
       - CONST_CHROMADB_PATH=/data/chromadb
       - CONST_LOG_JSON=true
     volumes:
       - chromadb_data:/data/chromadb:ro
       - pdf_cache:/data/pdf_cache
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       chromadb:
         condition: service_healthy
-      llama-server:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8900/api/constitutional/health').raise_for_status()"]
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8900/api/svensk-ragg/health').raise_for_status()"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -85,8 +57,6 @@ services:
 
 volumes:
   chromadb_data:
-    driver: local
-  llama_models:
     driver: local
   pdf_cache:
     driver: local

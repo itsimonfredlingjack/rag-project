@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODEL="${OLLAMA_MODEL:-gemma4:26b}"
+MODEL="${OLLAMA_MODEL:-gemma4:e2b}"
 OLLAMA_URL="${OLLAMA_URL:-http://localhost:11434}"
 
 echo "Checking Ollama RAG model"

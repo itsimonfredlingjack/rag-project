@@ -80,7 +80,7 @@ This page is a historical operations overview for one local runtime stack.
 
 | Service | Port | Status | Purpose |
 |---------|------|--------|---------|
-| Constitutional AI Backend | 8900 | 🟢 Active | FastAPI RAG API |
+| Svensk Ragg Backend | 8900 | 🟢 Active | FastAPI RAG API |
 | ChromaDB | local | Active | Vector database |
 | llama-server | 8080 | Running | Local LLM inference (OpenAI-compatible) |
 | Ollama | 11434 | Optional | Optional fallback only |
@@ -90,30 +90,30 @@ This page is a historical operations overview for one local runtime stack.
 
 | Tjänst                    | Status     | Port | Autostart   |
 |---------------------------|------------|------|-------------|
-| Constitutional AI Backend | 🟢 Active  | 8900 | ✅ Enabled  |
+| Svensk Ragg Backend | 🟢 Active  | 8900 | ✅ Enabled  |
 | Simons AI Backend         | 🔴 Removed | -    | ❌ Disabled |
 
 **Bekräftade Ändringar:**
 1. ✅ simons-ai-backend.service borttagen från systemd
-2. ✅ Port 8900 ägs av constitutional-ai-backend (uvicorn binds 8000, exposed as 8900)
+2. ✅ Port 8900 ägs av svensk-ragg-backend (uvicorn binds 8000, exposed as 8900)
 3. ✅ Health endpoint svarar korrekt
 4. ✅ RAG queries fungerar (Ministral-3-14B-Instruct-2512 via llama-server, CRAG enabled)
 
 **System Commands:**
 ```bash
 # Status
-systemctl --user status constitutional-ai-backend
+systemctl --user status svensk-ragg-backend
 
 # Restart
-systemctl --user restart constitutional-ai-backend
+systemctl --user restart svensk-ragg-backend
 
 # Live logs
-journalctl --user -u constitutional-ai-backend -f
+journalctl --user -u svensk-ragg-backend -f
 ```
 
-**API Base URL:** `http://localhost:8900/api/constitutional`
+**API Base URL:** `http://localhost:8900/api/svensk-ragg`
 
-All Constitutional AI-logik är nu fristående i `09_CONSTITUTIONAL-AI/backend/` med egen systemd service! 🚀
+All Svensk Ragg-logik är nu fristående i `09_CONSTITUTIONAL-AI/backend/` med egen systemd service! 🚀
 
 ---
 
@@ -150,7 +150,7 @@ All collections are suffixed with `_jina_v3_1024`.
 ├── corpus_bridge.py           # Corpus → Second Brain
 ├── chromadb_data/             # Original ChromaDB (backup)
 ├── systemd/                   # Systemd service files
-│   └── constitutional-ai-backend.service
+│   └── svensk-ragg-backend.service
 └── docs/                      # Documentation
     ├── constitutional-cli.md
     ├── system-overview.md

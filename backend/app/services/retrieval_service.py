@@ -11,6 +11,7 @@ from functools import lru_cache
 from typing import Any, Dict, List, Optional
 
 from ..core.exceptions import RetrievalError, ServiceNotInitializedError
+from ..shared.public_source_guard import is_public_profile
 from ..utils.logging import get_logger
 from .base_service import BaseService
 from .config_service import ConfigService, get_config_service
@@ -239,10 +240,14 @@ class SearchResult:
     snippet: str
     score: float
     source: str
+    source_scope: Optional[str] = None
     doc_type: Optional[str] = None
     date: Optional[str] = None
     retriever: str = "unknown"
     tier: Optional[str] = None  # EPR: Source tier (A/B/C)
+    document_id: Optional[str] = None
+    url: Optional[str] = None
+    retriever_source: Optional[str] = None
 
 
 @dataclass
@@ -391,7 +396,10 @@ class RetrievalService(BaseService):
                 bm25_service = None
                 if self.config.bm25_enabled:
                     bm25_path = self.config.bm25_index_path or None
-                    bm25_service = get_bm25_service(index_path=bm25_path)
+                    bm25_service = get_bm25_service(
+                        index_path=bm25_path,
+                        public_guard_enabled=is_public_profile(self.config),
+                    )
                     if bm25_service.is_available():
                         logger.info(f"BM25 service available at {bm25_service.index_path}")
                     else:
@@ -444,6 +452,7 @@ class RetrievalService(BaseService):
                     intent_llm_fallback_confidence_threshold=(
                         self.config.settings.intent_llm_fallback_confidence_threshold
                     ),
+                    public_guard_enabled=is_public_profile(self.config),
                 )
                 logger.info(
                     f"RetrievalOrchestrator initialized (bm25_weight={self.config.rrf_bm25_weight}, "
@@ -579,6 +588,7 @@ class RetrievalService(BaseService):
                         snippet=r.snippet,
                         score=r.score,
                         source=r.source,
+                        source_scope=getattr(r, "source_scope", None),
                         doc_type=r.doc_type,
                         date=r.date,
                         retriever=r.retriever,
@@ -756,6 +766,7 @@ class RetrievalService(BaseService):
                                     snippet=snippet,
                                     score=round(score, 4),
                                     source=collection_name,
+                                    source_scope=str(metadata.get("source_scope") or ""),
                                     doc_type=str(metadata.get("doc_type") or ""),
                                     date=str(metadata.get("date") or ""),
                                     retriever="dense",
@@ -905,6 +916,7 @@ class RetrievalService(BaseService):
                     snippet=r.snippet,
                     score=r.score,
                     source=r.source,
+                    source_scope=getattr(r, "source_scope", None),
                     doc_type=r.doc_type,
                     date=r.date,
                     retriever=r.retriever,

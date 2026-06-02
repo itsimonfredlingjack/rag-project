@@ -7,7 +7,10 @@ Den här guiden visar hur repot kan köras lokalt så långt det går utan priva
 - Python 3.12+
 - Node.js 20+
 - Git
-- Valfritt för full RAG: ChromaDB-data, BM25/FTS5-index och lokal LLM-runtime, till exempel Ollama eller llama-server
+- Valfritt för full privat RAG: ChromaDB-data, BM25/FTS5-index och lokal LLM-runtime,
+  till exempel Ollama med `gemma4:e2b`
+- För den publika Riksdagen-demoprofilen: public BM25/FTS5-index och Ollama med
+  `gemma3:4b`
 
 ## 1. Backend
 
@@ -24,10 +27,19 @@ Utan privat corpus kan du ändå köra delar av backend och tester. För full re
 
 ```dotenv
 CONST_CHROMADB_PATH=/path/to/local/chromadb_data
+CONST_BM25_INDEX_PATH=/path/to/local/bm25_fts5/bm25.db
 CONST_LLM_BASE_URL=http://localhost:11434
+CONST_SVENSK_RAGG_MODEL=gemma4:e2b
 ```
 
-Starta backend:
+Om du använder Ollama-profilen:
+
+```bash
+ollama pull gemma4:e2b
+./start_rag_server_ollama.sh
+```
+
+Starta backend privat/lokalt:
 
 ```bash
 uvicorn app.main:app --host 127.0.0.1 --port 8900
@@ -36,15 +48,36 @@ uvicorn app.main:app --host 127.0.0.1 --port 8900
 Kontrollera health endpoint:
 
 ```bash
-curl http://127.0.0.1:8900/api/constitutional/health
+curl http://127.0.0.1:8900/api/svensk-ragg/health
 ```
 
-Swagger UI finns på `http://127.0.0.1:8900/docs` när backend kör.
+Swagger UI finns på `http://127.0.0.1:8900/docs` i privat/lokal profil. I
+`CONST_PROFILE=public-riksdag-demo` är `/docs`, `/redoc`, `/openapi.json`,
+`/mcp`, `/sse`, `/sse/message`, och `/ws/harvest` avstängda som standard.
+Aktivera docs tillfälligt med `CONST_API_DOCS_ENABLED=true` vid lokal granskning.
+
+Publik demoprofil:
+
+```bash
+export CONST_PROFILE=public-riksdag-demo
+ollama pull gemma3:4b
+cd backend
+.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8900
+```
+
+Kontrollera den verkliga svarberedskapen:
+
+```bash
+curl http://127.0.0.1:8900/api/svensk-ragg/ready | python3 -m json.tool
+```
+
+`degraded_but_usable` är förväntat i public profile när public BM25 och LLM är
+redo men Chroma är avsiktligt avstängt.
 
 ## 2. Frontend
 
 ```bash
-cd apps/konstitutionell-frontend
+cd apps/svensk-ragg-frontend
 npm ci
 npm run lint
 npm run build
@@ -79,7 +112,7 @@ python -m pytest tests/ -v -m "not integration and not ollama and not slow" --tb
 Frontend:
 
 ```bash
-cd apps/konstitutionell-frontend
+cd apps/svensk-ragg-frontend
 npm run lint
 npm run build
 ```
@@ -87,7 +120,7 @@ npm run build
 Docs-check:
 
 ```bash
-python scripts/check_docs_canonical.py
+python3 scripts/check_docs_canonical.py
 ```
 
 ## 4. Vad Du Kan Förvänta Dig Utan Corpus

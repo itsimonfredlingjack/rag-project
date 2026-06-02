@@ -56,8 +56,8 @@ class ContextualChromaDBIndexer:
         Args:
             chromadb_path: Path to ChromaDB data directory
             collection_name: Name of ChromaDB collection
-            embedding_model: Embedding model (default: BGE-M3)
-            context_model: Model for context generation (default: Qwen 0.5B)
+            embedding_model: Embedding model (default: from config)
+            context_model: Model for context generation (default: from runtime config)
         """
         self.config = get_config_service()
 
@@ -86,7 +86,7 @@ class ContextualChromaDBIndexer:
                 f"Using existing collection: {self.collection_name} ({self.collection.count()} documents)"
             )
         except Exception:
-            # Create collection with BGE-M3 dimensions (1024)
+            # Create collection with configured embedding dimensions.
             self.collection = self.chromadb_client.create_collection(
                 name=self.collection_name,
                 metadata={"description": "Swedish government documents with contextual retrieval"},

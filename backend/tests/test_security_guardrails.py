@@ -1,4 +1,4 @@
-"""Adversarial security test suite for SWERAG Constitutional AI guardrails.
+"""Adversarial security test suite for SWERAG Svensk Ragg guardrails.
 
 Tests the GuardrailService patterns (injection, harmful content, output leakage),
 rate limiting functions, security event logging, and edge cases — all without

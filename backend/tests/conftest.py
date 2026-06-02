@@ -1,5 +1,5 @@
 """
-Pytest configuration and shared fixtures for Constitutional AI backend tests.
+Pytest configuration and shared fixtures for Svensk Ragg backend tests.
 
 Provides:
 - Mock ChromaDB, LLM, and service fixtures for unit testing
@@ -104,7 +104,7 @@ def ollama_available() -> bool:
 def mock_config_settings():
     """Test-safe ConfigSettings with no external dependencies."""
     settings = MagicMock()
-    settings.app_name = "Constitutional AI Test"
+    settings.app_name = "Svensk Ragg Test"
     settings.app_version = "2.0.0-test"
     settings.debug = True
     settings.host = "127.0.0.1"

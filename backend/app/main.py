@@ -1,5 +1,5 @@
 """
-Constitutional AI Backend - Main Application
+Svensk Ragg Backend - Main Application
 FastAPI server for Swedish legal document RAG system
 
 Run with: uvicorn app.main:app --reload --host 0.0.0.0 --port 8900
@@ -15,6 +15,7 @@ from fastapi.responses import StreamingResponse
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.gzip import GZipMiddleware
 
+from .api.constitutional_routes import branded_router
 from .api.constitutional_routes import harvest_websocket
 from .api.constitutional_routes import router as constitutional_router
 from .api.document_routes import router as document_router
@@ -49,9 +50,9 @@ async def lifespan(app: FastAPI):
     logger.info(f"  {settings.app_name} v{settings.app_version}")
     logger.info("=" * 60)
 
-    # Initialize Constitutional AI Services
+    # Initialize Svensk Ragg Services
     try:
-        logger.info("Initializing Constitutional AI Services...")
+        logger.info("Initializing Svensk Ragg Services...")
         orchestrator = get_orchestrator_service()
         await orchestrator.initialize()
         logger.info("✅ Orchestrator & Retrieval Stack ONLINE")
@@ -93,11 +94,12 @@ async def lifespan(app: FastAPI):
 # Create FastAPI application
 app = FastAPI(
     title=settings.app_name,
-    description="Backend for Constitutional AI - Swedish legal document RAG system",
+    description="Backend for Svensk Ragg - Swedish legal document RAG system",
     version=settings.app_version,
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if settings.api_docs_exposed else None,
+    redoc_url="/redoc" if settings.api_docs_exposed else None,
+    openapi_url="/openapi.json" if settings.api_docs_exposed else None,
 )
 
 # Register exception handlers
@@ -123,12 +125,15 @@ app.add_middleware(
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Include REST API routes
+app.include_router(branded_router)
 app.include_router(constitutional_router)
 app.include_router(document_router)
-mount_chatgpt_app(app)
+if settings.local_operator_routes_exposed:
+    mount_chatgpt_app(app)
 
 # WebSocket endpoints
-app.websocket("/ws/harvest")(harvest_websocket)  # Constitutional AI: Live Harvest Progress
+if settings.harvest_ws_exposed:
+    app.websocket("/ws/harvest")(harvest_websocket)  # Svensk Ragg: Live Harvest Progress
 
 
 async def sse_event_stream(request: Request):
@@ -167,7 +172,6 @@ async def sse_event_stream(request: Request):
         yield f"data: {json.dumps(error_response)}\n\n"
 
 
-@app.get("/sse")
 async def sse_endpoint(request: Request):
     """Server-Sent Events endpoint for MCP compatibility"""
     return StreamingResponse(
@@ -181,7 +185,6 @@ async def sse_endpoint(request: Request):
     )
 
 
-@app.post("/sse/message")
 async def sse_message_endpoint(request: Request):
     """Handle MCP messages sent via POST (for SSE transport)"""
     try:
@@ -212,19 +215,30 @@ async def sse_message_endpoint(request: Request):
         return {"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": str(e)}}
 
 
+if settings.legacy_sse_exposed:
+    app.get("/sse", include_in_schema=False)(sse_endpoint)
+    app.post("/sse/message", include_in_schema=False)(sse_message_endpoint)
+
+
 @app.get("/")
 async def root():
     """Root endpoint - basic info"""
-    return {
+    payload = {
         "name": settings.app_name,
         "version": settings.app_version,
-        "docs": "/docs",
-        "constitutional": "/api/constitutional/health",
-        "harvest": f"ws://localhost:{settings.port}/ws/harvest",
+        "svensk_ragg": "/api/svensk-ragg/health",
     }
+    if settings.api_docs_exposed:
+        payload["docs"] = "/docs"
+    if settings.local_operator_routes_exposed:
+        payload["mcp"] = "/mcp"
+    if settings.harvest_ws_exposed:
+        payload["harvest"] = f"ws://localhost:{settings.port}/ws/harvest"
+    return payload
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Console entrypoint for `svensk-ragg`."""
     import uvicorn
 
     uvicorn.run(
@@ -234,3 +248,7 @@ if __name__ == "__main__":
         reload=settings.debug,
         log_level=settings.log_level.lower(),
     )
+
+
+if __name__ == "__main__":
+    main()

@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 
 class ResponseMode(str, Enum):
     """
-    Response modes for Constitutional AI.
+    Response modes for Svensk Ragg.
 
     Each mode has different system prompts and model configurations.
     """

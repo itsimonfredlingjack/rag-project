@@ -1,4 +1,4 @@
-# Constitutional AI Architecture Map
+# Svensk Ragg Architecture Map
 
 **Project**: Swedish Legal Document RAG System  
 **Base Path**: repo root (`rag-project/`)
@@ -23,7 +23,7 @@ rag-project/
 │   │   └── utils/                     # Logging, metrics
 │   └── venv/                          # Python virtualenv (with installed packages)
 ├── apps/
-│   └── konstitutionell-frontend/  # React+TypeScript frontend
+│   └── svensk-ragg-frontend/  # React+TypeScript frontend
 │       ├── src/
 │       │   ├── App.tsx                # Root component
 │       │   ├── components/            # UI components (3695 TS/TSX files across project)
@@ -65,7 +65,7 @@ rag-project/
 ┌─────────────────────────────────────────────────────────────────┐
 │ Frontend (React @ localhost:5173)                               │
 │ - QueryBar (user enters question)                               │
-│ - Sends POST /api/constitutional/agent/query (AgentQueryRequest)│
+│ - Sends POST /api/svensk-ragg/agent/query (AgentQueryRequest)│
 └─────────────────────┬───────────────────────────────────────────┘
                       │
                       ▼
@@ -180,7 +180,7 @@ rag-project/
 
 ## 4. API Routes
 
-### File: `backend/app/api/constitutional_routes.py` (472 lines)
+### File: `backend/app/api/svensk-ragg_routes.py` (472 lines)
 
 | Method | Endpoint | Request Model | Response Model | Validation | Notes |
 |--------|----------|---------------|----------------|-----------|-------|
@@ -264,7 +264,7 @@ src/
 
 ### Data Flow (Frontend)
 1. User types in `QueryBar` → updates Zustand store
-2. Submit → `App.tsx` calls `POST /api/constitutional/agent/query`
+2. Submit → `App.tsx` calls `POST /api/svensk-ragg/agent/query`
 3. Response → store updated with `AgentQueryResponse`
 4. Components re-render:
    - `ResultsSection` shows answer
@@ -410,7 +410,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8900
 
 # Start frontend
-cd apps/konstitutionell-frontend
+cd apps/svensk-ragg-frontend
 npm install
 npm run dev  # Vite dev server on :5173
 ```
@@ -504,9 +504,9 @@ App.tsx (root)
 | `backend/app/main.py` | FastAPI app, lifespan, routing | Backend lead |
 | `backend/app/services/orchestrator_service.py` | Pipeline orchestration | AI team (needs decomposition) |
 | `backend/app/services/retrieval_orchestrator.py` | Multi-strategy retrieval | Retrieval team |
-| `backend/app/api/constitutional_routes.py` | Query & health endpoints | API team |
+| `backend/app/api/svensk-ragg_routes.py` | Query & health endpoints | API team |
 | `backend/app/api/document_routes.py` | Document CRUD endpoints | Data team |
-| `apps/konstitutionell-frontend/src/App.tsx` | Frontend root | UI team |
+| `apps/svensk-ragg-frontend/src/App.tsx` | Frontend root | UI team |
 | `backend/app/config.py` | Environment settings | DevOps |
 | `docs/` | Architecture & decision logs | Team |
 

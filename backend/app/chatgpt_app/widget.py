@@ -5,9 +5,9 @@ from __future__ import annotations
 
 def build_widget_html(default_view: str = "query") -> str:
     title = (
-        "Constitutional AI Operator Dashboard"
+        "Svensk Ragg Operator Dashboard"
         if default_view == "operator"
-        else "Constitutional AI Query Report"
+        else "Svensk Ragg Query Report"
     )
     return f"""<!DOCTYPE html>
 <html lang="en">

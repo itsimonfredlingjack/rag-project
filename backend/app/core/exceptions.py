@@ -1,5 +1,5 @@
 """
-Custom Exceptions for Constitutional AI
+Custom Exceptions for Svensk Ragg
 Separates business logic errors from HTTP transport layer with structured context.
 """
 
@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, Optional, Type, TypeVar
 
 class ConstitutionalAIError(Exception):
     """
-    Base exception for all Constitutional AI errors.
+    Base exception for all Svensk Ragg errors.
 
     All custom exceptions should inherit from this.
     Carries structured context for debugging and monitoring.

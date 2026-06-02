@@ -4,16 +4,18 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-MODEL="${OLLAMA_MODEL:-gemma4:26b}"
+RUNTIME_PROFILE="${CONST_PROFILE:-public-riksdag-demo}"
+MODEL="${OLLAMA_MODEL:-gemma3:4b}"
 BACKEND_PORT="${BACKEND_PORT:-8900}"
 FRONTEND_PORT="${FRONTEND_PORT:-3003}"
 LOG_DIR="${LOG_DIR:-logs}"
-FRONTEND_DIR="apps/konstitutionell-frontend"
+FRONTEND_DIR="apps/svensk-ragg-frontend"
 BACKEND_PY="backend/.venv/bin/python"
 
 mkdir -p "$LOG_DIR"
 
-echo "Starting Constitutional AI local demo"
+echo "Starting Svensk Ragg local demo"
+echo "Profile:  $RUNTIME_PROFILE"
 echo "Model:    $MODEL via Ollama http://127.0.0.1:11434"
 echo "Backend:  http://localhost:$BACKEND_PORT"
 echo "Frontend: http://localhost:$FRONTEND_PORT"
@@ -75,12 +77,12 @@ fuser -k "$FRONTEND_PORT/tcp" >/dev/null 2>&1 || true
 sleep 1
 
 echo "Starting backend..."
-setsid bash -c "cd '$SCRIPT_DIR/backend' && exec .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port '$BACKEND_PORT'" </dev/null > "$LOG_DIR/backend.log" 2>&1 &
+setsid bash -c "cd '$SCRIPT_DIR/backend' && CONST_PROFILE='$RUNTIME_PROFILE' exec .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port '$BACKEND_PORT'" </dev/null > "$LOG_DIR/backend.log" 2>&1 &
 BACKEND_PID=$!
 echo "$BACKEND_PID" > "$LOG_DIR/backend.pid"
 
 for _ in {1..60}; do
-  if curl -fsS "http://localhost:$BACKEND_PORT/api/constitutional/health" >/dev/null 2>&1; then
+  if curl -fsS "http://localhost:$BACKEND_PORT/api/svensk-ragg/health" >/dev/null 2>&1; then
     break
   fi
   if ! kill -0 "$BACKEND_PID" >/dev/null 2>&1; then
@@ -91,13 +93,13 @@ for _ in {1..60}; do
   sleep 1
 done
 
-if ! curl -fsS "http://localhost:$BACKEND_PORT/api/constitutional/health" >/dev/null 2>&1; then
+if ! curl -fsS "http://localhost:$BACKEND_PORT/api/svensk-ragg/health" >/dev/null 2>&1; then
   echo "ERROR: backend did not become ready. See $LOG_DIR/backend.log"
   exit 1
 fi
 
 echo "Running deep readiness once to warm runtime data checks..."
-curl -fsS "http://localhost:$BACKEND_PORT/api/constitutional/ready" >/dev/null 2>&1 || true
+curl -fsS "http://localhost:$BACKEND_PORT/api/svensk-ragg/ready" >/dev/null 2>&1 || true
 
 echo "Starting frontend..."
 setsid bash -c "cd '$SCRIPT_DIR/$FRONTEND_DIR' && exec npm run dev -- --host 127.0.0.1 --port '$FRONTEND_PORT'" </dev/null > "$LOG_DIR/frontend.log" 2>&1 &
@@ -123,9 +125,9 @@ fi
 
 echo
 echo "Local demo started"
-echo "Backend health:  http://localhost:$BACKEND_PORT/api/constitutional/health"
-echo "Backend ready:   http://localhost:$BACKEND_PORT/api/constitutional/ready"
+echo "Backend health:  http://localhost:$BACKEND_PORT/api/svensk-ragg/health"
+echo "Backend ready:   http://localhost:$BACKEND_PORT/api/svensk-ragg/ready"
 echo "Frontend:        http://localhost:$FRONTEND_PORT"
 echo "Logs:            $LOG_DIR/backend.log, $LOG_DIR/frontend.log"
 echo
-echo "Note: /ready will stay not_ready until backend/.env points to restored ChromaDB and BM25 data."
+echo "Note: public demo readiness is degraded_but_usable when the public BM25 corpus is ready and Chroma is disabled."

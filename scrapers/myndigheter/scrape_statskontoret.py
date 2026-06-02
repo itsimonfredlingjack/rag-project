@@ -31,7 +31,7 @@ BASE_URL = "https://www.statskontoret.se"
 SITEMAP_URL = f"{BASE_URL}/sitemap.xml"
 
 HEADERS = {
-    "User-Agent": "StatskontoretBot/1.0 (Constitutional AI Research, respekterar robots.txt)"
+    "User-Agent": "StatskontoretBot/1.0 (Svensk Ragg Research, respekterar robots.txt)"
 }
 
 DELAY_BETWEEN_REQUESTS = 2.0

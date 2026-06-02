@@ -5,7 +5,7 @@ All tests use mocked services — no network/GPU required.
 """
 
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 from app.services.orchestrator_service import (
     RAGPipelineMetrics,
@@ -223,6 +223,25 @@ async def test_process_query_security_block(mock_orchestrator, mock_guardrail_se
         "säkerhetsskäl" in (result.error or "").lower()
         or "security" in (result.error or "").lower()
     )
+
+
+# ============================================================================
+# health_check
+# ============================================================================
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_health_check_returns_false_when_child_service_is_false(mock_orchestrator):
+    mock_orchestrator.llm_service.health_check = AsyncMock(return_value=True)
+    mock_orchestrator.query_processor.health_check = AsyncMock(return_value=True)
+    mock_orchestrator.guardrail.health_check = AsyncMock(return_value=True)
+    mock_orchestrator.retrieval.health_check = AsyncMock(return_value=False)
+    mock_orchestrator.reranker.health_check = AsyncMock(return_value=True)
+    mock_orchestrator.critic.health_check = AsyncMock(return_value=True)
+    mock_orchestrator.grader.health_check = AsyncMock(return_value=True)
+
+    assert await mock_orchestrator.health_check() is False
 
 
 # ============================================================================

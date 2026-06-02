@@ -11,7 +11,7 @@ pip install ragas datasets
 ## Steg 2: Kör baseline eval
 
 ```bash
-constitutional eval --quick --output eval/results/baseline_2025-12-21.json
+svensk-ragg eval --quick --output eval/results/baseline_2025-12-21.json
 ```
 
 Detta kommer:
@@ -47,10 +47,10 @@ Efter varje implementation (stabila IDs, snippet-rensning, etc.):
 
 ```bash
 # Kör eval igen
-constitutional eval --quick
+svensk-ragg eval --quick
 
 # Jämför med baseline
-constitutional eval --quick --compare eval/results/baseline_BEFORE_TUNING.json
+svensk-ragg eval --quick --compare eval/results/baseline_BEFORE_TUNING.json
 ```
 
 Målet är att se:

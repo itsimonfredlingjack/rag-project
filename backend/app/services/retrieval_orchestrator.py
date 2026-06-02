@@ -2,7 +2,7 @@
 Retrieval Orchestrator - Phase 1, 2, 3 & 4: Complete Smarter Retrieval Stack
 =============================================================================
 
-Centralized retrieval logic for Constitutional AI.
+Centralized retrieval logic for Svensk Ragg.
 Supports parallel search, graceful degradation, query rewriting, and instrumentation.
 
 Phase 1: Parallel collection search with timeout handling ✓
@@ -25,6 +25,8 @@ import logging
 import re
 import time
 from typing import Any, Dict, List, Optional
+
+from ..shared.public_source_guard import PublicSourceGuardError, validate_public_records
 
 # Phase 4: Confidence signals for adaptive retrieval
 from .confidence_signals import (
@@ -149,6 +151,7 @@ class RetrievalOrchestrator:
         intent_llm_fallback_enabled: bool = False,
         intent_llm_fallback_timeout: float = 3.0,
         intent_llm_fallback_confidence_threshold: float = 0.50,
+        public_guard_enabled: bool = False,
     ):
         self.client = chromadb_client
         self.embed_fn = embedding_function
@@ -182,6 +185,10 @@ class RetrievalOrchestrator:
         self._intent_llm_fallback_enabled = intent_llm_fallback_enabled
         self._intent_llm_fallback_timeout = intent_llm_fallback_timeout
         self._intent_llm_fallback_confidence_threshold = intent_llm_fallback_confidence_threshold
+        self._public_guard_enabled = public_guard_enabled
+
+    def _guard_public_records(self, records: List[Any], *, stage: str) -> None:
+        validate_public_records(records, stage=stage, enabled=self._public_guard_enabled)
 
     def _get_bm25_index_size_bytes(self) -> int:
         """Return on-disk BM25 index size in bytes (best-effort)."""
@@ -440,6 +447,8 @@ class RetrievalOrchestrator:
                 # Update strategy in metrics
                 metrics.strategy = strategy.value
 
+                self._guard_public_records(results, stage="retrieval_parallel_results")
+
                 # Add rewrite metrics if used
                 if rewrite_result:
                     metrics.rewrite_used = rewrite_result.rewrite_used
@@ -455,6 +464,7 @@ class RetrievalOrchestrator:
                         snippet=r["snippet"],
                         score=r["score"],
                         source=r["source"],
+                        source_scope=r.get("source_scope"),
                         doc_type=r.get("doc_type"),
                         date=r.get("date"),
                         retriever="dense",
@@ -641,6 +651,8 @@ class RetrievalOrchestrator:
                     f"in {metrics.bm25_latency_ms:.1f}ms"
                 )
                 return results
+            except PublicSourceGuardError:
+                raise
             except Exception as e:
                 logger.warning(f"BM25 search failed (continuing with dense only): {e}")
                 metrics.bm25_timeout = True
@@ -659,6 +671,7 @@ class RetrievalOrchestrator:
             bm25_results=bm25_results if bm25_results else None,
             k=self._rrf_k,
             bm25_weight=self._bm25_weight,
+            public_guard_enabled=self._public_guard_enabled,
         )
         metrics.rrf_latency_ms = (time.perf_counter() - rrf_start) * 1000
 
@@ -689,6 +702,7 @@ class RetrievalOrchestrator:
                 snippet=r.get("snippet", ""),
                 score=r.get("rrf_score", r.get("score", 0.0)),
                 source=r.get("source", "unknown"),
+                source_scope=r.get("source_scope"),
                 doc_type=r.get("doc_type"),
                 date=r.get("date"),
                 retriever=retriever_type,
@@ -1034,6 +1048,8 @@ class RetrievalOrchestrator:
                     f"in {metrics.bm25_latency_ms:.1f}ms"
                 )
                 return results
+            except PublicSourceGuardError:
+                raise
             except Exception as e:
                 logger.warning(f"Adaptive BM25 failed (continuing dense only): {e}")
                 return None
@@ -1059,6 +1075,7 @@ class RetrievalOrchestrator:
             bm25_results=bm25_results,
             k=self._rrf_k,
             bm25_weight=self._bm25_weight,
+            public_guard_enabled=self._public_guard_enabled,
         )
 
         # Calculate fusion metrics
@@ -1082,6 +1099,7 @@ class RetrievalOrchestrator:
                 snippet=r.get("snippet", ""),
                 score=r.get("rrf_score", r.get("score", 0.0)),
                 source=r.get("source", "unknown"),
+                source_scope=r.get("source_scope"),
                 doc_type=r.get("doc_type"),
                 date=r.get("date"),
                 retriever="adaptive",
@@ -1556,6 +1574,8 @@ class RetrievalOrchestrator:
                     f"in {metrics.bm25_latency_ms:.1f}ms"
                 )
                 return results
+            except PublicSourceGuardError:
+                raise
             except Exception as e:
                 logger.warning(f"EPR BM25 failed (continuing dense only): {e}")
                 return None
@@ -1627,6 +1647,7 @@ class RetrievalOrchestrator:
                 bm25_results=bm25_results,
                 k=self._rrf_k,
                 bm25_weight=self._bm25_weight,
+                public_guard_enabled=self._public_guard_enabled,
             )
             # Use rrf_score as the primary score
             all_results = []
@@ -1655,6 +1676,7 @@ class RetrievalOrchestrator:
         else:
             all_results = [r for r in all_results if r.get("score", 0.0) >= min_score]
         logger.info(f"EPR: After min_score filter: {len(all_results)} results")
+        self._guard_public_records(all_results, stage="epr_retrieval_results")
 
         # Convert to SearchResult with tier annotation
         search_results = []
@@ -1670,6 +1692,7 @@ class RetrievalOrchestrator:
                     snippet=r.get("snippet", ""),
                     score=r.get("score", 0.0),
                     source=source,
+                    source_scope=r.get("source_scope"),
                     doc_type=r.get("doc_type"),
                     date=r.get("date"),
                     retriever="epr",
@@ -1711,6 +1734,7 @@ class RetrievalOrchestrator:
 
         # Parent-child retrieval: append kapitel-level context for SFS results
         unique_results = await self._expand_parent_context(unique_results, metrics=metrics)
+        self._guard_public_records(unique_results, stage="epr_final_results")
 
         metrics.total_latency_ms = (time.perf_counter() - start_total) * 1000
         metrics.unique_docs_total = len(unique_results)

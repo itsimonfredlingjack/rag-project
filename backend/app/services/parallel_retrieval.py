@@ -145,6 +145,7 @@ async def search_single_collection(
                         "snippet": snippet,
                         "score": score,
                         "source": metadata.get("source", collection.name),
+                        "source_scope": metadata.get("source_scope", ""),
                         "doc_type": metadata.get("doc_type"),
                         "date": metadata.get("date"),
                         "collection": collection.name,
