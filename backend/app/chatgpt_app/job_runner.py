@@ -32,22 +32,7 @@ def main() -> int:
 
     operations: dict[str, list[str]] = {
         "readiness_check": [sys.executable, "-m", "app.main"],
-        "smoke_test_pipeline": [
-            sys.executable,
-            str(repo_root / "scripts" / "smoke_test_pipeline.py"),
-            "--help",
-        ],
-        "compare_retrieval_quality": [
-            sys.executable,
-            str(repo_root / "scripts" / "compare_retrieval_quality.py"),
-            "--help",
-        ],
         "rag_benchmark_quick": [sys.executable, str(repo_root / "rag_benchmark.py"), "--help"],
-        "reindex_corpus": [
-            sys.executable,
-            str(repo_root / "scripts" / "reindex_corpus.py"),
-            "--help",
-        ],
         "sfs_update": [sys.executable, str(repo_root / "scrapers" / "sfs_updater.py"), "--help"],
         "harvest_source": [
             sys.executable,

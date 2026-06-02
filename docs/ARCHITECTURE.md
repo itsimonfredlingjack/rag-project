@@ -381,31 +381,12 @@ ChromaDB stores locally indexed documents embedded with Jina v3 multilingual emb
 - **Reranker**: jinaai/jina-reranker-v2-base-multilingual (cross-encoder, XLM-RoBERTa, 278M params)
 - **Storage**: local disk-backed ChromaDB data, size depends on the corpus and is not distributed in Git
 
-### Re-indexering
+### Public Corpus Artifacts
 
-Re-indexering krävs när embedding-modellen byts, eller när dokument behöver flyttas till en ny
-vektorrymd (till exempel från en äldre modell till Jina v3). Utan re-indexering riskerar retrieval
-att ge felaktiga eller tomma träffar trots att dokument finns i ChromaDB.
-
-Kör re-indexeringsskriptet från repo-roten:
-
-```bash
-# Snabb validering (100 dokument, inga writes)
-python scripts/reindex_corpus.py --dry-run
-
-# Full re-indexering på CPU
-python scripts/reindex_corpus.py
-
-# Full re-indexering på GPU
-python scripts/reindex_corpus.py --device gpu
-```
-
-Förväntad körtid:
-- **CPU**: cirka 15-25 timmar
-- **GPU**: cirka 1.5-2.5 timmar
-
-Vid GPU-körning måste `llama-server` stoppas först så att VRAM frigörs för
-embedding-modellen.
+Det aktiva publika demot distribuerar Riksdag-korpusen som release-artifact i stället för att
+kräva lokala Chroma-reindexeringsjobb. Återställ BM25/FTS5-bundlen enligt
+[PUBLIC_RIKSDAG_DEMO.md](PUBLIC_RIKSDAG_DEMO.md). Historiska Chroma/Jina-recovery-jobb och
+engångsskrapningar hörde till privat labbdrift och ligger inte längre som körbara root-skript.
 
 ### Retrieval Pipeline 2026
 

@@ -36,7 +36,7 @@ rag-project/
 │       └── dist/                      # Production build output
 ├── indexers/                          # Data ingestion scripts (23 Python files)
 │   └── [index_*.py, migrate_*.py, verify_*.py]
-├── scripts/                           # Utility and automation scripts
+├── scripts/                           # Active public corpus builders and repo checks
 ├── docs/                              # Documentation (50+ markdown files)
 ├── docker/                            # Docker configuration
 ├── systemd/                           # Systemd service definitions

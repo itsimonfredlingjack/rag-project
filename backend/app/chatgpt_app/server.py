@@ -141,7 +141,7 @@ def build_tool_catalog() -> dict[str, dict[str, Any]]:
             "title": "Run Diagnostic Job",
             "description": (
                 "Use this when you need a non-destructive diagnostic job such as "
-                "readiness checks or quick retrieval benchmarks."
+                "readiness checks or quick RAG benchmarks."
             ),
             "annotations": {
                 "readOnlyHint": False,
@@ -158,7 +158,7 @@ def build_tool_catalog() -> dict[str, dict[str, Any]]:
             "title": "Run Corpus Operation",
             "description": (
                 "Use this when an operator explicitly wants an allowlisted corpus action "
-                "such as reindexing or a source update. Requires confirm=true."
+                "such as an SFS update or source harvest. Requires confirm=true."
             ),
             "annotations": {
                 "readOnlyHint": False,
@@ -531,8 +531,6 @@ def create_chatgpt_mcp_server(
     async def run_diagnostic_job(
         operation: Literal[
             "readiness_check",
-            "smoke_test_pipeline",
-            "compare_retrieval_quality",
             "rag_benchmark_quick",
         ],
     ) -> CallToolResult:
@@ -552,7 +550,7 @@ def create_chatgpt_mcp_server(
         meta=catalog["run_corpus_operation"]["meta"],
     )
     async def run_corpus_operation(
-        operation: Literal["reindex_corpus", "sfs_update", "harvest_source"],
+        operation: Literal["sfs_update", "harvest_source"],
         confirm: bool = False,
     ) -> CallToolResult:
         profile = getattr(provider().config, "profile", None)

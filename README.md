@@ -97,7 +97,7 @@ rag-project/
 ├── eval/                            Eval-skript, testfrågor och retrieval-analyser
 ├── backend/eval/                    Backendnära eval-dataset och körskript
 ├── indexers/                        Skript för ChromaDB-indexering
-├── scripts/                         Pipeline-, BM25-, reindexerings- och utility-skript
+├── scripts/                         Publika corpusbyggare samt CI-/repo-kontroller
 ├── scrapers/                        Scrapers för offentliga svenska dokumentkällor
 ├── docs/                            Publik dokumentation och screenshots
 └── .github/workflows/               CI för docs, backend och frontend

@@ -54,7 +54,7 @@ async def test_public_profile_rejects_mcp_job_launches(monkeypatch):
     )
     corpus = await server._launch_job(
         "run_corpus_operation",
-        "reindex_corpus",
+        "sfs_update",
         confirm=True,
         profile="public-riksdag-demo",
     )

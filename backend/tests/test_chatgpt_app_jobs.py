@@ -16,7 +16,7 @@ def test_resolve_corpus_job_requires_explicit_confirmation():
     from app.chatgpt_app.jobs import JobValidationError, resolve_job_request
 
     with pytest.raises(JobValidationError, match="confirm=true"):
-        resolve_job_request(tool_name="run_corpus_operation", operation="reindex_corpus")
+        resolve_job_request(tool_name="run_corpus_operation", operation="sfs_update")
 
 
 def test_resolve_corpus_job_rejects_unknown_operations():
@@ -26,5 +26,16 @@ def test_resolve_corpus_job_rejects_unknown_operations():
         resolve_job_request(
             tool_name="run_corpus_operation",
             operation="drop_everything",
+            confirm=True,
+        )
+
+
+def test_resolve_corpus_job_rejects_legacy_reindex_operation():
+    from app.chatgpt_app.jobs import JobValidationError, resolve_job_request
+
+    with pytest.raises(JobValidationError, match="Unsupported operation"):
+        resolve_job_request(
+            tool_name="run_corpus_operation",
+            operation="reindex_corpus",
             confirm=True,
         )

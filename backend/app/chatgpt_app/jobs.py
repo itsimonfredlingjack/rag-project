@@ -19,18 +19,10 @@ class JobRequest:
 
 _DIAGNOSTIC_JOBS: dict[str, list[str]] = {
     "readiness_check": ["python", "-m", "app.chatgpt_app.job_runner", "readiness_check"],
-    "smoke_test_pipeline": ["python", "-m", "app.chatgpt_app.job_runner", "smoke_test_pipeline"],
-    "compare_retrieval_quality": [
-        "python",
-        "-m",
-        "app.chatgpt_app.job_runner",
-        "compare_retrieval_quality",
-    ],
     "rag_benchmark_quick": ["python", "-m", "app.chatgpt_app.job_runner", "rag_benchmark_quick"],
 }
 
 _CORPUS_JOBS: dict[str, list[str]] = {
-    "reindex_corpus": ["python", "-m", "app.chatgpt_app.job_runner", "reindex_corpus"],
     "sfs_update": ["python", "-m", "app.chatgpt_app.job_runner", "sfs_update"],
     "harvest_source": ["python", "-m", "app.chatgpt_app.job_runner", "harvest_source"],
 }
