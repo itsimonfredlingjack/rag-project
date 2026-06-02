@@ -120,6 +120,125 @@ Det största lärandet i projektet är att kvaliteten i ett RAG-system avgörs l
 ## Kom Igång
 
 Se även [docs/QUICK_START.md](docs/QUICK_START.md) för en kortare körguide.
+För full publik demo, se även [docs/PUBLIC_RIKSDAG_DEMO.md](docs/PUBLIC_RIKSDAG_DEMO.md).
+
+### Installationsguide: Svensk RAGG/Riksdag-demo (publik)
+
+- **Repo:** `https://github.com/itsimonfredlingjack/rag-project.git`
+- **Backend:** FastAPI/Uvicorn på `127.0.0.1:8900`
+- **Frontend:** Vite-app på `http://localhost:3003`
+- **Demo-profil:** `public-riksdag-demo`
+- **LLM:** Ollama med `gemma3:4b`
+- **Corpus/index:** hämtas separat från GitHub Release och innehåller `docs.jsonl` och `bm25.db`
+- **Standardplats för data:** `/home/ai-server2/rag/local-data-public`
+
+`degraded_but_usable` är väntat i denna demo, eftersom Chroma är avstängt och public-demo:n kör BM25-only.
+
+1. **Klona repo:t**
+
+   ```bash
+   git clone https://github.com/itsimonfredlingjack/rag-project.git
+   cd rag-project
+   ```
+
+2. **Installera backend**
+
+   ```bash
+   cd backend
+   python3 -m venv .venv
+   ./.venv/bin/pip install -r requirements.txt
+   cd ..
+   ```
+
+3. **Installera frontend**
+
+   ```bash
+   cd apps/svensk-ragg-frontend
+   npm install
+   cd ../..
+   ```
+
+4. **Ladda ner corpus/index**
+
+   ```bash
+   curl -L \
+     -o /tmp/public-riksdag-corpus-20260602.tar.zst \
+     https://github.com/itsimonfredlingjack/rag-project/releases/download/public-riksdag-corpus-20260602/public-riksdag-corpus-20260602.tar.zst
+   ```
+
+   Verifiera checksum:
+
+   ```bash
+   echo "e2f9154e122b01cd93133888fa0476f274cd8f00b6a3fbce822bb946e8b0bbac  /tmp/public-riksdag-corpus-20260602.tar.zst" \
+     | sha256sum -c -
+   ```
+
+   Packa upp till standardplats:
+
+   ```bash
+   mkdir -p /home/ai-server2/rag/local-data-public
+   tar -I zstd -xf /tmp/public-riksdag-corpus-20260602.tar.zst \
+     -C /home/ai-server2/rag/local-data-public
+   ```
+
+5. **Starta LLM**
+
+   ```bash
+   ollama pull gemma3:4b
+   ollama serve
+   ```
+
+   Om `ollama serve` redan kör som service behöver du inte starta den manuellt.
+
+6. **Starta backend**
+
+   ```bash
+   cd rag-project/backend
+   export CONST_PROFILE=public-riksdag-demo
+   ./.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8900
+   ```
+
+   Kolla readiness:
+
+   ```bash
+   curl -s http://127.0.0.1:8900/api/svensk-ragg/ready | python3 -m json.tool
+   ```
+
+   Förväntat läge:
+
+   ```json
+   {
+     "status": "degraded_but_usable",
+     "can_answer": true,
+     "profile": "public-riksdag-demo"
+   }
+   ```
+
+7. **Starta frontend**
+
+   ```bash
+   cd rag-project/apps/svensk-ragg-frontend
+   npm run dev
+   ```
+
+   Öppna: `http://localhost:3003`
+
+8. **Snabb API-test**
+
+   ```bash
+   curl -X POST http://127.0.0.1:8900/api/svensk-ragg/agent/query \
+     -H "Content-Type: application/json" \
+     -d '{"question":"Vilka dokument i Riksdagen nämner offentlighetsprincipen?","mode":"evidence"}'
+   ```
+
+**Viktigt:** Koden ligger i repot, men corpus/index hämtas separat från GitHub Release där `docs.jsonl` och `bm25.db` finns.
+
+**Snabb felsökning**
+
+- Om checksum-verifieringen misslyckas: ladda ner `.tar.zst`-filen igen och kör verifieringen på nytt.
+- Om readiness inte visar `can_answer: true`: kontrollera att `CONST_PROFILE=public-riksdag-demo` är satt och att corpus/index ligger på standardplatsen.
+- Om frontend inte öppnas på `localhost:3003`: kontrollera att `npm run dev` körs i `apps/svensk-ragg-frontend`.
+- Om API-testet inte svarar: kontrollera att backend lyssnar på `127.0.0.1:8900` och att Ollama är igång.
 
 ### Backend
 
