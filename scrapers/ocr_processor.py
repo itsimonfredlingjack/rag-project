@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Smart OCR Processor for Constitutional AI
+Smart OCR Processor for Svensk Ragg
 Automatically detects if PDF is digital or scanned and uses appropriate extraction method.
 
 Features:

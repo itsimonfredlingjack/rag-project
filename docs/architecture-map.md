@@ -1,7 +1,7 @@
-# Svensk RAG Architecture Map
+# Svensk Ragg Architecture Map
 
 **Project**: Swedish Legal Document RAG System  
-**Base Path**: `/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/`  
+**Base Path**: repo root (`rag-project/`)
 **Framework**: FastAPI 0.109+ (Python 3.12) + React 19 + TypeScript  
 **Key Infrastructure**: ChromaDB, llama-server (llama.cpp), LangChain, XState (frontend)
 
@@ -11,7 +11,7 @@
 
 ### Root Layout
 ```
-09_CONSTITUTIONAL-AI/
+rag-project/
 ├── backend/              # FastAPI Python backend (13,196 lines of service code)
 │   ├── app/
 │   │   ├── main.py                    # FastAPI app setup, lifespan, routing
@@ -23,7 +23,7 @@
 │   │   └── utils/                     # Logging, metrics
 │   └── venv/                          # Python virtualenv (with installed packages)
 ├── apps/
-│   └── konstitutionell-frontend/  # React+TypeScript frontend
+│   └── svensk-ragg-frontend/  # React+TypeScript frontend
 │       ├── src/
 │       │   ├── App.tsx                # Root component
 │       │   ├── components/            # UI components (3695 TS/TSX files across project)
@@ -65,7 +65,7 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │ Frontend (React @ localhost:5173)                               │
 │ - QueryBar (user enters question)                               │
-│ - Sends POST /api/constitutional/agent/query (AgentQueryRequest)│
+│ - Sends POST /api/svensk-ragg/agent/query (AgentQueryRequest)│
 └─────────────────────┬───────────────────────────────────────────┘
                       │
                       ▼
@@ -180,7 +180,7 @@
 
 ## 4. API Routes
 
-### File: `backend/app/api/constitutional_routes.py` (472 lines)
+### File: `backend/app/api/svensk-ragg_routes.py` (472 lines)
 
 | Method | Endpoint | Request Model | Response Model | Validation | Notes |
 |--------|----------|---------------|----------------|-----------|-------|
@@ -191,7 +191,7 @@
 | GET | `/collections` | — | List[`CollectionInfo`] | — | ChromaDB collections |
 | POST | `/agent/query` | `AgentQueryRequest` | `AgentQueryResponse` | ✓ min/max length | Main search endpoint |
 | POST | `/agent/query/stream` | `AgentQueryRequest` | Server-Sent Events | ✓ same as above | Streaming variant |
-| WS | `/ws/harvest` | — | WebSocket frames | — | Live indexing progress |
+| WS | `/ws/harvest` | — | WebSocket frames | — | Indexing progress |
 
 **Input Validation**:
 - `question`: 1–2000 chars ✓
@@ -264,7 +264,7 @@ src/
 
 ### Data Flow (Frontend)
 1. User types in `QueryBar` → updates Zustand store
-2. Submit → `App.tsx` calls `POST /api/constitutional/agent/query`
+2. Submit → `App.tsx` calls `POST /api/svensk-ragg/agent/query`
 3. Response → store updated with `AgentQueryResponse`
 4. Components re-render:
    - `ResultsSection` shows answer
@@ -410,7 +410,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8900
 
 # Start frontend
-cd apps/konstitutionell-frontend
+cd apps/svensk-ragg-frontend
 npm install
 npm run dev  # Vite dev server on :5173
 ```
@@ -504,9 +504,9 @@ App.tsx (root)
 | `backend/app/main.py` | FastAPI app, lifespan, routing | Backend lead |
 | `backend/app/services/orchestrator_service.py` | Pipeline orchestration | AI team (needs decomposition) |
 | `backend/app/services/retrieval_orchestrator.py` | Multi-strategy retrieval | Retrieval team |
-| `backend/app/api/constitutional_routes.py` | Query & health endpoints | API team |
+| `backend/app/api/svensk-ragg_routes.py` | Query & health endpoints | API team |
 | `backend/app/api/document_routes.py` | Document CRUD endpoints | Data team |
-| `apps/konstitutionell-frontend/src/App.tsx` | Frontend root | UI team |
+| `apps/svensk-ragg-frontend/src/App.tsx` | Frontend root | UI team |
 | `backend/app/config.py` | Environment settings | DevOps |
 | `docs/` | Architecture & decision logs | Team |
 

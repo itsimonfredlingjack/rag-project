@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 BASE_URL = "https://www.trafa.se"
 PUBLICATIONS_URL = f"{BASE_URL}/publikationer/"
 
-HEADERS = {"User-Agent": "TrafikanalysBot/1.0 (Constitutional AI Research, respekterar robots.txt)"}
+HEADERS = {"User-Agent": "TrafikanalysBot/1.0 (Svensk Ragg Research, respekterar robots.txt)"}
 
 # Rate limiting
 DELAY_BETWEEN_REQUESTS = 2.0

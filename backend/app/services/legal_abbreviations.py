@@ -7,7 +7,7 @@ Expanderar förkortningar i användarfrågor för att förbättra RAG-retrieval.
 import re
 from typing import Dict, Tuple
 
-# Grundlagar och konstitutionella dokument
+# Grundlagar och centrala dokument
 CONSTITUTIONAL_LAWS: Dict[str, str] = {
     "RF": "Regeringsformen",
     "TF": "Tryckfrihetsförordningen",

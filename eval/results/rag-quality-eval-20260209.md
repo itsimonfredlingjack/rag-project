@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-09
 **Evaluator:** Claude Opus 4.6 (automated)
-**System:** SWERAG Constitutional AI RAG (FastAPI + Mistral-Nemo)
+**System:** SWERAG Svensk Ragg RAG (FastAPI + Mistral-Nemo)
 **Queries:** 25 across 5 categories
 **Scoring:** 6 dimensions, 1-5 scale
 
@@ -36,7 +36,7 @@
 
 | Service | Status | Details |
 |---------|--------|---------|
-| Constitutional AI API | Healthy | All services initialized (LLM, query processor, guardrail, retrieval, reranker) |
+| Svensk Ragg API | Healthy | All services initialized (LLM, query processor, guardrail, retrieval, reranker) |
 | LLM Server (Mistral-Nemo) | OK | Port 8080 responding |
 | Collections | `[]` | Empty array returned (collections endpoint returns no data) |
 
@@ -363,7 +363,7 @@ Latency is acceptable for a legal research tool. Chat mode (D4) is notably fast 
 
 ### D1: What does Swedish law say about freedom of speech?
 - **Mode**: evidence | **Latency**: 30.8s | **Status**: ok
-- **Answer**: Enligt svensk grundlag och konstitutionell rätt har var och en yttrandefrihet. Det innebär att man har frihet att i tal, skrift eller bild...
+- **Answer**: Enligt svensk grundlag och grundläggande rätt har var och en yttrandefrihet. Det innebär att man har frihet att i tal, skrift eller bild...
 - **Sources**: 5 (RF 2:25 [0.56], YGL 12:3 [0.56], RF 2:1 [0.54], YGL 1:1 [0.51], YGL 1:15 [0.51])
 - **Evidence Level**: low | **Saknas Underlag**: false | **Citations**: 0
 - **Scores**: Rel=4, Src=4, Fact=4, Comp=3, Calib=3, Fmt=3 → **3.50**

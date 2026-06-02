@@ -4,25 +4,41 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..shared.public_source_guard import validate_public_record_if_enabled
 
-def _serialize_source(source: Any) -> dict[str, Any]:
-    return {
+
+def _serialize_source(source: Any, *, public_guard_enabled: bool = False) -> dict[str, Any]:
+    payload = {
         "id": getattr(source, "id", ""),
         "title": getattr(source, "title", ""),
         "snippet": getattr(source, "snippet", ""),
         "score": getattr(source, "score", 0.0),
         "source": getattr(source, "source", ""),
+        "source_scope": getattr(source, "source_scope", None),
         "doc_type": getattr(source, "doc_type", None),
         "date": getattr(source, "date", None),
         "retriever": getattr(source, "retriever", None),
         "tier": getattr(source, "tier", None),
     }
+    validate_public_record_if_enabled(
+        payload,
+        stage="api_response_serialization",
+        enabled=public_guard_enabled,
+    )
+    return payload
 
 
-def build_query_tool_payload(result: Any) -> dict[str, Any]:
+def build_query_tool_payload(
+    result: Any,
+    *,
+    public_guard_enabled: bool = False,
+) -> dict[str, Any]:
     """Convert a RAGResult-like object into model and widget payloads."""
     metrics = getattr(result, "metrics", None)
-    sources = [_serialize_source(source) for source in getattr(result, "sources", [])]
+    sources = [
+        _serialize_source(source, public_guard_enabled=public_guard_enabled)
+        for source in getattr(result, "sources", [])
+    ]
     answer = getattr(result, "answer", "") or ""
     evidence_level = getattr(result, "evidence_level", "NONE") or "NONE"
     retrieval_strategy = getattr(metrics, "retrieval_strategy", None)

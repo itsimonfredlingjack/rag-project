@@ -79,8 +79,8 @@ def test_build_query_tool_payload_marks_refusal_when_sources_missing():
 @pytest.mark.parametrize(
     ("view", "expected_title"),
     [
-        ("query", "Constitutional AI Query Report"),
-        ("operator", "Constitutional AI Operator Dashboard"),
+        ("query", "Svensk Ragg Query Report"),
+        ("operator", "Svensk Ragg Operator Dashboard"),
     ],
 )
 def test_widget_html_contains_bridge_and_expected_view_titles(view: str, expected_title: str):

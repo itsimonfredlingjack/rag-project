@@ -139,7 +139,7 @@ class _StreamFixture:
         self.build_llm_context_fn = lambda srcs: "context"
         self.retrieve_examples_fn = _retrieve_examples
         self.format_examples_fn = lambda examples: ""
-        self.build_system_prompt_fn = lambda *a, **kw: "system prompt {{CONSTITUTIONAL_EXAMPLES}}"
+        self.build_system_prompt_fn = lambda *a, **kw: "system prompt {{SVENSK_RAGG_EXAMPLES}}"
 
     async def run(self, question="Vad säger RF?", mode="auto", history=None):
         events = []

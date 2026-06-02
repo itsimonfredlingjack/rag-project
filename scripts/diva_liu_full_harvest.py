@@ -22,7 +22,7 @@ import requests
 OAI_ENDPOINT = "https://liu.diva-portal.org/dice/oai"
 METADATA_PREFIX = "swepub_mods"
 OUTPUT_FILE = Path(
-    "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data/diva_full_liu.json"
+    "data/diva_full_liu.json"
 )
 RATE_LIMIT = 1.0  # seconds between requests
 CHECKPOINT_INTERVAL = 1000  # Save checkpoint every N records

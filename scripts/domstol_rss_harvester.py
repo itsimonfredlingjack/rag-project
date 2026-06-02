@@ -18,7 +18,7 @@ from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
 
-OUTPUT_DIR = Path("/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data")
+OUTPUT_DIR = Path("data")
 
 # Bekräftade domstolar med RSS
 COURTS = [

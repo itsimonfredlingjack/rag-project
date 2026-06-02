@@ -1,5 +1,5 @@
 """
-Graph Service - LangGraph Implementation for Constitutional AI
+Graph Service - LangGraph Implementation for Svensk Ragg
 
 This module defines the state machine architecture for the RAG pipeline using LangGraph.
 Replaces the linear pipeline with a state machine that supports loops for self-correction.
@@ -72,7 +72,7 @@ class GraphState(TypedDict):
     loop_count: int  # Critique loop counter
     retrieval_loop_count: Optional[int]  # Retrieval loop counter (optional for backwards compat)
 
-    # Constitutional AI feedback
+    # Svensk Ragg feedback
     constitutional_feedback: str
 
 
@@ -267,7 +267,7 @@ async def generate_node(state: GraphState) -> Dict[str, Any]:
             system_prompt = f"""Du är en expert på svensk förvaltningsrätt och lagstiftning.
 Du svarar endast baserat på de dokument som tillhandahålls.
 
-KONSTITUTIONELLA REGLER:
+SVENSK RAGG-REGLER:
 1. LEGALITET: Använd endast information som stöds av dokumenten
 2. TRANSPARENS: Alla påståenden måste ha källhänvisning
 3. OBJEKTIVITET: Var neutral, saklig och formell
@@ -305,7 +305,7 @@ Var tydlig när information saknas och ge allmänna råd när möjligt."""
 
         # Add constitutional feedback if this is a retry
         if loop_count > 0 and constitutional_feedback:
-            system_prompt += f"\n\nKONSTITUTIONELL FEEDBACK (från tidigare granskning):\n{constitutional_feedback}\n\nUppdatera ditt svar baserat på denna feedback."
+            system_prompt += f"\n\nSVENSK RAGG-FEEDBACK (från tidigare granskning):\n{constitutional_feedback}\n\nUppdatera ditt svar baserat på denna feedback."
 
         # Build messages
         messages = [
@@ -403,7 +403,7 @@ async def critique_node(state: GraphState) -> Dict[str, Any]:
         feedback_parts = []
         if not reflection.constitutional_compliance:
             feedback_parts.append(
-                "⚠️ Konstitutionell efterlevnad: Svaret följer inte alla konstitutionella regler."
+                "⚠️ Svensk Ragg-efterlevnad: Svaret följer inte alla Svensk Ragg-regler."
             )
 
         if not reflection.has_sufficient_evidence:
@@ -415,7 +415,7 @@ async def critique_node(state: GraphState) -> Dict[str, Any]:
         feedback = (
             "\n".join(feedback_parts)
             if feedback_parts
-            else "✅ Svaret följer konstitutionella principer."
+            else "✅ Svaret följer Svensk Ragg-principer."
         )
 
         # Add explicit compliance marker for decision logic
@@ -583,26 +583,26 @@ def should_continue_after_critique(state: GraphState) -> Literal["generate", "fa
     # Check if critique passed - look for explicit success indicators
     # Success indicators:
     # - "✅" emoji
-    # - "följer konstitutionella principer" (Swedish for "follows constitutional principles")
+    # - "följer Svensk Ragg-principer"
     # - "compliance=True" (if reflection returns this)
     # - Empty or very short feedback (usually means no issues)
     feedback_lower = constitutional_feedback.lower()
 
     critique_passed = (
         "✅" in constitutional_feedback
-        or "följer konstitutionella principer" in feedback_lower
+        or "följer svensk ragg-principer" in feedback_lower
         or "compliance=true" in feedback_lower
         or (
             len(constitutional_feedback.strip()) < 50
             and "⚠️" not in constitutional_feedback
-            and "konstitutionell efterlevnad" not in feedback_lower
+            and "svensk ragg-efterlevnad" not in feedback_lower
         )
     )
 
     # Check for explicit failure indicators
     critique_failed = (
         "⚠️" in constitutional_feedback
-        or "konstitutionell efterlevnad" in feedback_lower
+        or "svensk ragg-efterlevnad" in feedback_lower
         and "inte" in feedback_lower
         or "saknas_underlag" in feedback_lower
         or "missing_evidence" in feedback_lower
@@ -646,7 +646,7 @@ def should_continue_after_critique(state: GraphState) -> Literal["generate", "fa
 
 def create_constitutional_graph() -> StateGraph:
     """
-    Create the LangGraph state machine for Constitutional AI.
+    Create the LangGraph state machine for Svensk Ragg.
 
     Graph structure:
     - Start -> retrieve_node
@@ -659,7 +659,7 @@ def create_constitutional_graph() -> StateGraph:
     Returns:
         Compiled StateGraph ready for execution
     """
-    logger.info("Creating Constitutional AI graph")
+    logger.info("Creating Svensk Ragg graph")
 
     # Create graph
     workflow = StateGraph(GraphState)
@@ -716,7 +716,7 @@ def create_constitutional_graph() -> StateGraph:
     # But we set it higher to account for all nodes in a full flow
     app = app.with_config({"recursion_limit": 50})
 
-    logger.info("Constitutional AI graph created successfully")
+    logger.info("Svensk Ragg graph created successfully")
     return app
 
 
@@ -729,7 +729,7 @@ _graph_app: Optional[StateGraph] = None
 
 def get_constitutional_graph() -> StateGraph:
     """
-    Get or create the Constitutional AI graph (singleton).
+    Get or create the Svensk Ragg graph (singleton).
 
     Returns:
         Compiled StateGraph instance

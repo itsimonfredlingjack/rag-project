@@ -514,7 +514,7 @@ def generate_manifest():
 
 def main():
     output_path = Path(
-        "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data/kommun_manifest.json"
+        "data/kommun_manifest.json"
     )
 
     print("Generating kommun manifest...")

@@ -1,342 +1,127 @@
 # API Endpoint Catalog & Validation Status
 
-**Project**: Svensk RAG Backend
-**Framework**: FastAPI 0.109+
-**Base URL**: \`http://localhost:8900\`
+**Project**: Svensk Ragg Backend
+**Framework**: FastAPI
+**Base URL**: `http://localhost:8900`
 **API Version**: v2
-**Documentation**: \`/docs\` (Swagger UI), \`/redoc\` (ReDoc)
+**Documentation**: `/docs`, `/redoc`, and `/openapi.json` are private/local by default. In `public-riksdag-demo`, they are disabled unless `CONST_API_DOCS_ENABLED=true` is explicitly set for local review.
 
 ---
 
 ## Quick Summary
 
 | Category | Endpoints | Validation | Auth | Status |
-|----------|-----------|-----------|------|--------|
-| **Health & Metrics** | 3 | 100% ✓ | None | LIVE |
-| **Agent/Query** | 2 + WS | 100% ✓ | None | LIVE |
-| **Documents CRUD** | 5 | 100% ✓ | None | LIVE |
-| **TOTAL** | **13** | **100%** | **None** | **LIVE** |
+| --- | --- | --- | --- | --- |
+| Health & Readiness | 2 | Pydantic | None | Public |
+| Metrics & Stats | 3 | Pydantic/text | None | Local/operator only; 404 in public |
+| Agent Query | 3 | Pydantic + rate limits | None | Public |
+| Document Read | 4 | Pydantic/query validation | None | Facets public; Chroma/parent reads disabled in public |
+| Document Write | 4 | Pydantic + write dependency | `X-API-Key`; disabled in public profile | Admin |
+| Operator/Legacy | `/mcp`, `/sse`, `/ws/harvest`, docs | Profile-gated | Local/private only | Gated |
 
 ---
 
-## 1. Health & Metrics Endpoints (3 total)
+## Public Route Surface
 
-### 1.1 GET /api/constitutional/health
+For `CONST_PROFILE=public-riksdag-demo`:
 
-**Purpose**: Health check for Svensk RAG services  
-**Validation**: Full Pydantic validation ✓  
-**Auth**: None (public)
-
-**Response**: HTTP 200
-\`\`\`json
-{
-  "status": "healthy",
-  "services": {"orchestrator": "healthy", "retrieval": "healthy"},
-  "timestamp": "2025-02-07T10:30:00.123456"
-}
-\`\`\`
-
----
-
-### 1.2 GET /api/constitutional/metrics
-
-**Purpose**: RAG pipeline metrics (lifetime, rates, by mode)  
-**Validation**: Internal metrics validated ✓  
-**Auth**: None (public)
-
-**Returns**: Aggregated metrics (requests, saknas_underlag, parse_errors)
-
----
-
-### 1.3 GET /api/constitutional/metrics/prometheus
-
-**Purpose**: Prometheus-format metrics export  
-**Validation**: Text format (no validation)  
-**Auth**: None (public)
-
-**Returns**: text/plain Prometheus format for scraping
+| Route | Classification | Public behavior |
+| --- | --- | --- |
+| `GET /` | `public_read` | Basic service links; omits docs/MCP/harvest links unless explicitly enabled. |
+| `GET /api/svensk-ragg/health` | `public_read` | Process/service health. HTTP reachability means the process is alive. |
+| `GET /api/svensk-ragg/ready` | `public_read` | Truth source for whether the public runtime can answer. |
+| `GET /api/svensk-ragg/metrics` | `local_only` | 404 in public profile; metrics can include operator telemetry and recent question text. |
+| `GET /api/svensk-ragg/metrics/prometheus` | `local_only` | 404 in public profile; expose only behind local/private monitoring. |
+| `GET /api/svensk-ragg/stats/overview` | `local_only` | 404 in public profile; placeholder dashboard stats are not public functionality. |
+| `GET /api/svensk-ragg/collections` | `local_only` | 404 in public profile; Chroma collection listing is private/operator surface. |
+| `POST /api/svensk-ragg/agent/query` | `public_query` | Public Riksdagen BM25-only query path. |
+| `POST /api/svensk-ragg/agent/query/stream` | `public_query` | Streaming public query path. |
+| `POST /api/svensk-ragg/agent/query/stream/resume` | `public_query` | Replays buffered stream events when stream resumption is enabled; otherwise returns a 404-style SSE error. |
+| `/api/constitutional/*` | `legacy_alias` | Same read/query handlers as `/api/svensk-ragg/*`; prefer the branded paths for public clients. |
+| `GET /api/documents` | `disabled_in_public` | 404 in public profile; Chroma document listing is private-lab surface. |
+| `GET /api/documents/facets` | `public_read` | Public profile returns only Riksdagen facets. |
+| `GET /api/documents/{document_id}` | `disabled_in_public` | 404 in public profile; full document lookup should use public Riksdagen URLs, not private Chroma. |
+| `GET /api/documents/parents/{parent_id}` | `disabled_in_public` | 404 in public profile; parent store may contain private-lab/SFS data. |
+| `POST /api/documents` | `admin_write` | Always 403 in public profile. |
+| `PUT /api/documents/{document_id}` | `admin_write` | Always 403 in public profile. |
+| `PATCH /api/documents/{document_id}` | `admin_write` | Always 403 in public profile. |
+| `DELETE /api/documents/{document_id}` | `admin_write` | Always 403 in public profile. |
+| `/mcp` | `local_only` | Not mounted in public profile. MCP job launch also rejects public profile if invoked manually. |
+| `/sse`, `/sse/message` | `local_only` / `legacy_alias` | Not registered in public profile. Kept only for private/local legacy MCP-SSE compatibility. |
+| `/ws/harvest` | `local_only` | Not registered in public profile. Existing implementation is heartbeat-only. |
+| `/docs`, `/redoc`, `/openapi.json` | `disabled_in_public` | Disabled in public profile unless `CONST_API_DOCS_ENABLED=true`. |
 
 ---
 
-## 2. Agent/Query Endpoints (2 + WebSocket)
+## Readiness Semantics
 
-### 2.1 POST /api/constitutional/agent/query
+`GET /api/svensk-ragg/health` is process/service health. Use it to know whether the backend is alive.
 
-**Purpose**: Main RAG pipeline (batch mode)  
-**Validation**: Full Pydantic ✓  
-**Auth**: None  
-**Rate Limit**: None (TODO)
+`GET /api/svensk-ragg/ready` is answer readiness. For `public-riksdag-demo`, `can_answer=true` requires:
 
-**Request Body Validation**:
-\`\`\`
-question: str (1-2000 chars) ✓
-mode: str (auto|chat|assist|evidence) 
-history: List[ConversationMessage] (max 10 documented)
-use_agent: bool (optional, default false)
-\`\`\`
+- profile `public-riksdag-demo`,
+- corpus scope `riksdagen_open_data_only`,
+- valid public `manifest.json`,
+- valid public `docs.checkpoint.json`,
+- clean public BM25/FTS5 index with matching document and FTS counts,
+- configured LLM service reachable and configured model available.
 
-**Response**: HTTP 200
-\`\`\`json
-{
-  "answer": "...",
-  "sources": [{id, title, snippet, score, doc_type, source, retriever, loc}],
-  "mode": "assist",
-  "saknas_underlag": false,
-  "evidence_level": "HIGH",
-  "citations": [{claim, source_id, source_title, source_collection, tier}],
-  "intent": "legal_explanation",
-  "routing": {primary, support, secondary, secondary_budget}
-}
-\`\`\`
-
-**Error Responses**:
-- 400 Bad Request (question too long)
-- 422 Unprocessable Entity (invalid JSON schema)
-- 500 Internal Server Error (LLM/retrieval error)
-
-**Header Options**:
-- \`X-Retrieval-Strategy\`: parallel_v1|rewrite_v1|rag_fusion|adaptive
+`degraded_but_usable` is expected when public BM25 and the LLM are ready while Chroma is intentionally disabled.
 
 ---
 
-### 2.2 POST /api/constitutional/agent/query/stream
+## Query Endpoints
 
-**Purpose**: Streaming RAG query (Server-Sent Events)  
-**Validation**: Same as /agent/query ✓  
-**Auth**: None  
-**Response Format**: text/event-stream
+### POST `/api/svensk-ragg/agent/query`
 
-**Event Types**:
-- metadata: Initial response metadata
-- decontextualized: Query rewriting
-- token: Streaming response tokens (repeated)
-- corrections: Guardrail corrections
-- done: Pipeline complete
-- error: Error message
+Main non-streaming RAG query endpoint.
 
----
+- Request validation: `question` is 1-2000 chars; `mode` is `auto`, `chat`, `assist`, or `evidence`.
+- Rate limit: 30/minute per client.
+- Public profile behavior: uses public BM25-only retrieval and validates source provenance.
 
-### 2.3 WS /ws/harvest
+### POST `/api/svensk-ragg/agent/query/stream`
 
-**Purpose**: Live document harvesting progress  
-**Validation**: No validation (WebSocket frames)  
-**Auth**: None  
-**Current Status**: Sends heartbeat every 30s (no actual harvest updates)
+Server-Sent Events variant of the query endpoint.
 
----
+- Rate limit: 20/minute per client.
+- Public profile behavior: emits metadata, token, and done events derived from the public BM25-only path.
 
-## 3. Collections Endpoints (2 total)
+### POST `/api/svensk-ragg/agent/query/stream/resume`
 
-### 3.1 GET /api/constitutional/collections
+Replay endpoint for stream resumption.
 
-**Purpose**: List ChromaDB collections with metadata  
-**Validation**: Pydantic ✓  
-**Auth**: None
-
-**Response**: HTTP 200
-\`\`\`json
-[
-  {
-    "name": "naturvardsverket",
-    "document_count": 2450,
-    "metadata_fields": ["doc_type", "source", "date"]
-  }
-]
-\`\`\`
+- Rate limit: 30/minute per client.
+- Returns a 404-style SSE error when `CONST_STREAM_RESUMPTION_ENABLED=false`.
 
 ---
 
-### 3.2 GET /api/constitutional/stats/overview
+## Document Routes
 
-**Purpose**: Dashboard statistics (placeholder)  
-**Validation**: Pydantic ✓  
-**Auth**: None
+Read routes are unauthenticated helpers. Write routes are admin-only and use `require_write_access`:
 
-**Response**: HTTP 200 (placeholder values only)
-
----
-
-## 4. Documents CRUD Endpoints (5 total)
-
-### 4.1 GET /api/documents
-
-**Purpose**: List documents (paginated + filtered)  
-**Validation**: Query params validated ✓  
-**Auth**: None
-
-**Query Parameters**:
-- collection: optional (max 200 chars, sanitized)
-- doc_type: optional (max 100 chars, sanitized)
-- page: int (min 1) ✓
-- limit: int (1-100, default 10) ✓
-
-**Response**: HTTP 200 (paginated list)
+- private/local profile: requires `CONST_API_KEY`, except explicit local development bypass with `CONST_ALLOW_UNAUTHENTICATED_WRITES=true`;
+- public profile: writes always return 403, even when an API key is supplied.
 
 ---
 
-### 4.2 GET /api/documents/{document_id}
+## Operator Routes
 
-**Purpose**: Retrieve single document  
-**Validation**: ID sanitized ✓  
-**Auth**: None
-
-**Path Parameter**:
-- document_id: max 200 chars, sanitized ✓
-
-**Response**: HTTP 200 (DocumentResponse)  
-**Errors**: 404 Not Found, 400 Bad Request
+`/mcp`, `/sse`, `/sse/message`, and `/ws/harvest` are local/private operator or legacy routes. They are not part of the public route surface. The public profile does not register them by default.
 
 ---
 
-### 4.3 POST /api/documents
+## Validation Coverage Notes
 
-**Purpose**: Create new document  
-**Validation**: Full Pydantic + content sanitization ✓  
-**Auth**: None (SHOULD require auth)
+Validated:
 
-**Request Body**:
-\`\`\`
-content: str (1-1,000,000 chars) ✓ sanitized
-collection: str (alphanumeric + - _) ✓ validated
-id: str optional (max 200 chars) ✓
-metadata: DocumentMetadata optional
-  - doc_type: optional
-  - source: optional
-  - date: ISO 8601 ✓ validated
-  - title: optional
-  - author: optional
-  - tags: List[str] (max 50) ✓ validated
-\`\`\`
+- JSON request bodies via Pydantic models.
+- Query parameters for type, range, and length where modeled.
+- Query rate limits on public query endpoints.
+- Document write auth through a centralized dependency.
+- Public source provenance on public query responses.
 
-**Content Sanitization**: Removes \`<script>\` tags ✓
+Still environment-dependent:
 
-**Response**: HTTP 201 Created (DocumentResponse)  
-**Errors**: 400 Bad Request, 409 Conflict (ID exists), 422 Unprocessable Entity
-
----
-
-### 4.4 PUT /api/documents/{document_id}
-
-**Purpose**: Full document replacement  
-**Validation**: Same as POST ✓  
-**Auth**: None (SHOULD require auth)
-
-**Response**: HTTP 200 (updated document)
-
----
-
-### 4.5 PATCH /api/documents/{document_id}
-
-**Purpose**: Partial document update  
-**Validation**: Optional fields only ✓  
-**Auth**: None (SHOULD require auth)
-
-**Current Implementation**: Delegates to PUT (full replacement)
-
----
-
-### 4.6 DELETE /api/documents/{document_id}
-
-**Purpose**: Delete document  
-**Validation**: ID sanitized ✓  
-**Auth**: None (MUST require auth in production)
-
-**Response**: HTTP 204 No Content  
-**Errors**: 404 Not Found, 400 Bad Request
-
----
-
-## 5. Validation Coverage Summary
-
-### What IS Validated
-
-✓ All JSON request bodies via Pydantic models  
-✓ Query parameters (length, type, range)  
-✓ Request body content sanitization (XSS prevention)  
-✓ Date format validation (ISO 8601)  
-✓ Collection name format (alphanumeric + - _)  
-✓ Text length limits (max_length on all string fields)  
-✓ List length limits (max 50 tags, max 10 history messages documented)  
-
-### What is NOT Validated
-
-✗ Rate limiting (no per-IP throttling)  
-✗ Authentication (all endpoints public)  
-✗ Request size limits (except per-field sanitize_input max)  
-✗ WebSocket message validation  
-✗ X-Retrieval-Strategy header enum validation (checked in handler, not model)  
-✗ Output sanitization (responses can leak internal fields if not careful)  
-
----
-
-## 6. Error Handling
-
-All errors return standardized format:
-\`\`\`json
-{
-  "error": "...",
-  "type": "resource_not_found|validation_error|...",
-  "status_code": 404,
-  "details": {...}
-}
-\`\`\`
-
----
-
-## 7. CORS Configuration
-
-**Allowed Origins**:
-- localhost:5173-5175 (Vite dev)
-- localhost:3000-3003 (Node dev)
-- localhost:8900 (Backend)
-- 192.168.86.32:[port] (Local network)
-
-**Allowed Methods**: GET, POST, PUT, PATCH, DELETE, OPTIONS  
-**Allowed Headers**: * (too permissive, restrict in production)  
-**Credentials**: Allowed
-
----
-
-## 8. Security Findings
-
-**Missing (HIGH PRIORITY)**:
-- Authentication (all endpoints public)
-- Rate limiting
-- Request size limits
-- Output validation (sanitize_answer inline, should extract)
-
-**Implemented**:
-- Input sanitization (XSS prevention)
-- Length validation
-- Type validation
-- CORS policy
-
-**Recommendations**:
-1. Add JWT/OAuth authentication
-2. Add rate limiting (redis-backed)
-3. Extract sanitization logic to ResponseSanitizer utility
-4. Restrict CORS headers from * to specific list
-5. Add request size limits
-
----
-
-## 9. Testing Checklist
-
-- POST /agent/query with valid questions
-- POST /agent/query with 2000+ char (should reject)
-- POST /agent/query with history
-- POST /agent/query/stream (verify SSE events)
-- GET /documents (pagination)
-- POST /documents with <script> tag (should sanitize)
-- POST /documents with invalid collection (should reject)
-- DELETE /documents (verify 204)
-- GET /documents/{invalid_id} (should return 404)
-- WS /ws/harvest (connection lifecycle)
-
----
-
-**Catalog Updated**: 2026-02-07  
-**Total Endpoints**: 13  
-**Full Validation**: 100%  
-**Authentication**: 0% (missing)  
-**Rate Limiting**: 0% (missing)
+- Full answer quality and citation faithfulness depend on local BM25 data and the configured local LLM.
+- Browser/security headers may be supplied by a reverse proxy or deployment layer, not only by the FastAPI app.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Live smoke test for the Constitutional AI query pipeline.
+Live smoke test for the Svensk Ragg query pipeline.
 
 What this script does:
 1. Sends 3 fixed legal test questions to the live API endpoint.
@@ -389,8 +389,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--endpoint",
-        default="/api/constitutional/agent/query",
-        help="Query endpoint path (default: /api/constitutional/agent/query).",
+        default="/api/svensk-ragg/agent/query",
+        help="Query endpoint path (default: /api/svensk-ragg/agent/query).",
     )
     parser.add_argument(
         "--mode",

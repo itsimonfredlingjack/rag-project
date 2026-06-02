@@ -1,6 +1,6 @@
 #!/bin/bash
-# RAG Server Startup Script - 12GB VRAM Optimized
-# Model: Ministral-3-14B-Instruct-2512-Q4_K_M.gguf (8.24GB) + Qwen2.5-0.5B-Instruct-Q8_0.gguf (grading)
+# Legacy llama.cpp RAG server startup script.
+# Prefer start_rag_server_ollama.sh for the current local demo profile.
 
 set -e
 
@@ -12,10 +12,10 @@ LLAMA_BIN="./llama.cpp/build/bin/llama-server"
 export LD_LIBRARY_PATH="$SCRIPT_DIR/llama.cpp/build/bin${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
 # MODELS
-MODEL_PATH="models/Ministral-3-14B-Instruct-2512-Q4_K_M.gguf"
+MODEL_PATH="${MODEL_PATH:-models/policy-approved-model.gguf}"
 
 echo "=============================================="
-echo "🚀 STARTING RAG ENGINE (12GB VRAM OPTIMIZED)"
+echo "🚀 STARTING RAG ENGINE (llama.cpp manual profile)"
 echo "=============================================="
 echo ""
 echo "Binary: $LLAMA_BIN"

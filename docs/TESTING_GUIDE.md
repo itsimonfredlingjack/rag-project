@@ -1,136 +1,86 @@
-# Svensk RAG - Testing Guide
+# Testing Guide
 
-## Overview
-Comprehensive testing guide for Svensk RAG RAG system.
+Den här guiden beskriver hur testsviten kan köras från en färsk klon och vad som kräver lokal runtime.
 
-## Quick Start
+## Snabb Körning
 
-### Running Tests
 ```bash
 cd backend
-./venv/bin/pytest tests/ -v
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+CONST_CHROMADB_PATH=/tmp/test_chromadb \
+python -m pytest tests/ -v -m "not integration and not ollama and not slow" --tb=short
 ```
 
-### Coverage Report
+Detta är den rekommenderade första verifieringen för portföljgenomgången. Den försöker undvika tester som kräver lokal ChromaDB-data eller LLM.
+
+## Frontend
+
 ```bash
-./venv/bin/pytest --cov=app tests/ --cov-report=html
+cd apps/svensk-ragg-frontend
+npm ci
+npm run lint
+npm run build
 ```
 
-## Test Coverage Analysis
+`npm run build` kör TypeScript build och Vite build.
 
-### Critical Path Tests (Priority P0)
-1. **Retrieval Tests**
-   - ChromaDB connection
-   - Embedding dimension validation (768 dims)
-   - Query execution
-   - Result parsing
+## Docs-Check
 
-2. **RAG Pipeline Tests**
-   - Orchestrator service initialization
-   - Multi-phase retrieval (1-4)
-   - Confidence signal calculation
-   - LLM generation
-
-3. **API Endpoint Tests**
-   - `/api/constitutional/health`
-   - `/api/constitutional/agent/query`
-   - `/api/constitutional/agent/query/stream`
-
-### Integration Tests (Priority P1)
-- Frontend → Backend communication
-- WebSocket connections
-- SSE streaming
-- Error handling
-
-### Unit Tests (Priority P2)
-- Individual service tests
-- Model validation
-- Configuration parsing
-
-## Testing Roadmap
-
-### Week 1: Critical Path
-- [ ] Retrieval service tests
-- [ ] RAG pipeline tests
-- [ ] API endpoint tests
-
-### Week 2: Integration
-- [ ] Frontend integration tests
-- [ ] WebSocket tests
-- [ ] End-to-end tests
-
-### Week 3: Coverage
-- [ ] Unit tests for all services
-- [ ] Edge case tests
-- [ ] Performance tests
-
-### Week 4: Automation
-- [ ] CI/CD integration
-- [ ] Automated coverage reports
-- [ ] Regression testing
-
-## Test Templates
-
-### Retrieval Test Template
-```python
-async def test_retrieval_basic():
-    retrieval = get_retrieval_service()
-    result = await retrieval.search(query="grundlag", k=10)
-    assert result.success
-    assert len(result.results) > 0
+```bash
+python3 scripts/check_docs_canonical.py
 ```
 
-### RAG Test Template
-```python
-async def test_rag_query():
-    orchestrator = get_orchestrator_service()
-    result = await orchestrator.process_query(
-        question="Vad är GDPR?",
-        mode="evidence"
-    )
-    assert len(result.sources) > 0
-    assert len(result.answer) > 0
+Checken fångar vissa gamla modellreferenser i aktiva docs. Historiska research- och internal-docs kan fortfarande nämna äldre val, men ska inte presenteras som aktuell publik sanning.
+
+## Publik Route- och Readiness-Kontrakt
+
+Public profile-kontraktet testas utan att bygga om corpus:
+
+```bash
+cd backend
+python -m pytest \
+  tests/test_public_route_surface.py \
+  tests/test_public_readiness.py \
+  tests/test_public_runtime_profile.py \
+  tests/test_chatgpt_app_server.py \
+  -q
 ```
 
-## Known Issues
+Detta verifierar bland annat att public profile inte registrerar `/mcp`, legacy
+`/sse`, `/sse/message`, `/ws/harvest`, eller generated docs som standard, att
+dokumentwrites är avstängda, att public facets inte läcker private-lab-källor,
+och att readiness kräver både public BM25 och tillgänglig public LLM-modell.
 
-### Embedding Dimension Mismatch (RESOLVED)
-- **Issue**: Function expected enum but received string
-- **Fix**: Added type check in `retrieval_service.py` lines 419, 457
-- **Status**: ✅ Fixed in commit b07b288
+## Testkategorier
 
-### Backend Port Conflict (RESOLVED)
-- **Issue**: Multiple backends on same port
-- **Fix**: Moved active backend to port 8900
-- **Status**: ✅ Fixed in commit b07b288
+| Markör | Betydelse |
+|--------|-----------|
+| `integration` | Kräver externa/lokala tjänster eller verkligare systemkoppling |
+| `ollama` | Kräver körande LLM-runtime |
+| `slow` | Tyngre tester som inte bör vara första snabbkörning |
 
-## Test Results Summary
+## Vad Som Kan Verifieras Utan Privat Databas
 
-| Component | Tests | Pass | Fail | Coverage |
-|------------|--------|-------|-------|----------|
-| Retrieval | - | - | - | - |
-| RAG Pipeline | - | - | - | - |
-| API Endpoints | - | - | - | - |
-| Services | - | - | - | - |
+- Import och initiering av många backendkomponenter.
+- API-kontrakt och pydanticmodeller.
+- Prompt-, citation-, intent-, routing- och utilitylogik.
+- BM25-servicebeteende där tester mockar eller bygger testdata.
+- Frontend lint/build och TypeScript-kontrakt.
+- Docs canonicality check i CI.
 
-**Note**: Test framework setup in progress
+## Vad Som Kräver Lokal Runtime
 
-## References
+Full RAG-fråga med verkliga svar och källor kräver:
 
-### Historical Reports
-- `TEST_COVERAGE_ANALYSIS.md` (deleted - migrated here)
-- `TESTING_INDEX.md` (deleted - migrated here)
-- `TESTING_QUICK_START.md` (deleted - migrated here)
-- `TESTING_ROADMAP.md` (deleted - migrated here)
-- `TEST_SUMMARY_REPORT.md` (deleted - migrated here)
+- `CONST_CHROMADB_PATH` till ett lokalt ChromaDB-index.
+- BM25/FTS5-index om hybrid retrieval ska testas realistiskt.
+- Lokal LLM-runtime på `CONST_LLM_BASE_URL`.
+- Tillräckliga resurser för embeddings/reranking/modellkörning.
 
-### System Documentation
-- `RAG_FIX_REPORT.md` - RAG system bug fixes
-- `SYSTEM_STATUS_REPORT.md` - Current system status
-- `README.md` - Main project documentation
+Public Riksdagen-demo kräver inte Chroma, embeddings eller reranking, men kräver
+det förberedda public BM25-indexet och en lokal `gemma3:4b`-modell i Ollama.
 
----
-
-**Created**: 2026-01-04
-**Status**: Consolidated from 5 docs → 1
-**Next Steps**: Implement test framework and run first tests
+Om dessa saknas ska testresultat och README beskriva det som en blockerad lokal verifiering, inte som passerad end-to-end-funktion.

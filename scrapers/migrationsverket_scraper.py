@@ -46,7 +46,7 @@ class MigrationsverketScraper:
 
         # User agent for polite scraping
         self.headers = {
-            "User-Agent": "MigrationsverketResearchBot/1.0 (Constitutional AI Research; +simon@example.com)"
+            "User-Agent": "MigrationsverketResearchBot/1.0 (Svensk Ragg Research; +simon@example.com)"
         }
 
     async def __aenter__(self):

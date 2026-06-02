@@ -44,7 +44,7 @@ class Dashboard:
  [magenta]╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝[/]     [cyan]╚══════╝  ╚═══╝  ╚═╝  ╚═╝╚══════╝[/]
         """
         title = Align.center(Text.from_markup(logo_text))
-        subtitle = Text("Constitutional AI Quality Assurance", style="bold italic white")
+        subtitle = Text("Svensk Ragg Quality Assurance", style="bold italic white")
 
         # Stats Grid
         grid = Table.grid(expand=True, padding=(1, 2))

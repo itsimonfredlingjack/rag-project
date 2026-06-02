@@ -220,7 +220,7 @@ def main():
         ("SwePub-bth", "bth", "Blekinge tekniska hogskola"),
     ]
 
-    output_dir = "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data"
+    output_dir = "data"
     max_records = 1000  # Test with 1000 per institution
 
     results = {}

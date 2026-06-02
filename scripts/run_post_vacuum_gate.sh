@@ -34,9 +34,9 @@ RUN_STARTED_AT="$(date '+%Y-%m-%d %H:%M:%S')"
 # Endpoints (allow overrides for non-default ports/deployments).
 LLM_HEALTH_URL="${LLM_HEALTH_URL:-http://localhost:8080/health}"
 LLM_HEALTH_EXPECT="${LLM_HEALTH_EXPECT:-ok}"
-BACKEND_HEALTH_URL="${BACKEND_HEALTH_URL:-http://localhost:8900/api/constitutional/health}"
+BACKEND_HEALTH_URL="${BACKEND_HEALTH_URL:-http://localhost:8900/api/svensk-ragg/health}"
 BACKEND_HEALTH_EXPECT="${BACKEND_HEALTH_EXPECT:-healthy}"
-BACKEND_QUERY_URL="${BACKEND_QUERY_URL:-http://localhost:8900/api/constitutional/agent/query}"
+BACKEND_QUERY_URL="${BACKEND_QUERY_URL:-http://localhost:8900/api/svensk-ragg/agent/query}"
 
 CURL_CONNECT_TIMEOUT="${CURL_CONNECT_TIMEOUT:-2}"
 CURL_MAX_TIME="${CURL_MAX_TIME:-5}"
@@ -166,15 +166,15 @@ run_integrity_gate() {
 }
 
 start_services_and_wait_ready() {
-  log "Starting constitutional-ai-llm.service"
-  systemctl --user start constitutional-ai-llm.service
+  log "Starting svensk-ragg-llm.service"
+  systemctl --user start svensk-ragg-llm.service
   if ! wait_for_http_ok_json_status "$LLM_HEALTH_URL" "$LLM_HEALTH_EXPECT" 120 5; then
     die "LLM health check did not become OK in time."
   fi
   log "LLM health: OK"
 
-  log "Starting constitutional-ai-backend.service"
-  systemctl --user start constitutional-ai-backend.service
+  log "Starting svensk-ragg-backend.service"
+  systemctl --user start svensk-ragg-backend.service
   if ! wait_for_http_ok_json_status "$BACKEND_HEALTH_URL" "$BACKEND_HEALTH_EXPECT" 90 2; then
     die "Backend health check did not become healthy in time."
   fi
@@ -208,7 +208,7 @@ runtime_truth_snapshot() {
     >/dev/null
 
   local journal_out
-  journal_out="$(journalctl --user -u constitutional-ai-backend.service --since "$RUN_STARTED_AT" --no-pager || true)"
+  journal_out="$(journalctl --user -u svensk-ragg-backend.service --since "$RUN_STARTED_AT" --no-pager || true)"
 
   # Fail if any known HNSW/compactor error occurred during this run window.
   local hnsw_patterns="Error sending backfill request to compactor|Error loading hnsw index|hnsw segment reader"

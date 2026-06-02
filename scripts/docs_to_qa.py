@@ -153,7 +153,7 @@ def process_markdown_file(filepath: Path, base_dir: Path) -> list[dict]:
 
 
 def main():
-    base_dir = Path("/home/ai-server/01_PROJECTS/01_AI-VIBE-WORLD")
+    base_dir = Path("rag-project")
     output_file = base_dir / "data" / "docs_qa_training.jsonl"
 
     print("=" * 60)

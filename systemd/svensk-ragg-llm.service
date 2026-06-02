@@ -1,0 +1,30 @@
+[Unit]
+Description=Svensk Ragg LLM (llama-server manual profile)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/rag-project
+Environment=LD_LIBRARY_PATH=/opt/rag-project/llama.cpp/build/bin
+ExecStart=/opt/rag-project/llama.cpp/build/bin/llama-server \
+    -m models/policy-approved-model.gguf \
+    -c 16384 \
+    -ngl 99 \
+    -ctk q8_0 -ctv q8_0 \
+    --port 8080 \
+    --host 0.0.0.0 \
+    --ctx-size 16384 \
+    --parallel 2 \
+    -fa on \
+    --spec-type ngram-simple --draft-max 64
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Give model time to unload on stop
+TimeoutStopSec=30
+KillMode=mixed
+
+[Install]
+WantedBy=default.target

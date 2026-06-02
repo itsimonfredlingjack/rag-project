@@ -1,19 +1,19 @@
 openapi: 3.0.3
 info:
-  title: Svensk RAG Backend API
+  title: Svensk Ragg Backend API
   description: FastAPI backend for Swedish legal document RAG system
   version: 2.0.0
 servers:
   - url: http://localhost:8900
     description: Local development server
 tags:
-  - name: constitutional
-    description: Svensk RAG RAG endpoints
+  - name: svensk-ragg
+    description: Svensk Ragg RAG endpoints
 paths:
-  /api/constitutional/health:
+  /api/svensk-ragg/health:
     get:
       summary: Health check
-      tags: [constitutional]
+      tags: [svensk-ragg]
       responses:
         '200':
           description: Health status

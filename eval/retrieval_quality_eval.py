@@ -52,7 +52,7 @@ RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # API endpoint for health check
 BACKEND_URL = "http://localhost:8900"
-HEALTH_ENDPOINT = f"{BACKEND_URL}/api/constitutional/health"
+HEALTH_ENDPOINT = f"{BACKEND_URL}/api/svensk-ragg/health"
 
 # SFS alias mapping for recall matching
 SFS_ALIASES = {

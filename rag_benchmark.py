@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RAG Benchmark - Validate search quality for Constitutional AI
+RAG Benchmark - Validate search quality for Svensk Ragg
 
 Tests:
 1. Latency (search time, answer generation time)
@@ -520,7 +520,7 @@ def print_report(report: dict):
 
 
 async def main():
-    parser = argparse.ArgumentParser(description="RAG Benchmark for Constitutional AI")
+    parser = argparse.ArgumentParser(description="RAG Benchmark for Svensk Ragg")
     parser.add_argument("--quick", action="store_true", help="Quick test (5 queries)")
     parser.add_argument("--no-answers", action="store_true", help="Skip LLM answer generation")
     parser.add_argument("--output", "-o", default="benchmark_results.json", help="Output file")

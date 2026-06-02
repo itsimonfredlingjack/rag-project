@@ -76,7 +76,7 @@ Embedding model tar ~2GB VRAM. Kör på GPU för bästa prestanda.
 
 ```bash
 # ChromaDB path
-/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/chromadb_data
+/path/to/local/chromadb_data
 
 # Collection
 swedish_gov_docs

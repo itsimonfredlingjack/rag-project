@@ -7,7 +7,7 @@
 # CANONICAL PORTS:
 #   BACKEND=8900
 #   FRONTEND=3003
-#   LLM=8080
+#   LLM=11434
 #
 # Run: bash scripts/check_port_consistency.sh
 # Exit 0 = consistent, Exit 1 = drift detected
@@ -27,7 +27,7 @@ err() {
 # --- Canonical values ---
 CANONICAL_FRONTEND=3003
 CANONICAL_BACKEND=8900
-CANONICAL_LLM=8080
+CANONICAL_LLM=11434
 
 # --- Check start_system.sh ---
 FILE="$REPO_ROOT/start_system.sh"
@@ -70,7 +70,7 @@ if [ -f "$FILE" ]; then
 fi
 
 # --- Check vite.config.ts ---
-FILE="$REPO_ROOT/apps/konstitutionell-frontend/vite.config.ts"
+FILE="$REPO_ROOT/apps/svensk-ragg-frontend/vite.config.ts"
 if [ -f "$FILE" ]; then
     VAL=$(grep -oP 'port:\s*\K[0-9]+' "$FILE" 2>/dev/null || true)
     if [ -n "$VAL" ] && [ "$VAL" != "$CANONICAL_FRONTEND" ]; then

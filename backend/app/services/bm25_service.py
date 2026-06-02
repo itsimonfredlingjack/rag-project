@@ -17,14 +17,17 @@ Usage:
     results = bm25_service.search("tryckfrihetsförordningen", k=50)
 """
 
+import json
 import logging
 import re
 import sqlite3
+import threading
 import time
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from ..shared.public_source_guard import PublicSourceGuardError, validate_public_record_if_enabled
 from .swedish_compound_splitter import get_compound_splitter
 
 logger = logging.getLogger("constitutional.bm25")
@@ -90,6 +93,7 @@ class BM25Service:
         stemmer: str = "swedish",
         min_df: int = 1,
         threads: Optional[int] = None,
+        public_guard_enabled: bool = False,
     ):
         """
         Initialize BM25 service.
@@ -104,9 +108,20 @@ class BM25Service:
         self.stemmer = stemmer
         self.min_df = min_df
         self.threads = threads or 4
+        self.public_guard_enabled = public_guard_enabled
         self._conn: Optional[sqlite3.Connection] = None
         self._is_loaded = False
         self._doc_count = 0
+        self._has_documents_table = False
+        self._load_lock = threading.Lock()
+        self._last_validation: Dict[str, Any] = {
+            "usable": False,
+            "validated": False,
+            "smoke_query": None,
+            "smoke_results": 0,
+            "latency_ms": 0.0,
+            "error": None,
+        }
 
         # Initialize compound splitter for query expansion
         self._compound_splitter = get_compound_splitter()
@@ -127,46 +142,62 @@ class BM25Service:
         if self._is_loaded:
             return True
 
-        if not self.index_path.exists():
-            logger.warning(f"BM25 FTS5 database not found at {self.index_path}")
-            return False
+        with self._load_lock:
+            if self._is_loaded:
+                return True
 
-        try:
-            logger.info(f"Opening BM25 FTS5 database from {self.index_path}...")
-            start = time.perf_counter()
-
-            self._conn = sqlite3.connect(
-                str(self.index_path),
-                check_same_thread=False,
-            )
-            self._conn.execute("PRAGMA journal_mode=WAL")
-            self._conn.execute("PRAGMA mmap_size=268435456")  # 256MB mmap
-
-            # Verify table exists
-            cursor = self._conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='docs_fts'"
-            )
-            if cursor.fetchone() is None:
-                logger.error("FTS5 table 'docs_fts' not found in database")
-                self._conn.close()
-                self._conn = None
+            if not self.index_path.exists():
+                logger.warning(f"BM25 FTS5 database not found at {self.index_path}")
                 return False
 
-            # Get doc count
-            cursor = self._conn.execute("SELECT count(*) FROM docs_fts")
-            self._doc_count = cursor.fetchone()[0]
+            try:
+                logger.info(f"Opening BM25 FTS5 database from {self.index_path}...")
+                start = time.perf_counter()
 
-            self._is_loaded = True
-            load_time = time.perf_counter() - start
-            logger.info(f"BM25 FTS5 database opened: {self._doc_count:,} docs in {load_time:.2f}s")
-            return True
+                conn = sqlite3.connect(
+                    str(self.index_path),
+                    check_same_thread=False,
+                )
+                conn.execute("PRAGMA journal_mode=WAL")
+                conn.execute("PRAGMA mmap_size=268435456")  # 256MB mmap
 
-        except Exception as e:
-            logger.error(f"Failed to open BM25 FTS5 database: {e}")
-            if self._conn:
-                self._conn.close()
-                self._conn = None
-            return False
+                # Verify table exists
+                cursor = conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='docs_fts'"
+                )
+                if cursor.fetchone() is None:
+                    logger.error("FTS5 table 'docs_fts' not found in database")
+                    conn.close()
+                    return False
+
+                self._has_documents_table = self._detect_documents_table(conn)
+
+                # Get doc count
+                count_table = "documents" if self._has_documents_table else "docs_fts"
+                cursor = conn.execute(f"SELECT count(*) FROM {count_table}")
+                self._doc_count = cursor.fetchone()[0]
+                if self._doc_count <= 0:
+                    logger.error("BM25 FTS5 database contains no documents")
+                    conn.close()
+                    self._doc_count = 0
+                    return False
+
+                self._conn = conn
+                self._is_loaded = True
+                load_time = time.perf_counter() - start
+                logger.info(
+                    f"BM25 FTS5 database opened: {self._doc_count:,} docs in {load_time:.2f}s"
+                )
+                return True
+
+            except Exception as e:
+                logger.error(f"Failed to open BM25 FTS5 database: {e}")
+                if self._conn:
+                    self._conn.close()
+                    self._conn = None
+                self._is_loaded = False
+                self._doc_count = 0
+                return False
 
     def search(
         self,
@@ -214,34 +245,13 @@ class BM25Service:
             if not fts_query:
                 return []
 
-            # Build SQL — negate bm25() because FTS5 returns negative scores
-            if return_docs:
-                sql = (
-                    "SELECT doc_id, -bm25(docs_fts) AS score, content "
-                    "FROM docs_fts WHERE docs_fts MATCH ? "
-                    "ORDER BY score DESC LIMIT ?"
-                )
-            else:
-                sql = (
-                    "SELECT doc_id, -bm25(docs_fts) AS score "
-                    "FROM docs_fts WHERE docs_fts MATCH ? "
-                    "ORDER BY score DESC LIMIT ?"
-                )
-
-            cursor = self._conn.execute(sql, (fts_query, k))
-            rows = cursor.fetchall()
+            rows = self._search_rows(fts_query=fts_query, k=k, return_docs=return_docs)
 
             latency_ms = (time.perf_counter() - start) * 1000
 
             results = []
             for row in rows:
-                result = {
-                    "id": row[0],
-                    "score": float(row[1]),
-                    "source": "bm25",
-                }
-                if return_docs and len(row) > 2:
-                    result["text"] = row[2] or ""
+                result = self._format_search_result(row, return_docs=return_docs)
                 results.append(result)
 
             logger.debug(
@@ -250,9 +260,108 @@ class BM25Service:
 
             return results
 
+        except PublicSourceGuardError:
+            raise
         except Exception as e:
             logger.error(f"BM25 search failed: {e}")
             return []
+
+    @staticmethod
+    def _detect_documents_table(conn: sqlite3.Connection) -> bool:
+        cursor = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='documents'"
+        )
+        if cursor.fetchone() is None:
+            return False
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(documents)").fetchall()}
+        required = {
+            "id",
+            "document_id",
+            "source",
+            "source_scope",
+            "title",
+            "date",
+            "url",
+            "text",
+            "metadata_json",
+        }
+        return required.issubset(columns)
+
+    def _search_rows(self, *, fts_query: str, k: int, return_docs: bool) -> list[tuple[Any, ...]]:
+        if self._has_documents_table:
+            text_column = ", d.text" if (return_docs or self.public_guard_enabled) else ""
+            sql = (
+                "SELECT d.id, -bm25(docs_fts) AS score, d.document_id, d.source, "
+                "d.source_scope, d.title, d.date, d.url, d.metadata_json"
+                f"{text_column} "
+                "FROM docs_fts JOIN documents d ON d.id = docs_fts.doc_id "
+                "WHERE docs_fts MATCH ? "
+                "ORDER BY score DESC LIMIT ?"
+            )
+        elif return_docs:
+            sql = (
+                "SELECT doc_id, -bm25(docs_fts) AS score, content "
+                "FROM docs_fts WHERE docs_fts MATCH ? "
+                "ORDER BY score DESC LIMIT ?"
+            )
+        else:
+            sql = (
+                "SELECT doc_id, -bm25(docs_fts) AS score "
+                "FROM docs_fts WHERE docs_fts MATCH ? "
+                "ORDER BY score DESC LIMIT ?"
+            )
+        cursor = self._conn.execute(sql, (fts_query, k))
+        return cursor.fetchall()
+
+    def _format_search_result(self, row: tuple[Any, ...], *, return_docs: bool) -> Dict[str, Any]:
+        if not self._has_documents_table:
+            result = {
+                "id": row[0],
+                "score": float(row[1]),
+                "source": "bm25",
+                "retriever_source": "bm25",
+            }
+            if return_docs and len(row) > 2:
+                result["text"] = row[2] or ""
+            return result
+
+        metadata = self._decode_metadata(row[8])
+        metadata.setdefault("source", row[3])
+        metadata.setdefault("source_scope", row[4])
+        metadata.setdefault("document_id", row[2])
+        result = {
+            "id": row[0],
+            "score": float(row[1]),
+            "document_id": row[2],
+            "source": row[3],
+            "source_scope": row[4],
+            "title": row[5],
+            "date": row[6],
+            "url": row[7],
+            "metadata": metadata,
+            "retriever_source": "bm25",
+        }
+        if return_docs and len(row) > 9:
+            result["text"] = row[9] or ""
+        guard_payload = dict(result)
+        if len(row) > 9:
+            guard_payload["text"] = row[9] or ""
+        validate_public_record_if_enabled(
+            guard_payload,
+            stage="bm25_search_result",
+            enabled=self.public_guard_enabled,
+        )
+        return result
+
+    @staticmethod
+    def _decode_metadata(value: Any) -> Dict[str, Any]:
+        if not value:
+            return {}
+        try:
+            decoded = json.loads(value)
+        except (TypeError, json.JSONDecodeError):
+            return {}
+        return decoded if isinstance(decoded, dict) else {}
 
     def get_doc_scores(
         self,
@@ -308,16 +417,73 @@ class BM25Service:
         """Check if BM25 FTS5 database is currently open."""
         return self._is_loaded
 
+    def warm(self) -> bool:
+        """Open and validate the BM25 database without running a search."""
+        return self._ensure_loaded()
+
+    def validate(self, smoke_query: str = "offentlighetsprincipen") -> Dict[str, Any]:
+        """
+        Validate that the BM25 index is usable, not merely present on disk.
+
+        Readiness uses this to make the first expensive open happen before real
+        user traffic and to reject corrupt, empty, or wrong-schema databases.
+        """
+        start = time.perf_counter()
+        result: Dict[str, Any] = {
+            "usable": False,
+            "validated": True,
+            "smoke_query": smoke_query,
+            "smoke_results": 0,
+            "latency_ms": 0.0,
+            "error": None,
+        }
+
+        if not self._ensure_loaded():
+            result["error"] = "BM25 database could not be opened or has no docs_fts rows"
+            result["latency_ms"] = round((time.perf_counter() - start) * 1000, 1)
+            self._last_validation = result
+            return result
+
+        if self._doc_count <= 0:
+            result["error"] = "BM25 database has zero documents"
+            result["latency_ms"] = round((time.perf_counter() - start) * 1000, 1)
+            self._last_validation = result
+            return result
+
+        try:
+            smoke_results = self.search(
+                smoke_query,
+                k=1,
+                return_docs=False,
+                use_compound_splitting=False,
+            )
+            result["smoke_results"] = len(smoke_results)
+            if smoke_results:
+                result["usable"] = True
+            else:
+                result["error"] = f"BM25 smoke query returned no results: {smoke_query}"
+        except Exception as exc:
+            result["error"] = str(exc)
+
+        result["latency_ms"] = round((time.perf_counter() - start) * 1000, 1)
+        self._last_validation = result
+        return result
+
     def get_stats(self) -> Dict[str, Any]:
         """Get BM25 index statistics."""
         return {
             "available": self.is_available(),
             "loaded": self._is_loaded,
+            "usable": bool(self._last_validation.get("usable")),
+            "validated": bool(self._last_validation.get("validated")),
             "index_path": str(self.index_path),
             "doc_count": self._doc_count,
+            "has_documents_table": self._has_documents_table,
+            "public_guard_enabled": self.public_guard_enabled,
             "stemmer": self.stemmer,
             "threads": self.threads,
             "backend": "sqlite_fts5",
+            "last_validation": dict(self._last_validation),
         }
 
     def unload(self) -> None:
@@ -327,6 +493,7 @@ class BM25Service:
             self._conn = None
             self._is_loaded = False
             self._doc_count = 0
+            self._has_documents_table = False
             logger.info("BM25 FTS5 database closed")
 
 
@@ -338,6 +505,7 @@ class BM25Service:
 @lru_cache()
 def get_bm25_service(
     index_path: Optional[str] = None,
+    public_guard_enabled: bool = False,
 ) -> BM25Service:
     """
     Get singleton BM25Service instance.
@@ -348,4 +516,4 @@ def get_bm25_service(
     Returns:
         Cached BM25Service singleton instance
     """
-    return BM25Service(index_path=index_path)
+    return BM25Service(index_path=index_path, public_guard_enabled=public_guard_enabled)

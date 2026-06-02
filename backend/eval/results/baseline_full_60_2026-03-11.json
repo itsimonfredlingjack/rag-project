@@ -128,7 +128,7 @@
   },
   "metadata": {
     "timestamp": "2026-03-11T18:43:29.134265",
-    "api_base": "http://localhost:8900/api/constitutional",
+    "api_base": "http://localhost:8900/api/svensk-ragg",
     "filters": {
       "mode": null,
       "difficulty": null,

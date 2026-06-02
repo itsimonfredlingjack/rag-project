@@ -248,7 +248,7 @@ class UpphandlingsmyndighetenScraper:
 
 
 def main():
-    chromadb_path = "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/chromadb_data"
+    chromadb_path = "chromadb_data"
 
     scraper = UpphandlingsmyndighetenScraper(chromadb_path)
     scraper.run(max_pages=500)  # Scrape upp till 500 sidor
@@ -256,7 +256,7 @@ def main():
     stats = scraper.get_stats()
 
     # Spara stats till JSON
-    output_file = f"/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data/upphandlingsmyndigheten_scrape_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    output_file = f"data/upphandlingsmyndigheten_scrape_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(stats, f, indent=2, ensure_ascii=False)
 

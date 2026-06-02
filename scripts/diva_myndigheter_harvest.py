@@ -24,7 +24,7 @@ INSTITUTIONS = [
 ]
 
 METADATA_PREFIX = "swepub_mods"
-OUTPUT_DIR = Path("/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data")
+OUTPUT_DIR = Path("data")
 CHECKPOINT_DIR = OUTPUT_DIR / "checkpoints"
 RATE_LIMIT_SECONDS = 1.0
 

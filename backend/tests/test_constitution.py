@@ -1,7 +1,7 @@
 """
 Constitutional Behaviour Tests - Golden Set for Swedish Administrative Law
 
-This test suite verifies that the Constitutional AI system follows
+This test suite verifies that the Svensk Ragg system follows
 the fundamental principles of Swedish administrative law:
 
 1. OFFENTLIGHET (Transparency): All factual claims must have source citations

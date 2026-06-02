@@ -35,7 +35,7 @@ import requests
 sys.stdout.reconfigure(line_buffering=True)
 
 # Configuration
-OUTPUT_DIR = Path("/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data")
+OUTPUT_DIR = Path("data")
 METADATA_PREFIX = "swepub_mods"
 RATE_LIMIT_SECONDS = 1.0
 MAX_CONSECUTIVE_ERRORS = 10

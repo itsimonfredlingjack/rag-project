@@ -13,7 +13,7 @@ import chromadb
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-CHROMADB_PATH = "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/chromadb_data"
+CHROMADB_PATH = "chromadb_data"
 COLLECTION_NAME = "sgu_documents"  # Separate collection to avoid issues with large swedish_gov_docs
 JSON_PATH = Path(__file__).parent / "sgu_documents.json"
 

@@ -68,8 +68,8 @@ is_reindex_process_alive() {
 
 stop_services_for_repair() {
   log "Stopping services for Chroma repair gate (backend + llm)"
-  systemctl --user stop constitutional-ai-backend.service >/dev/null 2>&1 || true
-  systemctl --user stop constitutional-ai-llm.service >/dev/null 2>&1 || true
+  systemctl --user stop svensk-ragg-backend.service >/dev/null 2>&1 || true
+  systemctl --user stop svensk-ragg-llm.service >/dev/null 2>&1 || true
 }
 
 run_chroma_vacuum_if_enabled() {
@@ -155,14 +155,14 @@ wait_for_reindex_completion() {
 }
 
 wait_for_backend_health() {
-  log "Starting constitutional-ai-backend.service"
-  systemctl --user start constitutional-ai-backend.service
+  log "Starting svensk-ragg-backend.service"
+  systemctl --user start svensk-ragg-backend.service
 
   local attempts=0
   local max_attempts=60
   while (( attempts < max_attempts )); do
     local body
-    body="$(curl -sS "http://localhost:8900/api/constitutional/health" || true)"
+    body="$(curl -sS "http://localhost:8900/api/svensk-ragg/health" || true)"
     if health_is_ok "$body"; then
       log "Backend health check passed."
       return 0
@@ -175,8 +175,8 @@ wait_for_backend_health() {
 }
 
 wait_for_llm_health() {
-  log "Starting constitutional-ai-llm.service"
-  systemctl --user start constitutional-ai-llm.service
+  log "Starting svensk-ragg-llm.service"
+  systemctl --user start svensk-ragg-llm.service
 
   local attempts=0
   local max_attempts=120
@@ -219,10 +219,10 @@ for name in sorted([c.name for c in client.list_collections() if c.name.endswith
     print(f"{name}\t{client.get_collection(name).count()}")
 PY
     echo "--- Backend health ---"
-    curl -fsS "http://localhost:8900/api/constitutional/health" || true
+    curl -fsS "http://localhost:8900/api/svensk-ragg/health" || true
     echo
     echo "--- Last resolved_collection logs ---"
-    journalctl --user -u constitutional-ai-backend.service -n 400 --no-pager | rg "resolved_collection|embedding_model_name|reranker_model_name|bm25_index_size|query_expansions|expansion_parsing_method" || true
+    journalctl --user -u svensk-ragg-backend.service -n 400 --no-pager | rg "resolved_collection|embedding_model_name|reranker_model_name|bm25_index_size|query_expansions|expansion_parsing_method" || true
   } | tee "$RUNTIME_LOG"
 }
 
@@ -243,7 +243,7 @@ cmd = [
     "journalctl",
     "--user",
     "-u",
-    "constitutional-ai-backend.service",
+    "svensk-ragg-backend.service",
     "--no-pager",
 ]
 if run_started_at:

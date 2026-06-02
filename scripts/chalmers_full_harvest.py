@@ -18,7 +18,7 @@ import requests
 OAI_ENDPOINT = "https://research.chalmers.se/oai-pmh/general/"
 METADATA_PREFIX = "oai_dc"
 OUTPUT_FILE = Path(
-    "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data/diva_full_chalmers.json"
+    "data/diva_full_chalmers.json"
 )
 RATE_LIMIT = 1.0  # seconds between requests
 

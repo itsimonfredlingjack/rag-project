@@ -14,7 +14,9 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import CallToolResult, TextContent, ToolAnnotations
 
+from ..shared.public_source_guard import is_public_profile
 from ..services.orchestrator_service import OrchestratorService, get_orchestrator_service
+from ..services.readiness_service import build_dependency_readiness
 from ..services.retrieval_service import RetrievalStrategy
 from ..utils.metrics import get_rag_metrics
 from .adapters import build_query_tool_payload
@@ -22,14 +24,13 @@ from .jobs import JobValidationError, JobRequest, resolve_job_request
 from .widget import build_widget_html
 
 WIDGET_URI = "ui://widget/operator.html"
+PUBLIC_PROFILE = "public-riksdag-demo"
 REPO_ROOT = Path(__file__).resolve().parents[3]
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 ALLOWED_MCP_HOSTS = [
     "127.0.0.1:*",
     "localhost:*",
     "[::1]:*",
-    "raggpt.fredlingautomation.dev",
-    "mcp-server.fredlingautomation.dev",
 ]
 ALLOWED_MCP_ORIGINS = [
     "http://127.0.0.1:*",
@@ -45,9 +46,9 @@ def build_tool_catalog() -> dict[str, dict[str, Any]]:
     """Return a documentation-friendly view of the tool surface."""
     return {
         "query_constitutional_ai": {
-            "title": "Query Constitutional AI",
+            "title": "Query Svensk Ragg",
             "description": (
-                "Use this when you need a real RAG answer from the Constitutional AI "
+                "Use this when you need a real RAG answer from the Svensk Ragg "
                 "backend with evidence, retrieval strategy, and sources."
             ),
             "annotations": {
@@ -98,7 +99,7 @@ def build_tool_catalog() -> dict[str, dict[str, Any]]:
         "render_query_report": {
             "title": "Render Query Report",
             "description": (
-                "Use this when you want the ChatGPT widget to render a Constitutional AI "
+                "Use this when you want the ChatGPT widget to render a Svensk Ragg "
                 "query report. Prefer calling query_constitutional_ai first when the "
                 "model wants to reason over the data before rendering."
             ),
@@ -202,7 +203,7 @@ def build_widget_resource_descriptor() -> dict[str, Any]:
                 "csp": csp,
             },
             "openai/widgetDescription": (
-                "Internal Constitutional AI operator dashboard for query reports, "
+                "Internal Svensk Ragg operator dashboard for query reports, "
                 "runtime health, project insights, and job status."
             ),
             "openai/widgetPrefersBorder": True,
@@ -312,9 +313,9 @@ def create_chatgpt_mcp_server(
     provider = orchestrator_provider or get_orchestrator_service
 
     server = FastMCP(
-        "Constitutional AI Operator",
+        "Svensk Ragg Operator",
         instructions=(
-            "Internal operator app for Constitutional AI. Prefer read-only inspection "
+            "Internal operator app for Svensk Ragg. Prefer read-only inspection "
             "tools for understanding the project and runtime before launching jobs."
         ),
         host="0.0.0.0",
@@ -331,7 +332,7 @@ def create_chatgpt_mcp_server(
     @server.resource(
         widget_descriptor["uri"],
         name="constitutional-operator-widget",
-        title="Constitutional AI Operator",
+        title="Svensk Ragg Operator",
         description=(
             "Widget UI for query reports, runtime snapshots, project insights, and "
             "operational job tracking."
@@ -357,14 +358,18 @@ def create_chatgpt_mcp_server(
         ] = "adaptive",
         use_agent: bool = False,
     ) -> CallToolResult:
+        orchestrator = provider()
         result = await _run_query(
-            orchestrator=provider(),
+            orchestrator=orchestrator,
             question=question,
             mode=mode,
             retrieval_strategy=retrieval_strategy,
             use_agent=use_agent,
         )
-        payload = build_query_tool_payload(result)
+        payload = build_query_tool_payload(
+            result,
+            public_guard_enabled=is_public_profile(orchestrator.config),
+        )
         structured = {
             **payload["structured_content"],
             "mode": getattr(result.mode, "value", str(result.mode)),
@@ -411,18 +416,29 @@ def create_chatgpt_mcp_server(
         meta=catalog["inspect_project"]["meta"],
     )
     async def inspect_project() -> CallToolResult:
-        snapshot = _build_project_snapshot()
+        orchestrator = provider()
+        public_profile = is_public_profile(orchestrator.config)
+        snapshot = _build_public_project_snapshot() if public_profile else _build_project_snapshot()
         content_text = (
             "Project snapshot prepared with canonical docs, architecture hotspots, "
             "and recommended next steps."
         )
-        structured = {
-            "repo_root": str(REPO_ROOT),
-            "canonical_doc_count": len(snapshot["canonical_docs"]),
-            "architecture_summary": snapshot["architecture_summary"],
-            "risk_count": len(snapshot["risks"]),
-            "next_steps": snapshot["next_steps"],
-        }
+        if public_profile:
+            structured = {
+                "profile": PUBLIC_PROFILE,
+                "canonical_doc_count": 0,
+                "architecture_summary": snapshot["architecture_summary"],
+                "risk_count": 0,
+                "next_steps": snapshot["next_steps"],
+            }
+        else:
+            structured = {
+                "repo_root": str(REPO_ROOT),
+                "canonical_doc_count": len(snapshot["canonical_docs"]),
+                "architecture_summary": snapshot["architecture_summary"],
+                "risk_count": len(snapshot["risks"]),
+                "next_steps": snapshot["next_steps"],
+            }
         return CallToolResult(
             content=[TextContent(type="text", text=content_text)],
             structuredContent=structured,
@@ -444,14 +460,18 @@ def create_chatgpt_mcp_server(
         ] = "adaptive",
         use_agent: bool = False,
     ) -> CallToolResult:
+        orchestrator = provider()
         result = await _run_query(
-            orchestrator=provider(),
+            orchestrator=orchestrator,
             question=question,
             mode=mode,
             retrieval_strategy=retrieval_strategy,
             use_agent=use_agent,
         )
-        payload = build_query_tool_payload(result)
+        payload = build_query_tool_payload(
+            result,
+            public_guard_enabled=is_public_profile(orchestrator.config),
+        )
         structured = {
             "view": "query",
             "question": question,
@@ -459,7 +479,7 @@ def create_chatgpt_mcp_server(
             **payload["structured_content"],
         }
         return CallToolResult(
-            content=[TextContent(type="text", text="Rendering Constitutional AI query report.")],
+            content=[TextContent(type="text", text="Rendering Svensk Ragg query report.")],
             structuredContent=structured,
             _meta={
                 **payload["meta"],
@@ -476,8 +496,13 @@ def create_chatgpt_mcp_server(
         meta=catalog["render_operator_dashboard"]["meta"],
     )
     async def render_operator_dashboard() -> CallToolResult:
-        runtime = await _build_runtime_snapshot(provider())
-        project = _build_project_snapshot()
+        orchestrator = provider()
+        runtime = await _build_runtime_snapshot(orchestrator)
+        project = (
+            _build_public_project_snapshot()
+            if is_public_profile(orchestrator.config)
+            else _build_project_snapshot()
+        )
         structured = {
             "view": "operator",
             "runtime_status": runtime["readiness"]["status"],
@@ -511,7 +536,13 @@ def create_chatgpt_mcp_server(
             "rag_benchmark_quick",
         ],
     ) -> CallToolResult:
-        return await _launch_job("run_diagnostic_job", operation, confirm=False)
+        profile = getattr(provider().config, "profile", None)
+        return await _launch_job(
+            "run_diagnostic_job",
+            operation,
+            confirm=False,
+            profile=profile,
+        )
 
     @server.tool(
         name="run_corpus_operation",
@@ -524,7 +555,13 @@ def create_chatgpt_mcp_server(
         operation: Literal["reindex_corpus", "sfs_update", "harvest_source"],
         confirm: bool = False,
     ) -> CallToolResult:
-        return await _launch_job("run_corpus_operation", operation, confirm=confirm)
+        profile = getattr(provider().config, "profile", None)
+        return await _launch_job(
+            "run_corpus_operation",
+            operation,
+            confirm=confirm,
+            profile=profile,
+        )
 
     @server.tool(
         name="get_job_status",
@@ -580,7 +617,26 @@ def mount_chatgpt_app(
     return server
 
 
-async def _launch_job(tool_name: str, operation: str, *, confirm: bool) -> CallToolResult:
+async def _launch_job(
+    tool_name: str,
+    operation: str,
+    *,
+    confirm: bool,
+    profile: str | None = None,
+) -> CallToolResult:
+    if profile == PUBLIC_PROFILE:
+        return CallToolResult(
+            content=[
+                TextContent(
+                    type="text",
+                    text="Operator job launch is disabled in the public demo profile.",
+                )
+            ],
+            structuredContent={"operation": operation, "status": "rejected"},
+            _meta={"tool_name": tool_name, "operation": operation, "profile": profile},
+            isError=True,
+        )
+
     try:
         job_request = resolve_job_request(
             tool_name=tool_name,
@@ -637,28 +693,57 @@ async def _run_query(
 
 
 async def _build_runtime_snapshot(orchestrator: OrchestratorService) -> dict[str, Any]:
+    public_profile = is_public_profile(orchestrator.config)
     healthy = await orchestrator.health_check()
     services = orchestrator.get_status()
-    readiness_checks, collections = await _build_readiness_checks(orchestrator)
+    readiness = await build_dependency_readiness(orchestrator)
+    if public_profile:
+        readiness = _redact_public_runtime_paths(readiness)
+    readiness_checks = readiness["checks"]
+    collections = readiness["collections"]
     metrics = get_rag_metrics().get_full_metrics()
     config = {
+        "profile": getattr(orchestrator.config, "profile", "unknown"),
+        "corpus_scope": getattr(orchestrator.config, "corpus_scope", "unknown"),
         "constitutional_model": getattr(orchestrator.config, "constitutional_model", "unknown"),
         "default_collections": getattr(orchestrator.config, "effective_default_collections", []),
+        "chromadb_enabled": getattr(
+            orchestrator.config,
+            "chromadb_enabled",
+            getattr(orchestrator.config.settings, "chromadb_enabled", True),
+        ),
         "chromadb_path": getattr(orchestrator.config, "chromadb_path", None),
+        "bm25_enabled": getattr(orchestrator.config, "bm25_enabled", False),
+        "bm25_index_path": getattr(orchestrator.config, "bm25_index_path", None),
         "critic_revise_enabled": getattr(
             orchestrator.config,
             "critic_revise_effective_enabled",
             False,
         ),
+        "reranking_enabled": getattr(orchestrator.config.settings, "reranking_enabled", False),
+        "structured_output_enabled": getattr(
+            orchestrator.config,
+            "structured_output_effective_enabled",
+            False,
+        ),
+        "intent_llm_fallback_enabled": getattr(
+            orchestrator.config.settings,
+            "intent_llm_fallback_enabled",
+            False,
+        ),
         "crag_enabled": getattr(orchestrator.config.settings, "crag_enabled", False),
     }
+    if public_profile:
+        config["chromadb_path"] = (
+            "public_chroma_disabled" if not config["chromadb_enabled"] else "public_chroma_index"
+        )
+        config["bm25_index_path"] = "public_bm25_index"
+
     return {
         "timestamp": _now_iso(),
         "health": {"status": "healthy" if healthy else "degraded", "services": services},
         "readiness": {
-            "status": "ready"
-            if all(check["status"] in {"ok", "unknown"} for check in readiness_checks.values())
-            else "not_ready",
+            "status": readiness["status"],
             "checks": readiness_checks,
         },
         "services": services,
@@ -672,75 +757,38 @@ async def _build_runtime_snapshot(orchestrator: OrchestratorService) -> dict[str
     }
 
 
+def _redact_public_runtime_paths(value: Any, *, key: str | None = None) -> Any:
+    path_keys = {
+        "path",
+        "bm25_path",
+        "chromadb_path",
+        "pdf_cache_path",
+        "input_path",
+        "output_path",
+        "index_path",
+    }
+    if isinstance(value, dict):
+        return {
+            item_key: _redact_public_runtime_paths(item_value, key=item_key)
+            for item_key, item_value in value.items()
+        }
+    if isinstance(value, list):
+        return [_redact_public_runtime_paths(item, key=key) for item in value]
+    if isinstance(value, str):
+        if key in path_keys or value.startswith("/home/"):
+            if key in {"bm25_path", "index_path"} or "bm25" in value:
+                return "public_bm25_index"
+            if key == "chromadb_path" or "chromadb" in value:
+                return "public_chroma_index"
+            return "public_runtime_path"
+    return value
+
+
 async def _build_readiness_checks(
     orchestrator: OrchestratorService,
 ) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]]]:
-    checks: dict[str, dict[str, Any]] = {}
-    collections: list[dict[str, Any]] = []
-
-    try:
-        if hasattr(orchestrator, "retrieval") and orchestrator.retrieval:
-            chromadb_healthy = await orchestrator.retrieval.health_check()
-            client = getattr(orchestrator.retrieval, "_chromadb_client", None)
-            if chromadb_healthy and client and hasattr(client, "list_collections"):
-                raw_collections = client.list_collections()
-                for collection in raw_collections:
-                    count = None
-                    try:
-                        if hasattr(collection, "count"):
-                            count = collection.count()
-                    except Exception:
-                        count = None
-                    collections.append({"name": collection.name, "document_count": count})
-                checks["chromadb"] = {
-                    "status": "ok",
-                    "details": {"collections": len(raw_collections)},
-                }
-            else:
-                checks["chromadb"] = {
-                    "status": "degraded" if chromadb_healthy else "error",
-                    "details": {"healthy": chromadb_healthy},
-                }
-        else:
-            checks["chromadb"] = {
-                "status": "error",
-                "details": {"error": "Retrieval service not available"},
-            }
-    except Exception as exc:
-        checks["chromadb"] = {"status": "error", "details": {"error": str(exc)}}
-
-    try:
-        if hasattr(orchestrator, "llm_service") and orchestrator.llm_service:
-            llm_healthy = await orchestrator.llm_service.health_check()
-            checks["llm_service"] = {
-                "status": "ok" if llm_healthy else "degraded",
-                "details": {
-                    "model": getattr(orchestrator.config, "constitutional_model", "unknown")
-                },
-            }
-        else:
-            checks["llm_service"] = {
-                "status": "error",
-                "details": {"error": "LLM service not available"},
-            }
-    except Exception as exc:
-        checks["llm_service"] = {"status": "error", "details": {"error": str(exc)}}
-
-    try:
-        embedding_service = getattr(orchestrator.retrieval, "_embedding_service", None)
-        if embedding_service and getattr(embedding_service, "is_initialized", False):
-            checks["embedding_service"] = {"status": "ok", "details": {}}
-        elif embedding_service:
-            checks["embedding_service"] = {
-                "status": "error",
-                "details": {"error": "Not initialized"},
-            }
-        else:
-            checks["embedding_service"] = {"status": "unknown", "details": {}}
-    except Exception as exc:
-        checks["embedding_service"] = {"status": "error", "details": {"error": str(exc)}}
-
-    return checks, collections
+    readiness = await build_dependency_readiness(orchestrator)
+    return readiness["checks"], readiness["collections"]
 
 
 def _build_project_snapshot() -> dict[str, Any]:
@@ -763,8 +811,8 @@ def _build_project_snapshot() -> dict[str, Any]:
         ],
         "key_paths": {
             "backend_entrypoint": "backend/app/main.py",
-            "rag_routes": "backend/app/api/constitutional_routes.py",
-            "frontend_state": "apps/konstitutionell-frontend/src/stores/useAppStore.ts",
+            "rag_routes": "backend/app/api/svensk-ragg_routes.py",
+            "frontend_state": "apps/svensk-ragg-frontend/src/stores/useAppStore.ts",
             "docs_architecture": "docs/ARCHITECTURE.md",
         },
         "canonical_docs": canonical_docs,
@@ -784,6 +832,24 @@ def _build_project_snapshot() -> dict[str, Any]:
             "sources",
             "evidenceLevel",
             "thoughtChain",
+        ],
+    }
+
+
+def _build_public_project_snapshot() -> dict[str, Any]:
+    return {
+        "timestamp": _now_iso(),
+        "profile": PUBLIC_PROFILE,
+        "architecture_summary": [
+            "Public Riksdagen demo backed by Riksdagens öppna data.",
+            "Public answering uses the branded /api/svensk-ragg query surface.",
+            "Operator project inspection is disabled in the public profile.",
+        ],
+        "canonical_docs": [],
+        "risks": [],
+        "next_steps": [
+            "Use /api/svensk-ragg/ready before accepting traffic.",
+            "Use /api/svensk-ragg/agent/query or /agent/query/stream for public queries.",
         ],
     }
 

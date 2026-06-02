@@ -44,6 +44,7 @@ async def stream_query(
     retrieval_strategy: RetrievalStrategy = RetrievalStrategy.ADAPTIVE,
     history: Optional[List[dict]] = None,
     stream_session_id: Optional[str] = None,
+    where_filter: Optional[dict] = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream RAG pipeline with Server-Sent Events.
@@ -114,7 +115,7 @@ async def stream_query(
         retrieval_result = await retrieval.search_with_epr(
             query=search_query,
             k=k,
-            where_filter=None,
+            where_filter=where_filter,
             history=history_for_retrieval,
         )
         retrieval_ms = (time.perf_counter() - retrieval_start) * 1000
@@ -319,7 +320,7 @@ async def stream_query(
             user_query=question,
             thought_chain=thought_chain,
         )
-        system_prompt = system_prompt.replace("{{CONSTITUTIONAL_EXAMPLES}}", examples_text)
+        system_prompt = system_prompt.replace("{{SVENSK_RAGG_EXAMPLES}}", examples_text)
 
         messages = [
             {"role": "system", "content": system_prompt},
@@ -330,9 +331,14 @@ async def stream_query(
                 messages.insert(1 + i, msg)
 
         full_answer = ""
+        generation_config = dict(query_processor.get_mode_config(response_mode.value))
+        # The streaming endpoint emits plain text tokens to the frontend. The
+        # batch endpoint still uses structured JSON, but here forcing Ollama
+        # format=json makes users see raw JSON instead of answer text.
+        generation_config["json_output"] = False
         async for token, stats in llm_service.chat_stream(
             messages=messages,
-            config_override=query_processor.get_mode_config(response_mode.value),
+            config_override=generation_config,
         ):
             if token:
                 full_answer += token

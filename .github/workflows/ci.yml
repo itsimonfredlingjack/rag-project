@@ -22,7 +22,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Validate canonical docs references
-        run: python scripts/check_docs_canonical.py
+        run: python3 scripts/check_docs_canonical.py
 
   backend-lint:
     name: Backend Lint & Type Check
@@ -41,7 +41,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles(backend/requirements.txt) }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
           restore-keys: ${{ runner.os }}-pip-
 
       - name: Install dependencies
@@ -77,7 +77,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles(backend/requirements.txt) }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
           restore-keys: ${{ runner.os }}-pip-
 
       - name: Install dependencies
@@ -97,7 +97,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: apps/konstitutionell-frontend
+        working-directory: apps/svensk-ragg-frontend
     steps:
       - uses: actions/checkout@v4
 
@@ -109,7 +109,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles(apps/konstitutionell-frontend/package-lock.json) }}
+          key: ${{ runner.os }}-npm-${{ hashFiles('apps/svensk-ragg-frontend/package-lock.json') }}
           restore-keys: ${{ runner.os }}-npm-
 
       - name: Install dependencies

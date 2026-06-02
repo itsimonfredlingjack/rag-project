@@ -1,5 +1,5 @@
 """
-Constitutional AI — Evaluation Framework
+Svensk Ragg — Evaluation Framework
 =========================================
 
 Golden dataset evaluation for Swedish legal RAG quality measurement.

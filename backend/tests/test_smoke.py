@@ -8,7 +8,7 @@ class TestSmoke:
     """Verify conftest fixtures load and basic mocks work."""
 
     def test_mock_config(self, mock_config_service):
-        assert mock_config_service.settings.app_name == "Constitutional AI Test"
+        assert mock_config_service.settings.app_name == "Svensk Ragg Test"
 
     def test_mock_llm_service(self, mock_llm_service):
         assert mock_llm_service.is_initialized is True

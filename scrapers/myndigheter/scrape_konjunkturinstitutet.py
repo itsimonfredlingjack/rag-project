@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 BASE_URL = "https://www.konj.se"
 
-HEADERS = {"User-Agent": "KonjunkturBot/1.0 (Constitutional AI Research, respekterar robots.txt)"}
+HEADERS = {"User-Agent": "KonjunkturBot/1.0 (Svensk Ragg Research, respekterar robots.txt)"}
 
 # Publication categories
 PUBLICATION_PAGES = [

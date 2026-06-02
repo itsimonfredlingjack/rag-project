@@ -3,14 +3,14 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "svensk-rag-backend"
+name = "svensk-ragg-backend"
 version = "2.0.0"
-description = "Backend for Svensk RAG - Swedish legal document RAG system"
+description = "Backend for Svensk Ragg - Swedish legal document RAG system"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = {text = "MIT"}
 authors = [
-    {name = "Svensk RAG", email = "contact@example.com"}
+    {name = "Svensk Ragg", email = "svensk-ragg@example.com"}
 ]
 keywords = ["rag", "legal", "swedish", "chromadb", "fastapi", "llama-cpp"]
 classifiers = [
@@ -18,8 +18,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
 
@@ -34,9 +32,13 @@ dependencies = [
     "anyio>=4.2.0",
     "python-dotenv>=1.0.0",
     "chromadb>=0.4.0",
-    "sentence-transformers>=2.7.0",
+    "sentence-transformers>=2.7.0,<6.0.0",
     "torch>=2.0.0",
-    "transformers>=4.30.0",
+    "einops>=0.8.0",
+    "transformers>=4.40.0,<5.0.0",
+    "langgraph>=1.0.0",
+    "langchain-core>=1.2.0",
+    "slowapi>=0.1.9",
     "psutil>=5.9.0",
     "numpy>=1.24.0",
 ]
@@ -49,7 +51,7 @@ dev = [
 ]
 
 [project.scripts]
-svensk-rag = "app.main:main"
+svensk-ragg = "app.main:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -60,4 +62,4 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py312"

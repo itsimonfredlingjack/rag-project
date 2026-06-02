@@ -11,6 +11,8 @@ downloads/
 eggs/
 .eggs/
 lib/
+!apps/svensk-ragg-frontend/src/lib/
+!apps/svensk-ragg-frontend/src/lib/**
 lib64/
 parts/
 sdist/
@@ -61,11 +63,16 @@ raw_data/
 *.cache
 *.log
 *.tmp
+.playwright-cli/
+output/
 
 # Project specific
 benchmark_results.json
 kommuner_batch_list.json
 _TEMP_DUMP/
+
+# Test leakage from accidentally stringified mock paths
+backend/<MagicMock name='mock.chromadb_path' id='*'>/
 
 # AI/ML models and data
 *.bin
@@ -140,17 +147,13 @@ scripts/training_data.jsonl
 
 # Node modules
 node_modules/
-apps/konstitutionell-frontend/public/og-image.png
-docs/assets/*-scrolled.png
-docs/assets/*-initial-load.png
-docs/assets/sources-fixed.png
 
 # Specifika exceptions (behåll dessa!)
 !app/data/combined_training.jsonl
 !app/data/docs_qa_training.jsonl
 !app/data/eval_after_*.json
 
-# Felaktig frontend-mapp (använd /apps/konstitutionell-frontend/ istället)
+# Felaktig frontend-mapp (använd /apps/svensk-ragg-frontend/ istället)
 frontend/
 tools/rag-tester/data/ratings.db
 apps/DONT_USE_DOCUMENTATION/

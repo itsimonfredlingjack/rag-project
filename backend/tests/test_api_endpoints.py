@@ -1,4 +1,4 @@
-"""Unit tests for Constitutional AI API endpoints."""
+"""Unit tests for Svensk Ragg API endpoints."""
 
 import json
 
@@ -231,22 +231,60 @@ async def test_documents_list_empty(async_client, mock_retrieval_service):
     assert data["total"] == 0
 
 
+@pytest.mark.unit
+async def test_document_facets_route_returns_filter_metadata(async_client, mock_retrieval_service):
+    mock_retrieval_service._chromadb_client = None
+
+    response = await async_client.get("/api/documents/facets")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["agencies"][0]["id"] == "sfs"
+    assert data["doc_types"][0]["id"] == "lag"
+    assert data["years"] == {"min": 1900, "max": 2026}
+
+
 # ============================================================================
 # POST /api/documents
 # ============================================================================
 
 
 @pytest.mark.unit
-async def test_documents_create_happy_path(async_client, mock_retrieval_service):
+async def test_documents_create_requires_api_key_by_default(async_client, mock_retrieval_service):
     mock_coll = MagicMock()
     mock_coll.add = MagicMock()
     mock_coll.get = MagicMock(return_value={"ids": []})
     mock_retrieval_service._chromadb_client = MagicMock()
     mock_retrieval_service._chromadb_client.get_collection = MagicMock(return_value=mock_coll)
+
     response = await async_client.post(
         "/api/documents",
         json={"content": "All offentlig makt utgar fran folket.", "collection": "testcoll"},
     )
+
+    assert response.status_code == 403
+    mock_coll.add.assert_not_called()
+
+
+@pytest.mark.unit
+async def test_documents_create_happy_path_with_api_key(
+    async_client,
+    mock_retrieval_service,
+    monkeypatch,
+):
+    monkeypatch.setenv("CONST_API_KEY", "test-secret")
+    mock_coll = MagicMock()
+    mock_coll.add = MagicMock()
+    mock_coll.get = MagicMock(return_value={"ids": []})
+    mock_retrieval_service._chromadb_client = MagicMock()
+    mock_retrieval_service._chromadb_client.get_collection = MagicMock(return_value=mock_coll)
+
+    response = await async_client.post(
+        "/api/documents",
+        headers={"X-API-Key": "test-secret"},
+        json={"content": "All offentlig makt utgar fran folket.", "collection": "testcoll"},
+    )
+
     assert response.status_code == 201
     data = response.json()
     assert "id" in data
@@ -254,18 +292,69 @@ async def test_documents_create_happy_path(async_client, mock_retrieval_service)
 
 
 @pytest.mark.unit
-async def test_documents_create_invalid_collection(async_client):
+async def test_documents_create_dev_bypass_requires_explicit_flag(
+    async_client,
+    mock_retrieval_service,
+    monkeypatch,
+):
+    monkeypatch.delenv("CONST_API_KEY", raising=False)
+    monkeypatch.setenv("CONST_ALLOW_UNAUTHENTICATED_WRITES", "true")
+    monkeypatch.setenv("CONST_PROFILE", "private-swedish-legal-lab")
+    mock_coll = MagicMock()
+    mock_coll.add = MagicMock()
+    mock_coll.get = MagicMock(return_value={"ids": []})
+    mock_retrieval_service._chromadb_client = MagicMock()
+    mock_retrieval_service._chromadb_client.get_collection = MagicMock(return_value=mock_coll)
+
     response = await async_client.post(
         "/api/documents",
+        json={"content": "Dev-only document mutation.", "collection": "testcoll"},
+    )
+
+    assert response.status_code == 201
+
+
+@pytest.mark.unit
+async def test_documents_create_public_profile_denies_even_with_api_key(
+    async_client,
+    mock_retrieval_service,
+    monkeypatch,
+):
+    monkeypatch.setenv("CONST_PROFILE", "public-riksdag-demo")
+    monkeypatch.setenv("CONST_API_KEY", "test-secret")
+    mock_coll = MagicMock()
+    mock_coll.add = MagicMock()
+    mock_coll.get = MagicMock(return_value={"ids": []})
+    mock_retrieval_service._chromadb_client = MagicMock()
+    mock_retrieval_service._chromadb_client.get_collection = MagicMock(return_value=mock_coll)
+
+    response = await async_client.post(
+        "/api/documents",
+        headers={"X-API-Key": "test-secret"},
+        json={"content": "Should not be writable in public.", "collection": "testcoll"},
+    )
+
+    assert response.status_code == 403
+    mock_coll.add.assert_not_called()
+
+
+@pytest.mark.unit
+async def test_documents_create_invalid_collection(async_client, monkeypatch):
+    monkeypatch.setenv("CONST_API_KEY", "test-secret")
+    response = await async_client.post(
+        "/api/documents",
+        headers={"X-API-Key": "test-secret"},
         json={"content": "Some content", "collection": "invalid$name!"},
     )
     assert response.status_code == 422
 
 
 @pytest.mark.unit
-async def test_documents_create_missing_content(async_client):
+async def test_documents_create_missing_content(async_client, monkeypatch):
+    monkeypatch.setenv("CONST_API_KEY", "test-secret")
     response = await async_client.post(
         "/api/documents",
+        headers={"X-API-Key": "test-secret"},
         json={"collection": "test_collection"},
     )
     assert response.status_code == 422

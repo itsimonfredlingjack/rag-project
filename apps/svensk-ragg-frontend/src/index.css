@@ -1,0 +1,225 @@
+@import "tailwindcss";
+
+/* Obsidian Glass & Aurora Ice Theme */
+@theme {
+  /* Core palette */
+  --color-app-bg: #090B0E;         /* Deep Obsidian Charcoal */
+  --color-panel-bg: rgba(15, 20, 28, 0.75); /* Frosted Slate Navy */
+  --color-glass-border: rgba(255, 255, 255, 0.05);
+  --color-glass-bg: rgba(15, 20, 28, 0.65);
+  
+  --color-accent-primary: #38bdf8;   /* Aurora Ice (Sky Blue) */
+  --color-accent-secondary: #94a3b8; /* Slate Steel */
+  --color-accent-tertiary: #f59e0b;  /* Warm Amber Gold (Citations & Highlights) */
+  --color-app-text: #f8fafc;         /* Slate 50 */
+
+  /* Text colors */
+  --color-text-muted: #64748B;       /* Slate-500 */
+  --color-text-subtle: #94A3B8;      /* Slate-400 */
+  --color-text-disabled: #334155;    /* Slate-700 */
+
+  /* Bubble tints */
+  --color-user-bubble-bg: rgba(56, 189, 248, 0.04);
+  --color-user-bubble-border: rgba(56, 189, 248, 0.12);
+
+  /* Force mature border-radii to prevent "kids app" bubbly cards */
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+  --radius-2xl: 8px;
+  --radius-3xl: 8px;
+  --radius-full: 9999px; /* Only for icons/round buttons */
+
+  --font-sans: 'Outfit', sans-serif;
+  --font-serif: 'Lora', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* Base styles */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--color-app-bg);
+  color: var(--color-app-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+/* Typography utilities */
+.font-ui {
+  font-family: var(--font-sans);
+}
+
+.font-doc {
+  font-family: var(--font-serif);
+  line-height: 1.8;
+}
+
+/* Custom scrollbar styling */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(56, 189, 248, 0.1) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(56, 189, 248, 0.1);
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 0.2s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(56, 189, 248, 0.25);
+}
+
+/* Glassmorphic Obsidian Panels */
+.glass-panel {
+  background: rgba(15, 20, 28, 0.65);
+  backdrop-filter: blur(24px) saturate(120%);
+  -webkit-backdrop-filter: blur(24px) saturate(120%);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.glass-panel-glow-blue {
+  background: rgba(15, 20, 28, 0.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(56, 189, 248, 0.12);
+  box-shadow: 0 4px 20px rgba(56, 189, 248, 0.03);
+}
+
+/* Document search highlight utility (Warm Amber Gold) */
+.rag-highlight {
+  background-color: rgba(245, 158, 11, 0.08);
+  border-bottom: 1.5px solid rgba(245, 158, 11, 0.6);
+  padding: 0.05rem 0.2rem;
+  border-radius: 2px;
+  font-weight: 500;
+  color: #FFFFFF;
+  text-shadow: 0 0 6px rgba(245, 158, 11, 0.15);
+}
+
+/* Focus visible for keyboard navigation */
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}
+
+/* Animated gradient for brand title */
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient {
+  background-size: 200% 100%;
+  animation: gradient-shift 8s ease-in-out infinite;
+}
+
+/* Soft, moving ambient background gradient overlay */
+@keyframes mesh-drift {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.95);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+}
+
+.ambient-mesh {
+  position: absolute;
+  top: -20%;
+  left: -20%;
+  width: 140%;
+  height: 140%;
+  background: radial-gradient(circle at 20% 30%, rgba(56, 189, 248, 0.03) 0%, transparent 40%),
+              radial-gradient(circle at 80% 70%, rgba(79, 70, 229, 0.02) 0%, transparent 50%),
+              radial-gradient(circle at 50% 10%, rgba(245, 158, 11, 0.01) 0%, transparent 35%);
+  filter: blur(80px);
+  animation: mesh-drift 25s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Markdown typography styles for document viewing */
+.prose-doc h1,
+.prose-doc h2,
+.prose-doc h3,
+.prose-doc h4 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  color: #FFFFFF;
+  margin-top: 1.6em;
+  margin-bottom: 0.6em;
+}
+
+.prose-doc h1 { 
+  font-size: 1.5rem; 
+  border-bottom: 1px solid rgba(255,255,255,0.04); 
+  padding-bottom: 0.4rem; 
+  letter-spacing: -0.01em;
+}
+.prose-doc h2 { font-size: 1.25rem; }
+.prose-doc h3 { font-size: 1.05rem; }
+
+.prose-doc p {
+  margin-bottom: 1.1rem;
+  color: #CBD5E1;
+}
+
+.prose-doc blockquote {
+  border-left: 2px solid var(--color-accent-tertiary);
+  background-color: rgba(255, 255, 255, 0.01);
+  padding: 0.6rem 1.1rem;
+  margin: 1.2rem 0;
+  font-style: italic;
+  color: #E2E8F0;
+  border-radius: 0 4px 4px 0;
+}
+
+.prose-doc ul,
+.prose-doc ol {
+  margin-bottom: 1.1rem;
+  padding-left: 1.4rem;
+}
+
+.prose-doc ul { list-style-type: disc; }
+.prose-doc ol { list-style-type: decimal; }
+
+.prose-doc li {
+  margin-bottom: 0.4rem;
+  color: #CBD5E1;
+}

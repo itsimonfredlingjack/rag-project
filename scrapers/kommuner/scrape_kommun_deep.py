@@ -150,7 +150,7 @@ class DeepKommunScraper:
         self.playwright = sync_playwright().start()
         self.browser = self.playwright.chromium.launch(headless=self.headless)
         self.context = self.browser.new_context(
-            user_agent="KommunDokumentBot/1.0 (Constitutional AI Research, respekterar robots.txt)",
+            user_agent="KommunDokumentBot/1.0 (Svensk Ragg Research, respekterar robots.txt)",
             locale="sv-SE",
         )
         self.page = self.context.new_page()
@@ -342,7 +342,7 @@ class DeepKommunScraper:
             response = requests.get(
                 url,
                 timeout=60,
-                headers={"User-Agent": "KommunDokumentBot/1.0 (Constitutional AI Research)"},
+                headers={"User-Agent": "KommunDokumentBot/1.0 (Svensk Ragg Research)"},
             )
             response.raise_for_status()
 

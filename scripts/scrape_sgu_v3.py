@@ -37,7 +37,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Configuration
-CHROMADB_PATH = "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/chromadb_data"
+CHROMADB_PATH = "chromadb_data"
 COLLECTION_NAME = "swedish_gov_docs"
 BASE_URL = "https://www.sgu.se"
 MIN_DOCS_THRESHOLD = 100

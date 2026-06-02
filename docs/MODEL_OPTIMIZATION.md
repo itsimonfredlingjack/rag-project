@@ -1,28 +1,28 @@
-# Modelloptimering - Svensk RAG
+# Modelloptimering - Svensk Ragg
 
 > Dokumentation av modellparametrar, system prompts och best practices för prompt engineering
 
-**Senast uppdaterad:** 2026-03-12
+**Senast uppdaterad:** 2026-05-26
 
 ---
 
 ## Översikt
 
-Svensk RAG använder Ollama med lokala modeller för att svara på frågor baserat på en korpus med över 1.37M+ svenska dokument (538K legal/gov + 829K DiVA research).
+Projektet använder lokala modeller för att svara på frågor baserat på källor från en lokal dokumentkorpus. Korpusstorlek och modellruntime är miljöberoende och ingår inte i repot.
 
 ### Modeller
 
-- **Primär modell:** Gemma 3 12B (Q4_K_M, ~8GB) via Ollama (port 11434)
+- **Primär modell:** Gemma 4 E2B via Ollama (port 11434)
 - **Fallback modell:** Samma som primär (ingen separat fallback-modell)
-- **Grader-modell:** Gemma 3 12B (GBNF-styrd 3-vägs JSON-gradering: RELEVANT/AMBIGUOUS/IRRELEVANT)
+- **Grader-modell:** Samma policy-godkända lokala LLM när CRAG-gradering är aktiverad
 - **Draft-modell:** Ingen separat draft-modell
 - **Embedding modell:** jinaai/jina-embeddings-v3 (1024 dim, asymmetric LoRA, CC-BY-NC-4.0)
 - **Reranker:** jinaai/jina-reranker-v2-base-multilingual (XLM-RoBERTa, 278M params, CC-BY-NC-4.0)
 - **Vector DB:** ChromaDB
-- **CRAG:** Enabled (grading active, self-reflection disabled)
+- **CRAG:** Avstängt i första lokala demoprofilen tills modell, Chroma och BM25 är verifierade
 - **Collections:** All suffixed with `_jina_v3_1024`
-- **Context window:** 16384 tokens (Gemma 3 supports 128K natively, capped for VRAM)
-- **Timeout:** 60 sekunder (Ollama timeout)
+- **Context window:** 4096 tokens i första lokala demoprofilen
+- **Timeout:** 120 sekunder (Ollama timeout)
 
 ---
 
@@ -88,10 +88,10 @@ Svensk RAG använder Ollama med lokala modeller för att svara på frågor baser
 ### ASSIST Mode Prompt
 
 ```
-Du är Svensk RAG, en expert på svensk lag och myndighetsförvaltning.
+Du är Svensk Ragg, en expert på svensk lag och myndighetsförvaltning.
 
 KUNSKAPSBAS:
-Du har tillgång till en korpus med över 1.37M+ svenska dokument från ChromaDB (538K legal/gov + 829K DiVA research), inklusive:
+Du har tillgång till en lokal dokumentkorpus från ChromaDB, inklusive källor som kan omfatta:
 - SFS-lagtext (Svensk författningssamling)
 - Propositioner från Riksdagen
 - SOU-rapporter (Statens offentliga utredningar)
@@ -108,7 +108,7 @@ ARBETSSÄTT:
 8. Gå rakt på sak och var hjälpsam
 ```
 
-**Fil:** `09_CONSTITUTIONAL-AI/backend/app/services/orchestrator_service.py` (rad ~572-598)
+**Fil:** `backend/app/services/orchestrator_service.py`
 
 ### EVIDENCE Mode Prompt
 
@@ -116,7 +116,7 @@ ARBETSSÄTT:
 Du är en juridisk expert specialiserad på svensk lag och förvaltningsrätt.
 
 KUNSKAPSBAS:
-Du har tillgång till en korpus med över 1.37M+ svenska dokument från ChromaDB (538K legal/gov + 829K DiVA research), inklusive:
+Du har tillgång till en lokal dokumentkorpus från ChromaDB, inklusive källor som kan omfatta:
 - SFS-lagtext (Svensk författningssamling) - PRIORITERA DETTA
 - Propositioner från Riksdagen
 - SOU-rapporter (Statens offentliga utredningar)
@@ -133,7 +133,7 @@ ARBETSSÄTT FÖR EVIDENCE-MODE:
 7. Citera källor med [Källa X] och inkludera SFS-nummer/paragraf när tillgängligt
 ```
 
-**Fil:** `09_CONSTITUTIONAL-AI/backend/app/services/orchestrator_service.py` (rad ~600-621)
+**Fil:** `backend/app/services/orchestrator_service.py`
 
 ### CHAT Mode Prompt
 
@@ -141,10 +141,10 @@ ARBETSSÄTT FÖR EVIDENCE-MODE:
 Avslappnad AI-assistent. Svara kort på svenska.
 MAX 2-3 meningar. INGEN MARKDOWN - skriv ren text utan *, **, #, -, eller listor.
 
-Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa till att du har tillgång till en korpus med över 1.37M+ svenska dokument (538K legal/gov + 829K DiVA research), men svara kortfattat.
+Om frågan handlar om svensk lag eller myndighetsförvaltning, kan du hänvisa till att du kan använda lokala källor när de finns tillgängliga, men svara kortfattat.
 ```
 
-**Fil:** `09_CONSTITUTIONAL-AI/backend/app/services/orchestrator_service.py` (rad ~623-627)
+**Fil:** `backend/app/services/orchestrator_service.py`
 
 ---
 
@@ -185,7 +185,7 @@ Svara i ren text utan formatering.
 ### 1. Referera till korpusen
 
 **BRA:**
-- "Du har tillgång till en korpus med över 1.37M+ svenska dokument (538K legal/gov + 829K DiVA research)"
+- "Du har tillgång till en lokal dokumentkorpus när källor finns tillgängliga"
 - "Använd källorna från korpusen när de finns"
 
 **DÅLIGT:**
@@ -240,7 +240,7 @@ Svara i ren text utan formatering.
 
 #### ASSIST Mode
 ```bash
-curl -X POST http://localhost:8900/api/constitutional/agent/query \
+curl -X POST http://localhost:8900/api/svensk-ragg/agent/query \
   -H "Content-Type: application/json" \
   -d '{
     "question": "Vad säger GDPR om personuppgifter?",
@@ -256,7 +256,7 @@ curl -X POST http://localhost:8900/api/constitutional/agent/query \
 
 #### EVIDENCE Mode
 ```bash
-curl -X POST http://localhost:8900/api/constitutional/agent/query \
+curl -X POST http://localhost:8900/api/svensk-ragg/agent/query \
   -H "Content-Type: application/json" \
   -d '{
     "question": "Vad säger förvaltningslagen 2017:900 om beslut?",
@@ -272,7 +272,7 @@ curl -X POST http://localhost:8900/api/constitutional/agent/query \
 
 #### CHAT Mode
 ```bash
-curl -X POST http://localhost:8900/api/constitutional/agent/query \
+curl -X POST http://localhost:8900/api/svensk-ragg/agent/query \
   -H "Content-Type: application/json" \
   -d '{
     "question": "Hej, vad kan du hjälpa mig med?",
@@ -298,14 +298,26 @@ curl -X POST http://localhost:8900/api/constitutional/agent/query \
 
 ## Ändringshistorik
 
-### 2026-03-12 - Gemma 3 12B migration + quality/performance tuning
+### 2026-05-26 - Gemma 4 local-demo profile + model policy
 
-**Model migration:** Qwen 3.5 9B → Gemma 3 12B (Q4_K_M, ~8GB via Ollama)
+**Model migration:** previous local runtime family → Gemma 4 E2B via Ollama
 
 | Change | Before | After | Rationale |
 |--------|--------|-------|-----------|
-| Primary model | Qwen 3.5 9B | Gemma 3 12B | Better Swedish, larger context |
-| Grader model | Qwen 3.5 9B | Gemma 3 12B | Single-model setup |
+| Primary model | Previous local runtime family | Gemma 4 E2B | Current Ollama-supported Gemma 4 profile with lower memory risk |
+| Grader model | Previous local runtime family | Same as primary when CRAG is enabled | Single-model setup |
+| Runtime | Mixed llama-server/Ollama notes | Ollama local demo profile | Simpler local bring-up |
+| Context window | 8192-16384 | 4096 first-run profile | Lower memory pressure while Chroma is restored |
+| Model policy | Informal | Config validator + docs check | Prevent accidental unsupported runtime model families |
+
+### 2026-03-12 - Earlier local model migration + quality/performance tuning
+
+**Model migration:** previous excluded runtime family → Gemma 3 12B (Q4_K_M, ~8GB via Ollama)
+
+| Change | Before | After | Rationale |
+|--------|--------|-------|-----------|
+| Primary model | Previous excluded runtime family | Gemma 3 12B | Better Swedish, larger context |
+| Grader model | Previous excluded runtime family | Gemma 3 12B | Single-model setup |
 | Runtime | llama-server | Ollama | Simpler deployment |
 | Context window | 8192 | 16384 | Gemma 3 128K native |
 | Source budget cap | 3000 tokens | 5000 tokens | More source context |
@@ -330,7 +342,7 @@ curl -X POST http://localhost:8900/api/constitutional/agent/query \
 - Retry backoff: 1-3s → 0.3-0.5s
 - Critic max revisions: 2 → 1
 
-**Baseline eval (Qwen era, 2026-03-11):**
+**Baseline eval (previous excluded-runtime era, 2026-03-11):**
 
 | Metric | Value |
 |--------|-------|
@@ -351,6 +363,6 @@ curl -X POST http://localhost:8900/api/constitutional/agent/query \
 
 ## Referenser
 
-- Ollama: https://ollama.ai/
-- Gemma 3: https://ai.google.dev/gemma
+- Ollama: https://ollama.com/
+- Gemma 4: https://blog.google/innovation-and-ai/technology/developers-tools/gemma-4/
 - ChromaDB: https://www.trychroma.com/

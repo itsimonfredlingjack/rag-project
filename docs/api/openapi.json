@@ -1,12 +1,12 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Svensk RAG Backend API",
+    "title": "Svensk Ragg Backend API",
     "description": "FastAPI backend for Swedish legal document RAG system",
     "version": "2.0.0",
     "contact": {
-      "name": "Svensk RAG",
-      "email": "constitutional@example.com"
+      "name": "Svensk Ragg",
+      "email": "svensk-ragg@example.com"
     },
     "license": {
       "name": "MIT"
@@ -24,8 +24,8 @@
   ],
   "tags": [
     {
-      "name": "constitutional",
-      "description": "Svensk RAG RAG endpoints"
+      "name": "svensk-ragg",
+      "description": "Svensk Ragg RAG endpoints"
     },
     {
       "name": "health",
@@ -37,12 +37,12 @@
     }
   ],
   "paths": {
-    "/api/constitutional/health": {
+    "/api/svensk-ragg/health": {
       "get": {
         "summary": "Health check",
         "operationId": "healthCheck",
         "tags": [
-          "constitutional",
+          "svensk-ragg",
           "health"
         ],
         "responses": {
@@ -59,12 +59,12 @@
         }
       }
     },
-    "/api/constitutional/agent/query": {
+    "/api/svensk-ragg/agent/query": {
       "post": {
         "summary": "Agentic RAG query",
         "operationId": "agentQuery",
         "tags": [
-          "constitutional",
+          "svensk-ragg",
           "agent"
         ],
         "requestBody": {

@@ -1,6 +1,6 @@
 {
   "version": "v1",
-  "description": "Golden evaluation dataset for Constitutional AI RAG system. 60 Swedish legal Q&A pairs covering all intent categories, response modes, and difficulty levels.",
+  "description": "Golden evaluation dataset for Svensk Ragg RAG system. 60 Swedish legal Q&A pairs covering all intent categories, response modes, and difficulty levels.",
   "created": "2026-02-25",
   "items": [
     {

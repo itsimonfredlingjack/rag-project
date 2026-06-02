@@ -413,7 +413,7 @@ async def _collect_internal(
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark retrieval quality on 10 legal queries.")
     parser.add_argument("--base-url", default="http://localhost:8900")
-    parser.add_argument("--endpoint", default="/api/constitutional/agent/query")
+    parser.add_argument("--endpoint", default="/api/svensk-ragg/agent/query")
     parser.add_argument(
         "--mode", default="evidence", choices=["auto", "chat", "assist", "evidence"]
     )

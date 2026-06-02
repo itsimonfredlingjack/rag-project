@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt slowapi
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY app/ app/
@@ -22,6 +22,6 @@ EXPOSE 8900
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-    CMD python -c "import httpx; r = httpx.get('http://localhost:8900/api/constitutional/health'); r.raise_for_status()"
+    CMD python -c "import httpx; r = httpx.get('http://localhost:8900/api/svensk-ragg/health'); r.raise_for_status()"
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8900"]

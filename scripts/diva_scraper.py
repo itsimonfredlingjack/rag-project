@@ -467,7 +467,7 @@ def harvest_university(
 
 def main():
     """Main entry point for DiVA harvester"""
-    output_dir = Path("/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data")
+    output_dir = Path("data")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Parse arguments

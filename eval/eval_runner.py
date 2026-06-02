@@ -52,7 +52,7 @@ RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # API endpoints
 BACKEND_URL = "http://localhost:8900"
-SEARCH_ENDPOINT = f"{BACKEND_URL}/api/constitutional/agent/query"
+SEARCH_ENDPOINT = f"{BACKEND_URL}/api/svensk-ragg/agent/query"
 
 
 # ═══════════════════════════════════════════════════════════════════════════

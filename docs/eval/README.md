@@ -2,7 +2,7 @@
 
 ## Overview
 
-Constitutional-AI använder **RAGAS** (Retrieval-Augmented Generation Assessment) för att mäta RAG-kvalitet.
+Svensk Ragg använder **RAGAS** (Retrieval-Augmented Generation Assessment) för att mäta RAG-kvalitet.
 
 ### Varför RAGAS?
 
@@ -132,7 +132,7 @@ Svar: "Beslut överklagas genom förvaltningsbesvär..."
 ### Quick Test (2 min)
 
 ```bash
-constitutional eval --quick
+svensk-ragg eval --quick
 ```
 
 - 10 frågor
@@ -142,7 +142,7 @@ constitutional eval --quick
 ### Full Test (10 min)
 
 ```bash
-constitutional eval --full
+svensk-ragg eval --full
 ```
 
 - 55 frågor (alla kategorier)
@@ -152,7 +152,7 @@ constitutional eval --full
 ### Lightweight (utan RAGAS)
 
 ```bash
-constitutional eval --quick --provider lightweight
+svensk-ragg eval --quick --provider lightweight
 ```
 
 - Använder heuristiker istället för LLM
@@ -167,7 +167,7 @@ constitutional eval --quick --provider lightweight
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Constitutional-AI Evaluation Report
+Svensk Ragg Evaluation Report
 Version: 1.0-P0 | 2025-12-21T16:30:00
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -253,7 +253,7 @@ Failed Questions:
 ## Jämförelse med Baseline
 
 ```bash
-constitutional eval --full --compare baseline_2025-12-21.json
+svensk-ragg eval --full --compare baseline_2025-12-21.json
 ```
 
 Output:
@@ -288,7 +288,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Run evaluation
         run: |
-          constitutional eval --quick --provider lightweight
+          svensk-ragg eval --quick --provider lightweight
       - name: Check pass rate
         run: |
           # Fail if pass rate < 80%
@@ -316,10 +316,10 @@ TIMEOUT = 120.0  # sekunder
 
 ```bash
 # Kolla att backend körs
-curl http://localhost:8000/api/constitutional/health
+curl http://localhost:8000/api/svensk-ragg/health
 
 # Starta om om nödvändigt
-systemctl --user restart constitutional-ai-backend
+systemctl --user restart svensk-ragg-backend
 ```
 
 ---

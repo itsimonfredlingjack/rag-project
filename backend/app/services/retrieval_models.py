@@ -159,6 +159,7 @@ class SearchResult:
     snippet: str
     score: float
     source: str
+    source_scope: Optional[str] = None
     doc_type: Optional[str] = None
     date: Optional[str] = None
     retriever: str = "unknown"  # 'dense', 'bm25', or 'both'

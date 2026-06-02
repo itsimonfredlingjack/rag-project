@@ -1,4 +1,4 @@
-# Pre-commit hooks for Constitutional AI
+# Pre-commit hooks for Svensk Ragg
 # Install: pip install pre-commit && pre-commit install
 # Run all: pre-commit run --all-files
 
@@ -76,11 +76,11 @@ repos:
   # Run: cd apps/<app> && npm run lint
   - repo: local
     hooks:
-      - id: eslint-constitutional-gpt
-        name: ESLint (constitutional-gpt)
-        entry: bash -c 'cd apps/constitutional-gpt && npm run lint 2>/dev/null || true'
+      - id: eslint-svensk-ragg-frontend
+        name: ESLint (svensk-ragg-frontend)
+        entry: bash -c 'cd apps/svensk-ragg-frontend && npm run lint'
         language: system
-        files: '^apps/constitutional-gpt/.*\.(ts|tsx|js|jsx)$'
+        files: '^apps/svensk-ragg-frontend/.*\.(ts|tsx|js|jsx)$'
         pass_filenames: false
 
   # Markdown linting (optional)
@@ -96,4 +96,4 @@ ci:
   autofix_prs: true
   autoupdate_commit_msg: 'chore: update pre-commit hooks'
   autoupdate_schedule: monthly
-  skip: [eslint-constitutional-gpt]  # Skip in CI, run separately
+  skip: [eslint-svensk-ragg-frontend]  # Skip in CI, run separately

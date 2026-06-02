@@ -40,7 +40,7 @@ class SpelinspeketionenScraper:
         self.session = requests.Session()
         self.session.headers.update(
             {
-                "User-Agent": "Mozilla/5.0 (compatible; SwedishGovScraper/1.0; Constitutional AI Research)"
+                "User-Agent": "Mozilla/5.0 (compatible; SwedishGovScraper/1.0; Svensk Ragg Research)"
             }
         )
 

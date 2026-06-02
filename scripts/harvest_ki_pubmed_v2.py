@@ -23,9 +23,9 @@ import requests
 ESEARCH_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
 EFETCH_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 BASE_TERM = '"Karolinska Institutet"[Affiliation]'
-OUTPUT_FILE = "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data/diva_full_ki.json"
+OUTPUT_FILE = "data/diva_full_ki.json"
 CHECKPOINT_FILE = (
-    "/home/ai-server/AN-FOR-NO-ASSHOLES/09_CONSTITUTIONAL-AI/data/ki_pubmed_v2_checkpoint.json"
+    "data/ki_pubmed_v2_checkpoint.json"
 )
 BATCH_SIZE = 500  # Records per fetch request
 RATE_LIMIT_SECONDS = 0.4  # ~2.5 requests/second
