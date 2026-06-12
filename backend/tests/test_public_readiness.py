@@ -33,8 +33,8 @@ def _public_config(public_root: Path) -> SimpleNamespace:
         bm25_index_path=str(public_root / "bm25_fts5" / "bm25.db"),
         chromadb_enabled=False,
         chromadb_path=str(public_root / "chromadb"),
-        constitutional_model="gemma3:4b",
-        constitutional_fallback="gemma3:4b",
+        constitutional_model="gemma4:e2b",
+        constitutional_fallback="gemma4:e2b",
         effective_default_collections=["riksdag_documents_p1_jina_v3_1024"],
         settings=SimpleNamespace(
             profile=PUBLIC_RIKSDAG_PROFILE,
@@ -43,8 +43,8 @@ def _public_config(public_root: Path) -> SimpleNamespace:
             bm25_index_path=str(public_root / "bm25_fts5" / "bm25.db"),
             chromadb_enabled=False,
             chromadb_path=str(public_root / "chromadb"),
-            constitutional_model="gemma3:4b",
-            constitutional_fallback="gemma3:4b",
+            constitutional_model="gemma4:e2b",
+            constitutional_fallback="gemma4:e2b",
         ),
     )
 
@@ -56,7 +56,7 @@ def _llm_service(
 ) -> SimpleNamespace:
     return SimpleNamespace(
         health_check=AsyncMock(return_value=healthy),
-        list_models=AsyncMock(return_value=models or ["gemma3:4b"]),
+        list_models=AsyncMock(return_value=models or ["gemma4:e2b"]),
     )
 
 
@@ -213,7 +213,7 @@ async def test_public_readiness_requires_llm_model_available(tmp_path: Path) -> 
     public_root = tmp_path / "public" / "riksdag"
     _write_manifest_and_checkpoint(public_root)
     _write_bm25_db(public_root)
-    llm_service = _llm_service(healthy=True, models=["gemma4:e2b"])
+    llm_service = _llm_service(healthy=True, models=["gemma3:4b"])
 
     readiness = await build_dependency_readiness(
         _orchestrator(_public_config(public_root), llm_service=llm_service)
@@ -230,7 +230,7 @@ async def test_public_readiness_requires_llm_service_health(tmp_path: Path) -> N
     public_root = tmp_path / "public" / "riksdag"
     _write_manifest_and_checkpoint(public_root)
     _write_bm25_db(public_root)
-    llm_service = _llm_service(healthy=False, models=["gemma3:4b"])
+    llm_service = _llm_service(healthy=False, models=["gemma4:e2b"])
 
     readiness = await build_dependency_readiness(
         _orchestrator(_public_config(public_root), llm_service=llm_service)

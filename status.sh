@@ -4,13 +4,7 @@ set -euo pipefail
 BACKEND_PORT="${BACKEND_PORT:-8900}"
 FRONTEND_PORT="${FRONTEND_PORT:-3003}"
 RUNTIME_PROFILE="${CONST_PROFILE:-public-riksdag-demo}"
-if [ "${OLLAMA_MODEL:-}" ]; then
-  MODEL="$OLLAMA_MODEL"
-elif [ "$RUNTIME_PROFILE" = "public-riksdag-demo" ]; then
-  MODEL="gemma3:4b"
-else
-  MODEL="gemma4:e2b"
-fi
+MODEL="${OLLAMA_MODEL:-gemma4:e2b}"
 
 check_url() {
   local label="$1"

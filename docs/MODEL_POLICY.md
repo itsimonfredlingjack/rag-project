@@ -9,13 +9,39 @@ detail.
 - Runtime: Ollama on `http://localhost:11434`
 - Primary model: `gemma4:e2b`
 - Fallback model: `gemma4:e2b`
-- First-run context: `4096` tokens
+- First-run context: `4096` tokens (private lab default)
+- Public profile context: `2048` tokens (`CONST_OLLAMA_NUM_CTX` override)
 
 On the local RTX 2060 6 GB test machine, Ollama loaded `gemma4:e2b` at 4K
 context with a `74%/26% CPU/GPU` split and about 30-35 generated tokens/s
 after cold load. Treat larger Gemma 4 variants, such as `gemma4:26b`, as
 future benchmark candidates only after VRAM, RAM, and latency are verified on
 the target machine.
+
+## VRAM Budget (RTX 2060 6 GB)
+
+Embeddings (`jinaai/jina-embeddings-v3`) default to CPU via
+`CONST_EMBEDDING_DEVICE=cpu`, so the full GPU budget is available to Ollama.
+The public profile uses `CONST_OLLAMA_NUM_CTX=2048` to reduce KV-cache pressure on 6 GB VRAM.
+
+Runtime VRAM = quantized weights + KV cache + CUDA overhead. Ollama file size
+is not the same as peak VRAM.
+
+| Model | Ollama size | Fits 6 GB VRAM | Notes |
+| --- | --- | --- | --- |
+| `gemma4:e2b` | 7.2 GB | Yes (CPU/GPU mix) | Approved default; best in 30-question eval |
+| `gemma3:4b` | 3.3 GB | Yes (100% GPU) | Works but slower and more verbose in eval |
+| `mistral:7b` | 4.4 GB | Likely yes | Not benchmarked in this repo |
+| `llama3.1:8b` | 4.9 GB | Tight | Not benchmarked in this repo |
+| `gemma4:e4b` | 9.6 GB | Heavy CPU offload | Benchmark before adopting |
+| `gemma4:12b` | 7.6 GB | No | Weights alone exceed 6 GB VRAM |
+| `gemma3:12b` | 8.1 GB | No | Weights alone exceed 6 GB VRAM |
+| `gemma4:26b` / `gemma4:31b` | 18-20 GB | No | Workstation-only |
+| `gemma3:27b` | 17 GB | No | Workstation-only |
+| `llama3.1:70b` / `405b` | 43-243 GB | No | Cloud/workstation-only |
+
+Do not adopt new generation models without running the same 30-question public
+eval used on 2026-06-09.
 
 ## Repository Rule
 

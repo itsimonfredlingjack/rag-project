@@ -31,12 +31,12 @@ def test_public_riksdag_profile_applies_hard_public_defaults():
     assert settings.critic_revise_enabled is False
     assert settings.structured_output_enabled is True
     assert settings.intent_llm_fallback_enabled is False
-    assert settings.constitutional_model == "gemma3:4b"
-    assert settings.constitutional_fallback == "gemma3:4b"
-    assert settings.gguf_primary_model == "gemma3:4b"
-    assert settings.crag_grader_model == "gemma3:4b"
-    assert settings.gguf_context_window == 4096
-    assert settings.ollama_num_ctx == 4096
+    assert settings.constitutional_model == "gemma4:e2b"
+    assert settings.constitutional_fallback == "gemma4:e2b"
+    assert settings.gguf_primary_model == "gemma4:e2b"
+    assert settings.crag_grader_model == "gemma4:e2b"
+    assert settings.gguf_context_window == 2048
+    assert settings.ollama_num_ctx == 2048
     assert settings.mode_evidence_temperature <= 0.1
     assert settings.chromadb_path == f"{PUBLIC_ROOT}/chromadb"
     assert settings.pdf_cache_path == f"{PUBLIC_ROOT}/pdf_cache"
@@ -57,10 +57,10 @@ def test_public_riksdag_profile_overrides_model_env_aliases(monkeypatch):
     settings = ConfigSettings(_env_file=None)
 
     assert settings.profile == PUBLIC_PROFILE
-    assert settings.constitutional_model == "gemma3:4b"
-    assert settings.constitutional_fallback == "gemma3:4b"
-    assert settings.gguf_primary_model == "gemma3:4b"
-    assert settings.crag_grader_model == "gemma3:4b"
+    assert settings.constitutional_model == "gemma4:e2b"
+    assert settings.constitutional_fallback == "gemma4:e2b"
+    assert settings.gguf_primary_model == "gemma4:e2b"
+    assert settings.crag_grader_model == "gemma4:e2b"
 
 
 def test_private_lab_defaults_remain_unchanged():
@@ -80,7 +80,7 @@ def test_start_system_defaults_to_public_riksdag_demo_profile():
     script = (REPO_ROOT / "start_system.sh").read_text(encoding="utf-8")
 
     assert 'RUNTIME_PROFILE="${CONST_PROFILE:-public-riksdag-demo}"' in script
-    assert 'MODEL="${OLLAMA_MODEL:-gemma3:4b}"' in script
+    assert 'MODEL="${OLLAMA_MODEL:-gemma4:e2b}"' in script
     assert "CONST_PROFILE='$RUNTIME_PROFILE'" in script
 
 
@@ -127,7 +127,7 @@ async def test_public_runtime_snapshot_exposes_status_without_absolute_paths(mon
     config = SimpleNamespace(
         profile=PUBLIC_PROFILE,
         corpus_scope=PUBLIC_SCOPE,
-        constitutional_model="gemma3:4b",
+        constitutional_model="gemma4:e2b",
         effective_default_collections=["riksdag_documents_p1_jina_v3_1024"],
         chromadb_path=f"{PUBLIC_ROOT}/chromadb",
         bm25_enabled=True,
@@ -139,8 +139,8 @@ async def test_public_runtime_snapshot_exposes_status_without_absolute_paths(mon
             crag_enabled=False,
             reranking_enabled=False,
             intent_llm_fallback_enabled=False,
-            gguf_context_window=4096,
-            ollama_num_ctx=4096,
+            gguf_context_window=2048,
+            ollama_num_ctx=2048,
         ),
     )
     orchestrator = SimpleNamespace(

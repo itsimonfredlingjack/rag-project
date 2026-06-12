@@ -21,7 +21,7 @@ PUBLIC_RIKSDAG_PROFILE = "public-riksdag-demo"
 PRIVATE_CORPUS_SCOPE = "mixed_recovered_corpus"
 PUBLIC_RIKSDAG_CORPUS_SCOPE = "riksdagen_open_data_only"
 PUBLIC_RIKSDAG_DATA_ROOT = "/home/ai-server2/rag/local-data-public/riksdag"
-PUBLIC_RIKSDAG_MODEL = "gemma3:4b"
+PUBLIC_RIKSDAG_MODEL = "gemma4:e2b"
 
 
 def _enforce_model_policy(model_id: str) -> str:
@@ -288,8 +288,8 @@ class ConfigSettings(BaseSettings):
                 "constitutional_fallback": PUBLIC_RIKSDAG_MODEL,
                 "gguf_primary_model": PUBLIC_RIKSDAG_MODEL,
                 "crag_grader_model": PUBLIC_RIKSDAG_MODEL,
-                "gguf_context_window": 4096,
-                "ollama_num_ctx": 4096,
+                "gguf_context_window": 2048,
+                "ollama_num_ctx": 2048,
                 "mode_evidence_temperature": 0.05,
                 "mode_assist_temperature": 0.10,
                 "mode_chat_temperature": 0.20,
@@ -326,8 +326,8 @@ class ConfigSettings(BaseSettings):
         self.constitutional_fallback = PUBLIC_RIKSDAG_MODEL
         self.gguf_primary_model = PUBLIC_RIKSDAG_MODEL
         self.crag_grader_model = PUBLIC_RIKSDAG_MODEL
-        self.gguf_context_window = 4096
-        self.ollama_num_ctx = 4096
+        self.gguf_context_window = 2048
+        self.ollama_num_ctx = 2048
         self.mode_evidence_temperature = 0.05
         self.mode_assist_temperature = 0.10
         self.mode_chat_temperature = 0.20

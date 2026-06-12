@@ -53,7 +53,7 @@ class FakeLLMService:
         self.config_override = config_override
         return "Det här är ett offentligt Riksdagssvar med källor.", StreamStats(
             tokens_generated=11,
-            model_used="gemma3:4b",
+            model_used="gemma4:e2b",
         )
 
 

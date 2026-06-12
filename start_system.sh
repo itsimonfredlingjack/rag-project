@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 RUNTIME_PROFILE="${CONST_PROFILE:-public-riksdag-demo}"
-MODEL="${OLLAMA_MODEL:-gemma3:4b}"
+MODEL="${OLLAMA_MODEL:-gemma4:e2b}"
 BACKEND_PORT="${BACKEND_PORT:-8900}"
 FRONTEND_PORT="${FRONTEND_PORT:-3003}"
 LOG_DIR="${LOG_DIR:-logs}"
@@ -68,7 +68,7 @@ fi
 echo "Warming model with a short chat request..."
 curl -fsS http://127.0.0.1:11434/api/chat \
   -H "Content-Type: application/json" \
-  -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Svara exakt: OK\"}],\"stream\":false,\"think\":false,\"options\":{\"num_predict\":8,\"temperature\":0}}" \
+  -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Svara exakt: OK\"}],\"stream\":false,\"think\":false,\"options\":{\"num_predict\":8,\"num_ctx\":2048,\"temperature\":0}}" \
   >/dev/null
 
 echo "Stopping old backend/frontend processes on ports $BACKEND_PORT and $FRONTEND_PORT..."

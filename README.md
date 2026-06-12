@@ -145,7 +145,7 @@ Readiness check:
 curl http://127.0.0.1:8900/api/svensk-ragg/ready
 ```
 
-Backenden kan starta utan privat corpus, men full privat RAG-retrieval kräver att `CONST_CHROMADB_PATH` pekar på ett lokalt ChromaDB-index och att en lokal LLM-runtime är igång. Den publika Riksdagen-demoprofilen (`CONST_PROFILE=public-riksdag-demo`) använder public BM25 och `gemma3:4b`; operator-/legacy-ytor som `/mcp`, `/sse`, `/ws/harvest`, och generated docs är avstängda där som standard.
+Backenden kan starta utan privat corpus, men full privat RAG-retrieval kräver att `CONST_CHROMADB_PATH` pekar på ett lokalt ChromaDB-index och att en lokal LLM-runtime är igång. Den publika Riksdagen-demoprofilen (`CONST_PROFILE=public-riksdag-demo`) använder public BM25 och `gemma4:e2b`; operator-/legacy-ytor som `/mcp`, `/sse`, `/ws/harvest`, och generated docs är avstängda där som standard.
 
 ### Frontend
 

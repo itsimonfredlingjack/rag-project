@@ -32,12 +32,12 @@ demo, and not the full private corpus.
 The current public runtime profile is designed for a small local GPU setup:
 
 - GPU target used for the demo: RTX 2060 6GB.
-- Public default model: `gemma3:4b`.
+- Public default model: `gemma4:e2b`.
 - Public retrieval mode: `public_bm25_only`.
 - Public profile: `public-riksdag-demo`.
 - Public corpus scope: `riksdagen_open_data_only`.
 - Chroma, reranking, CRAG, and critic-revise are disabled in the public profile.
-- The public profile hard-overrides model env aliases to `gemma3:4b`.
+- The public profile hard-overrides model env aliases to `gemma4:e2b`.
 
 ## What It Can Answer
 

@@ -1,0 +1,7 @@
+model,prompt,ok,wall_s,load_s,prompt_tok_s,gen_tok_s,processor,context,error
+gemma3:4b,short_sv,True,7.518,4.927,414.95,77.88,100% GPU,4096,
+gemma3:4b,rag_sv,True,2.743,0.333,1746.77,79.2,100% GPU,4096,
+gemma4:e2b,short_sv,True,14.064,8.285,410.47,33.13,74%/26% CPU/GPU,4096,
+gemma4:e2b,rag_sv,True,5.46,0.341,1440.63,36.4,74%/26% CPU/GPU,4096,
+granite4.1:3b,short_sv,True,8.89,6.248,49.37,95.49,100% GPU,4096,
+granite4.1:3b,rag_sv,True,2.218,0.083,1703.86,95.29,100% GPU,4096,

@@ -10,7 +10,7 @@ Den här guiden visar hur repot kan köras lokalt så långt det går utan priva
 - Valfritt för full privat RAG: ChromaDB-data, BM25/FTS5-index och lokal LLM-runtime,
   till exempel Ollama med `gemma4:e2b`
 - För den publika Riksdagen-demoprofilen: public BM25/FTS5-index och Ollama med
-  `gemma3:4b`
+  `gemma4:e2b`
 
 ## 1. Backend
 
@@ -60,7 +60,7 @@ Publik demoprofil:
 
 ```bash
 export CONST_PROFILE=public-riksdag-demo
-ollama pull gemma3:4b
+ollama pull gemma4:e2b
 cd backend
 .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8900
 ```

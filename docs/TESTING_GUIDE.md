@@ -81,6 +81,6 @@ Full RAG-fråga med verkliga svar och källor kräver:
 - Tillräckliga resurser för embeddings/reranking/modellkörning.
 
 Public Riksdagen-demo kräver inte Chroma, embeddings eller reranking, men kräver
-det förberedda public BM25-indexet och en lokal `gemma3:4b`-modell i Ollama.
+det förberedda public BM25-indexet och en lokal `gemma4:e2b`-modell i Ollama.
 
 Om dessa saknas ska testresultat och README beskriva det som en blockerad lokal verifiering, inte som passerad end-to-end-funktion.
