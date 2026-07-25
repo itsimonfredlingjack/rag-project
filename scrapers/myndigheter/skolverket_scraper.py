@@ -100,7 +100,7 @@ class SkolverketScraper:
                 else:
                     logger.warning(f"HTTP {response.status} for {url}")
                     return None
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error(f"Timeout fetching {url}")
             self.stats["errors"] += 1
             return None

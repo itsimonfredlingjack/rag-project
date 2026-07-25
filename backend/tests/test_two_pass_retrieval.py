@@ -282,9 +282,9 @@ class TestPolicyArgumentsTwoPass:
         diva_results = [r for r in result.results if "diva" in r.source.lower()]
 
         # Budget is 2 for POLICY_ARGUMENTS
-        assert len(diva_results) <= 2, (
-            f"DiVA results ({len(diva_results)}) should not exceed budget (2)"
-        )
+        assert (
+            len(diva_results) <= 2
+        ), f"DiVA results ({len(diva_results)}) should not exceed budget (2)"
 
 
 # ==================== Test: PARLIAMENT_TRACE never uses DiVA ====================
@@ -419,9 +419,9 @@ class TestSecondaryBudgetLimiting:
 
         # Should be <= budget (2)
         budget = result.routing_used.get("secondary_budget", 0)
-        assert len(diva_results) <= budget, (
-            f"Secondary count {len(diva_results)} exceeds budget {budget}"
-        )
+        assert (
+            len(diva_results) <= budget
+        ), f"Secondary count {len(diva_results)} exceeds budget {budget}"
 
 
 # ==================== Test: Intent classification integration ====================

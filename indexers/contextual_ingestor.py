@@ -56,14 +56,14 @@ class ContextualChunk:
 
 class ContextualIngestor:
     """
-    Contextual Ingestion Pipeline
+        Contextual Ingestion Pipeline
 
-    Processes documents by:
-    1. Chunking text into ~750 token pieces with paragraph-aware boundaries
-    2. Generating context summary for each chunk via LLM
-    3. Prepending summary to chunk for embedding
-4. Embedding enriched text with the configured embedding model
-    5. Storing in ChromaDB with original text in metadata
+        Processes documents by:
+        1. Chunking text into ~750 token pieces with paragraph-aware boundaries
+        2. Generating context summary for each chunk via LLM
+        3. Prepending summary to chunk for embedding
+    4. Embedding enriched text with the configured embedding model
+        5. Storing in ChromaDB with original text in metadata
     """
 
     def __init__(

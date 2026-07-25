@@ -4,7 +4,7 @@ import { X, FileText, ExternalLink, AlertCircle } from "lucide-react";
 // Safe HTML highlighting function
 function highlightText(text: string, snippet: string | undefined, query: string): string {
   if (!text) return "";
-  
+
   // Escape HTML to prevent XSS before wrapping with highlights
   const escapedText = text
     .replace(/&/g, "&amp;")
@@ -30,10 +30,10 @@ function highlightText(text: string, snippet: string | undefined, query: string)
         .split(/[.,;]/)
         .map(c => c.trim())
         .filter(c => c.length > 15);
-        
+
       let highlighted = escapedText;
       let replacedAny = false;
-      
+
       for (const clause of clauses) {
         const escapedClause = clause.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const regex = new RegExp(`(${escapedClause})`, "gi");
@@ -42,7 +42,7 @@ function highlightText(text: string, snippet: string | undefined, query: string)
           replacedAny = true;
         }
       }
-      
+
       if (replacedAny) {
         return highlighted;
       }
@@ -50,15 +50,15 @@ function highlightText(text: string, snippet: string | undefined, query: string)
       console.warn("Highlight helper error:", e);
     }
   }
-  
+
   // Fallback: highlight query keywords
   const terms = query
     .split(/\s+/)
     .map(t => t.trim().replace(/[.,/#!$%^&*;:{}=_`~()-]/g, ""))
     .filter(t => t.length > 3 && !["eller", "inte", "från", "till", "genom", "under", "efter", "också", "eller", "eller"].includes(t.toLowerCase()));
-    
+
   if (terms.length === 0) return escapedText;
-  
+
   let highlighted = escapedText;
   try {
     for (const term of terms) {
@@ -98,7 +98,7 @@ export function DocumentReader() {
 
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-[#0F1318] border-l border-white/5 h-full relative z-20">
-      
+
       {/* 1. Tabs List Header */}
       <div className="flex items-center bg-[#090b0e] border-b border-white/5 overflow-x-auto custom-scrollbar pr-4">
         {openDocuments.map((doc) => {
@@ -137,7 +137,7 @@ export function DocumentReader() {
       {/* 2. Active Tab Content Area */}
       {activeDoc && (
         <div className="flex-1 flex flex-col min-h-0">
-          
+
           {/* Metadata Sub-Header */}
           <div className="px-6 py-2.5 bg-slate-950/10 border-b border-white/5 flex items-center justify-between text-[10px] font-mono text-slate-400">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
@@ -152,7 +152,7 @@ export function DocumentReader() {
                 </span>
               )}
             </div>
-            
+
             {activeDoc.sfs_nummer && (
               <a
                 href={`https://www.riksdagen.se/sv/dokument-lagar/dokument/svensk-forfattningssamling/sfs-${activeDoc.sfs_nummer.replace(":", "-")}`}
@@ -206,7 +206,7 @@ export function DocumentReader() {
                     {activeDoc.kapitel_rubrik}
                   </h2>
                 )}
-                
+
                 <div
                   className="font-doc text-slate-300 text-sm leading-relaxed whitespace-pre-wrap selection:bg-accent-primary/20 selection:text-white"
                   dangerouslySetInnerHTML={{

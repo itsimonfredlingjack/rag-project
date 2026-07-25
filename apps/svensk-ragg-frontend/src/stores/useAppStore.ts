@@ -336,15 +336,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     try {
       const isSFS = docId.startsWith("sfs_") || source === "sfs";
-      const fetchUrl = isSFS 
+      const fetchUrl = isSFS
         ? `${BACKEND_URL}/api/documents/parents/${docId}`
         : `${BACKEND_URL}/api/documents/${docId}`;
 
       const res = await fetch(fetchUrl);
       if (!res.ok) throw new Error(`Fetch failed: ${res.statusText}`);
-      
+
       const docData = await res.json();
-      
+
       set((state) => ({
         openDocuments: state.openDocuments.map((d) => {
           if (d.id === docId) {

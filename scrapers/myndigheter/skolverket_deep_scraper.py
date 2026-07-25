@@ -116,7 +116,7 @@ class DeepSkolverketScraper:
                 else:
                     logger.debug(f"HTTP {response.status} for {url}")
                     return None
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(f"Timeout: {url}")
             self.stats["errors"] += 1
             return None

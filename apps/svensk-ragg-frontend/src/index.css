@@ -7,7 +7,7 @@
   --color-panel-bg: rgba(15, 20, 28, 0.75); /* Frosted Slate Navy */
   --color-glass-border: rgba(255, 255, 255, 0.05);
   --color-glass-bg: rgba(15, 20, 28, 0.65);
-  
+
   --color-accent-primary: #38bdf8;   /* Aurora Ice (Sky Blue) */
   --color-accent-secondary: #94a3b8; /* Slate Steel */
   --color-accent-tertiary: #f59e0b;  /* Warm Amber Gold (Citations & Highlights) */
@@ -186,10 +186,10 @@ body {
   margin-bottom: 0.6em;
 }
 
-.prose-doc h1 { 
-  font-size: 1.5rem; 
-  border-bottom: 1px solid rgba(255,255,255,0.04); 
-  padding-bottom: 0.4rem; 
+.prose-doc h1 {
+  font-size: 1.5rem;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  padding-bottom: 0.4rem;
   letter-spacing: -0.01em;
 }
 .prose-doc h2 { font-size: 1.25rem; }

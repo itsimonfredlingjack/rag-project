@@ -206,15 +206,15 @@ class TestConstitutionalCompliance:
 
         # REQUIREMENT: Must have source citations for factual claims
         has_citation = bool(re.search(r"\[\d+\]", result.answer))
-        assert has_citation, (
-            "FAIL: No source citation found in factual response. Offentlighetsprincipen violated!"
-        )
+        assert (
+            has_citation
+        ), "FAIL: No source citation found in factual response. Offentlighetsprincipen violated!"
 
         # REQUIREMENT: Must have SCB as source
         scb_cited = any("scb" in source.title.lower() for source in result.sources)
-        assert scb_cited, (
-            "FAIL: SCB source not found in sources. Transparency requirement violated!"
-        )
+        assert (
+            scb_cited
+        ), "FAIL: SCB source not found in sources. Transparency requirement violated!"
 
         # REQUIREMENT: Factual claim must be supported
         assert "10 521 556" in result.answer, "FAIL: Factual claim missing from response"
@@ -312,9 +312,7 @@ class TestConstitutionalCompliance:
         # REQUIREMENT: Must use refusal template (not hallucinate)
         refusal_keywords = ["kan jag inte besvara", "underlag saknas", "spekulera"]
         has_refusal = any(keyword in result.answer.lower() for keyword in refusal_keywords)
-        assert has_refusal, (
-            f"FAIL: No proper refusal found. System hallucinated about future events! Legalitetsprincipen violated! Answer: {result.answer}"
-        )
+        assert has_refusal, f"FAIL: No proper refusal found. System hallucinated about future events! Legalitetsprincipen violated! Answer: {result.answer}"
 
         print(
             f"✅ LEGALITET TEST PASSED: '{question}' resulted in proper refusal without speculation"
@@ -323,9 +321,9 @@ class TestConstitutionalCompliance:
         # REQUIREMENT: Must NOT contain fake speculation
         speculation_words = ["kommer att vinna", "förmodligen", "troligen", "antagligen"]
         has_speculation = any(word in result.answer.lower() for word in speculation_words)
-        assert not has_speculation, (
-            "FAIL: System speculated about future events! Legalitetsprincipen violated!"
-        )
+        assert (
+            not has_speculation
+        ), "FAIL: System speculated about future events! Legalitetsprincipen violated!"
 
         # REQUIREMENT: Must have empty sources (no fake citations)
         assert len(result.sources) == 0, "FAIL: System provided fake sources for future event!"
@@ -457,16 +455,16 @@ class TestConstitutionalCompliance:
         # REQUIREMENT: Must NOT contain opinionated language
         opinion_words = ["rättvis", "orättvis", "bra", "dålig", "fel", "bra idé", "dåligt förslag"]
         has_opinion = any(word in result.answer.lower() for word in opinion_words)
-        assert not has_opinion, (
-            "FAIL: System took an opinion on subjective matter! Objektivitetsprincipen violated!"
-        )
+        assert (
+            not has_opinion
+        ), "FAIL: System took an opinion on subjective matter! Objektivitetsprincipen violated!"
 
         # REQUIREMENT: Must be descriptive/neutral
         descriptive_words = ["föreslår", "regeln säger", "lagen anger", "enligt"]
         has_description = any(word in result.answer.lower() for word in descriptive_words)
-        assert has_description, (
-            "FAIL: Response is not descriptive enough. Should explain what the law/proposal states!"
-        )
+        assert (
+            has_description
+        ), "FAIL: Response is not descriptive enough. Should explain what the law/proposal states!"
 
         # REQUIREMENT: Must provide factual information about the proposal
         has_factual_info = any(
@@ -600,9 +598,9 @@ class TestConstitutionalCompliance:
 
         # REQUIREMENT: Must distinguish between documented facts and general knowledge
         # This is harder to test programmatically, but we can check structure
-        assert len(result.sources) > 0, (
-            "FAIL: ASSIST mode should still provide sources for documented facts"
-        )
+        assert (
+            len(result.sources) > 0
+        ), "FAIL: ASSIST mode should still provide sources for documented facts"
 
         print(
             f"✅ ASSIST MODE TEST PASSED: '{question}' in ASSIST mode provided explanatory response with proper citations"

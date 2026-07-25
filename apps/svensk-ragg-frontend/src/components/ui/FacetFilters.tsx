@@ -147,7 +147,7 @@ export function FacetFilters() {
                   <span className="text-slate-200 font-bold text-xs">{yearEnd}</span>
                 </div>
               </div>
-              
+
               {/* Year Inputs */}
               <div className="flex items-center gap-3">
                 <input

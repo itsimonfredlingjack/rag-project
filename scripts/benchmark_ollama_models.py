@@ -153,9 +153,7 @@ def benchmark_model(base_url: str, model: str, num_ctx: int) -> list[Result]:
 
 
 def print_table(results: list[Result]) -> None:
-    print(
-        "model,prompt,ok,wall_s,load_s,prompt_tok_s,gen_tok_s,processor,context,error"
-    )
+    print("model,prompt,ok,wall_s,load_s,prompt_tok_s,gen_tok_s,processor,context,error")
     for item in results:
         print(
             ",".join(

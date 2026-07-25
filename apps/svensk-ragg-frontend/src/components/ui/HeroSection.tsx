@@ -74,7 +74,7 @@ export function HeroSection() {
     if (!value) return;
 
     setQuery(value);
-    
+
     const backendMode = BACKEND_MODE_MAP[activeMode];
     startSearch(backendMode, activeMode);
   };

@@ -39,7 +39,7 @@ export function SearchInspector() {
 
       {/* Drawer Content */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-5 flex flex-col gap-6 font-ui text-slate-300">
-        
+
         {/* Section 1: Query Expansion */}
         <div className="flex flex-col gap-2">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-teal-500 flex items-center gap-1.5 font-mono">
@@ -87,7 +87,7 @@ export function SearchInspector() {
             <div className="flex items-center justify-between">
               <span className="text-slate-400">Evidence Level:</span>
               <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                activeQuery.evidenceLevel === "HIGH" 
+                activeQuery.evidenceLevel === "HIGH"
                   ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/25"
                   : activeQuery.evidenceLevel === "MEDIUM"
                   ? "bg-amber-500/10 text-amber-400 border border-amber-500/25"
@@ -96,7 +96,7 @@ export function SearchInspector() {
                 {activeQuery.evidenceLevel || "NONE"}
               </span>
             </div>
-            
+
             {activeQuery.gradingMetrics && (
               <>
                 <div className="h-[1px] bg-white/5" />

@@ -112,7 +112,7 @@ class LivesmedelsverketScraper:
                         return None
                     else:
                         logger.warning(f"Status {response.status} for {url}")
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning(f"Timeout attempt {attempt + 1}/3 for {url}")
                 await asyncio.sleep(2**attempt)
             except Exception as e:
