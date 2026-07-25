@@ -453,7 +453,7 @@ async def test_public_weak_context_refuses_with_weak_context(monkeypatch, public
 
     assert result.success is False
     assert result.sources == []
-    assert getattr(result, "refusal_reason") == "weak_context"
+    assert result.refusal_reason == "weak_context"
 
 
 @pytest.mark.asyncio
@@ -472,7 +472,7 @@ async def test_public_legal_advice_question_refuses_without_search(
     )
 
     assert result.success is False
-    assert getattr(result, "refusal_reason") == "legal_advice"
+    assert result.refusal_reason == "legal_advice"
     assert bm25.calls == []
 
 
@@ -493,7 +493,7 @@ async def test_public_source_boundary_question_refuses_without_search(
     )
 
     assert result.success is False
-    assert getattr(result, "refusal_reason") == "source_boundary"
+    assert result.refusal_reason == "source_boundary"
     assert bm25.calls == []
 
 
