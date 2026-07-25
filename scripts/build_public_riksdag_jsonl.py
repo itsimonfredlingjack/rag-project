@@ -7,7 +7,7 @@ import argparse
 import json
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -96,7 +96,7 @@ def resolve_input_path(path: Path) -> tuple[Path, Path | None]:
 
 def _source_created_at(path: Path) -> str:
     timestamp = path.stat().st_mtime
-    return datetime.fromtimestamp(timestamp, timezone.utc).replace(microsecond=0).isoformat()
+    return datetime.fromtimestamp(timestamp, UTC).replace(microsecond=0).isoformat()
 
 
 def _extract_tag(text: str, tag: str) -> str:
@@ -191,7 +191,9 @@ def iter_bounded_jsonl(
 def write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
+    tmp.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8"
+    )
     tmp.replace(path)
 
 

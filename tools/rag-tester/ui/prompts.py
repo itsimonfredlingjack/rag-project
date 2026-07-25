@@ -3,7 +3,6 @@ Prompts module for RAG-Eval Terminal.
 Handles user interaction using prompt_toolkit.
 """
 
-
 from prompt_toolkit.shortcuts import input_dialog, radiolist_dialog
 from prompt_toolkit.styles import Style
 

@@ -16,52 +16,66 @@
 
 ---
 
-Det här repot visar ett end-to-end RAG-system byggt för svenska offentliga dokument. Projektet är ett personligt lärandeprojekt som knyter ihop datainsamling, indexering, hybrid retrieval, lokal LLM-inferens, källhänvisade svar, backend, frontend, tester och CI.
+Det här repot visar ett end-to-end RAG-system byggt för svenska offentliga dokument. Detta är ett långvarigt personligt lärande- och portföljprojekt som utvecklats stegvis genom flera omgångar av experimenterande, ombyggnation, utvärdering och förfining.
 
-Målet är att visa praktisk förståelse för hur ett RAG-system faktiskt sätts ihop: från dokumentkorpus och retrieval-strategier till osäkerhet, källurval, streaming och användargränssnitt.
+Projektets centrala tekniska fråga har varit:
+**Hur kapabelt kan ett lokalt RAG-system bli när det arbetar med mycket stora svenska dokumentsamlingar på vanlig konsumenthårdvara – specifikt en konsument-GPU med 12 GB VRAM – istället för moln- eller frontier-skalig infrastruktur?**
+
+Systemet tar en fråga, hämtar relevanta källor, bedömer dem och genererar ett lokalt källhänvisat svar. Målet har varit att utforska lokal AI, retrievalkvalitet i stor skala och källförankrade svar.
 
 ![Screenshot från tidigare lokal körning med matchade källor](docs/assets/portfolio-query-with-sources.png)
 
-_Screenshoten visar en tidigare lokal körning av frontendens källpanel. Full lokal retrieval kräver ChromaDB-/BM25-data och LLM-runtime som inte ingår i repot._
+_Screenshoten visar en tidigare lokal körning av frontendens källpanel. Full lokal retrieval kräver data och modeller som inte ingår i repot._
 
 ---
 
-## Vad Projektet Visar
+## Datakorpus, Historik och Offentlig Release
 
-- End-to-end RAG-flöde: fråga, retrieval, reranking, generation och källvisning.
-- Hybrid retrieval med ChromaDB-vektorsökning och BM25/SQLite FTS5.
-- Lokal LLM-integration via konfigurerad `CONST_LLM_BASE_URL`.
-- Källhänvisade svar och frontendpanel för källor/citations.
-- FastAPI-backend med SSE-streaming till React/TypeScript/Vite-frontend.
-- Eval- och teststruktur för retrieval, prompts, API-kontrakt och pipelinebeteende.
-- GitHub Actions för docs-check, backendtester och frontend lint/build.
-- Praktisk hantering av retrievalkvalitet, avgränsningar, osäkerhet och hallucinationsrisk.
+Det är viktigt att göra en tydlig åtskillnad mellan vad systemet har testats på historiskt i en privat miljö och vad som faktiskt distribueras:
 
-## Vad Det Inte Är
+1. **Den publika demon / releasen:** Den nedladdningsbara publika korpusen innehåller enbart material som är lagligt och avsett för publik vidaredistribution. För närvarande består detta av öppen data från Riksdagen, specifik baserad på ca 230 143 dokumentrader (verifierat från release-manifestet och script-konfigurationen).
+2. **Historiska privata experiment:** Tidigare lokala labb-experiment nådde upp till cirka 1,37 miljoner indexerade poster. Denna större privata korpus innehöll även metadata från DiVA och annat svenskt material.
+3. **Ingen distribution av privat data:** Den historiska privata korpusen, DiVA-poster, ChromaDB-data, råa dokument, PDF-cachar och privata index distribueras **inte** genom detta repo eller dess publika releaser. DiVA har endast använts i de historiska lokala experimenten, och DiVA-korpusen i sig är inte publicerad här.
 
-- Inte en färdig produkt eller en publik tjänst.
-- Inte en komplett eller auktoritativ databas över svenska offentliga dokument.
-- Inte ett löfte om juridiskt korrekta svar.
-- Inte en distribuerad demo med färdig ChromaDB, BM25-index eller modellvikter.
-- Inte ett benchmarkat system med verifierade precision-/recall-värden i detta repo.
+## Projektets Syfte och Begränsningar
 
-Lokala datavolymer som nämns i projektet beskriver en tidigare projektmiljö, inte data som följer med repot. Bygger du ett eget corpus kan antal dokument, lagringsstorlek och resultat skilja sig mycket.
+Detta projekt är:
+- Ett tekniskt lärande- och portföljprojekt.
+- En utforskning av lokal AI, retrievalkvalitet, skala och källförankrade svar på begränsad hårdvara.
 
-## Teknisk Översikt
+Detta projekt är **inte**:
+- En färdig kommersiell produkt.
+- Avsett att konkurrera med någon publik söktjänst.
+- En personuppgifts- eller juridisk registertjänst.
+- En kommersiell dokumentdatabas.
+
+## Teknisk Översikt och Lärdomar
+
+Projektet har experimenterat med olika lokala språkmodeller (till exempel via Ollama med `gemma4:e2b` i den publika demon) och en flerstegs RAG-pipeline. För att maximera kvaliteten lokalt utförs *iterativ pipeline-tuning*, *retrieval-optimering* samt *prompt- och kontextoptimering* snarare än viktuppdaterande fine-tuning av modellerna.
+
+Pipelinen kombinerar på lämpligt sätt:
+- Vektor- och sparse retrieval
+- BM25
+- Query rewriting (omskrivning av frågor)
+- RAG-Fusion / reciprocal rank fusion (RRF)
+- Reranking
+- Dokumentgradering och konfidenssignaler (confidence signals)
+- Källurval och citeringar
+- Prompt- och kontextoptimering
+- Utvärdering (evaluation) och regressionstestning
+- Critic/revision eller liknande experimentella kvalitetssteg (där de är aktiverade)
 
 | Del | Teknik |
 |-----|--------|
 | Backend | FastAPI, Uvicorn, Pydantic v2 |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS |
-| 3D/UI | Three.js, React Three Fiber, Drei, Framer Motion |
 | Vector DB | ChromaDB, lokal persistent lagring |
 | Sparse search | BM25 via SQLite FTS5 |
 | Embeddings | `jinaai/jina-embeddings-v3` |
 | Reranking | `jinaai/jina-reranker-v2-base-multilingual` |
-| Lokal LLM | Konfigurerad via `CONST_LLM_BASE_URL` (till exempel Ollama eller llama-server) |
-| Pipeline | Retrieval orchestration, RAG-Fusion/RRF, CRAG-inspirerad gradering |
-| Streaming | Server-Sent Events från backend till frontend |
-| CI | GitHub Actions: docs-check, pytest, ruff, mypy, eslint, TypeScript build |
+| Lokal LLM | Konfigurerad via `CONST_LLM_BASE_URL` |
+| Pipeline | RAG-Fusion/RRF, CRAG-inspirerad gradering, BM25 |
+| CI | GitHub Actions: docs-check, pytest, ruff, eslint, etc. |
 
 ## Arkitektur
 
@@ -93,7 +107,7 @@ Se [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) för mer teknisk detalj.
 ```text
 rag-project/
 ├── backend/                         FastAPI-backend, services, API-routes och tester
-├── apps/svensk-ragg-frontend/   React/TypeScript/Vite-frontend
+├── apps/svensk-ragg-frontend/       React/TypeScript/Vite-frontend
 ├── eval/                            Eval-skript, testfrågor och retrieval-analyser
 ├── backend/eval/                    Backendnära eval-dataset och körskript
 ├── indexers/                        Skript för ChromaDB-indexering
@@ -103,80 +117,27 @@ rag-project/
 └── .github/workflows/               CI för docs, backend och frontend
 ```
 
-## Datakorpus Och Begränsningar
-
-Projektet har utvecklats mot en större lokal korpus av svenska offentliga dokument. I tidigare lokal miljö har dokumentationen beskrivit ungefär 1,37M indexerade poster, inklusive myndighets-/riksdagsmaterial och DiVA-metadata. Den siffran ska läsas som historik från utvecklingsmiljön, inte som något som kan verifieras direkt efter klon.
-
-Det som finns i repot är kod, dokumentation, testdata och eval-struktur. Det som inte finns i repot är:
-
-- ChromaDB-data.
-- BM25/FTS5-index.
-- Lokala modellvikter.
-- PDF-cache eller skrapad rådata.
-- Lokala secrets, tokens eller runtimefiler.
-
-Det största lärandet i projektet är att kvaliteten i ett RAG-system avgörs lika mycket av retrieval, källurval, avgränsningar och eval som av modellen.
-
 ## Kom Igång
 
-Se även [docs/QUICK_START.md](docs/QUICK_START.md) för en kortare körguide.
+Se [docs/QUICK_START.md](docs/QUICK_START.md) för en kortare körguide och detaljer om backend/frontend-setup.
 
-### Backend
-
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --host 127.0.0.1 --port 8900
-```
-
-Health check:
-
-```bash
-curl http://127.0.0.1:8900/api/svensk-ragg/health
-```
-
-Readiness check:
-
-```bash
-curl http://127.0.0.1:8900/api/svensk-ragg/ready
-```
-
-Backenden kan starta utan privat corpus, men full privat RAG-retrieval kräver att `CONST_CHROMADB_PATH` pekar på ett lokalt ChromaDB-index och att en lokal LLM-runtime är igång. Den publika Riksdagen-demoprofilen (`CONST_PROFILE=public-riksdag-demo`) använder public BM25 och `gemma4:e2b`; operator-/legacy-ytor som `/mcp`, `/sse`, `/ws/harvest`, och generated docs är avstängda där som standard.
-
-### Frontend
-
-```bash
-cd apps/svensk-ragg-frontend
-npm ci
-npm run lint
-npm run build
-npm run dev
-```
-
-Frontend kör normalt på `http://localhost:3003` och använder `VITE_BACKEND_URL` för att hitta backend. Se [apps/svensk-ragg-frontend/README.md](apps/svensk-ragg-frontend/README.md).
+Backenden kan starta utan privat corpus, men full privat RAG-retrieval kräver att `CONST_CHROMADB_PATH` pekar på ett lokalt ChromaDB-index och att en lokal LLM-runtime är igång. Den publika Riksdagen-demoprofilen (`CONST_PROFILE=public-riksdag-demo`) använder public BM25 och en konfigurerad LLM.
 
 ### Tester
-
 ```bash
 cd backend
 python -m pytest tests/ -v -m "not integration and not ollama and not slow" --tb=short
 ```
-
-Integrationstester och LLM-tester kräver lokala tjänster och körs bara när motsvarande miljö finns.
 
 ## Dokumentation
 
 | Dokument | Innehåll |
 |----------|----------|
 | [docs/PORTFOLIO_CASE.md](docs/PORTFOLIO_CASE.md) | Kort case-sida för snabb överblick |
-| [docs/QUICK_START.md](docs/QUICK_START.md) | Lokal snabbstart utan privat databas |
+| [docs/QUICK_START.md](docs/QUICK_START.md) | Lokal snabbstart |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Teknisk arkitektur och pipeline |
 | [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) | Teststrategi och körkommandon |
-| [apps/svensk-ragg-frontend/README.md](apps/svensk-ragg-frontend/README.md) | Frontendens körning, miljövariabler och komponenter |
+| [apps/svensk-ragg-frontend/README.md](apps/svensk-ragg-frontend/README.md) | Frontend |
 
 ## Licens
 

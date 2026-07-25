@@ -4,7 +4,7 @@
 
 Svenska offentliga dokument är ofta utspridda över myndigheter, riksdagsmaterial, lagtext, rapporter och akademiska metadata. Ett vanligt RAG-problem är därför inte bara att generera text, utan att hitta rätt underlag, visa källor och hantera när systemet inte har tillräckligt stöd.
 
-Det här projektet byggdes som ett personligt lärande- och portföljcase för att förstå den praktiska kedjan från dokumentinsamling och indexering till retrieval, backend, frontend, testning och driftbarhet.
+Det här projektet byggdes som ett personligt lärande- och portföljcase för att utforska hur långt man kan nå med stora svenska dokumentmängder på vanlig konsumenthårdvara (specifikt en konsument-GPU med 12 GB VRAM). Det belyser hela den praktiska kedjan från dokumentinsamling och indexering till retrieval, backend, frontend, testning och driftbarhet.
 
 ## Lösning
 
@@ -14,7 +14,8 @@ Projektet visar särskilt:
 
 - Hybrid retrieval: ChromaDB-vektorsökning och BM25/SQLite FTS5.
 - Lokal LLM-integration via backendkonfiguration.
-- Reranking och confidence-/graderingssteg före svarsgenerering.
+- Reranking och confidence-/graderingssteg (CRAG-inspirerat) före svarsgenerering.
+- RAG-Fusion och Reciprocal Rank Fusion (RRF).
 - React-frontend med fråga, svar, pipelinevy och källpanel.
 - Eval- och testfrågor för att resonera om retrievalkvalitet och regressionsrisk.
 
@@ -26,7 +27,7 @@ Projektet visar särskilt:
 | API | FastAPI, Pydantic, SSE-streaming |
 | Retrieval | ChromaDB, BM25/SQLite FTS5, RAG-Fusion/RRF |
 | ML | Jina embeddings, Jina reranker, lokal LLM-runtime |
-| Test/CI | pytest, ruff, mypy, eslint, TypeScript build, GitHub Actions |
+| Test/CI | pytest, ruff, eslint, TypeScript build, GitHub Actions |
 
 ## Vad Som Går Att Verifiera I Repot
 
@@ -36,15 +37,19 @@ Projektet visar särskilt:
 - Evalstruktur, testfrågor och tidigare eval-resultat som projektartefakter.
 - GitHub Actions för docs-check, backendtester och frontend build/lint.
 
-Full retrieval med verkliga svar kräver däremot lokal ChromaDB-/BM25-data och en lokal LLM-runtime. Dessa ingår inte i repot.
+Full retrieval med verkliga svar kräver däremot lokala modeller och databaser.
 
-## Begränsningar
+## Datakorpus och Begränsningar
 
-- Repot är inte en publik tjänst och ska inte behandlas som en färdig produkt.
-- ChromaDB-data, BM25-index, PDF-cache, modellvikter och lokala runtimefiler är exkluderade.
-- Dokumentantal i äldre projektanteckningar beskriver en lokal utvecklingsmiljö och behöver verifieras på nytt om systemet återskapas.
+Projektets skala skiljer sig mellan den publika distributionen och den historiska privata miljön:
+
+- **Publik Demo:** Den distribuerade dataversionen är baserad enbart på säker öppen data, för närvarande riksdagsmaterial (verifierat till ca 230 143 rader från release-manifestet).
+- **Historisk Privat Miljö:** Systemet utvecklades initialt mot en databas på ca 1,37 miljoner rader, vilket inkluderade DiVA-metadata och annat material. **DiVA-data och privata experimentindex ingår inte i detta repo.**
+
+Övriga begränsningar:
+- Repot är inte en publik tjänst och ska inte behandlas som en färdig produkt. Juridiska svar från systemet ska aldrig betraktas som auktoritativ rådgivning.
 - Projektet innehåller experimentella delar för gradering, guardrails och critic/revise-flöden. De ska läsas som implementationer att lära av, inte som garanterat hallucinationsskydd.
-- Juridiska svar från systemet ska aldrig betraktas som auktoritativ rådgivning.
+- Fokus har legat på iterativ optimering (prompt engineering, kontextlängd, retrieval), inte fine-tuning av modellvikter.
 
 ## Screenshots
 
@@ -56,6 +61,4 @@ Screenshots ovan kommer från tidigare lokal körning. De visar frontendens sät
 
 ## Lärdomar
 
-Det viktigaste lärandet var att RAG-kvalitet inte sitter i en enda modell. Retrievalstrategi, dokumentstruktur, metadata, källurval, fallbackbeteende, evalfrågor och ärlig osäkerhet avgör lika mycket som själva LLM:en.
-
-Det här repot är därför mest värdefullt som ett tekniskt case: det visar hur många praktiska lager som behöver fungera tillsammans för att bygga ett seriöst, källbaserat AI-flöde.
+Det viktigaste lärandet var att RAG-kvalitet inte sitter i en enda modell, speciellt inte under begränsade minneskrav (12 GB VRAM). Retrievalstrategi, dokumentstruktur, metadata, källurval, fallbackbeteende, evalfrågor och ärlig osäkerhet avgör lika mycket som själva LLM:en.

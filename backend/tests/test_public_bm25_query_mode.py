@@ -203,7 +203,7 @@ async def test_public_mode_uses_bm25_when_chroma_is_disabled(monkeypatch, public
     assert bm25.calls[0]["query"] == "offentlighetsprincipen?"
     assert bm25.calls[0]["return_docs"] is True
     assert orchestrator.retrieval.search_with_epr.await_count == 0
-    assert getattr(result, "retrieval_metadata")["mode"] == "public_bm25_only"
+    assert result.retrieval_metadata["mode"] == "public_bm25_only"
 
 
 @pytest.mark.asyncio
@@ -226,7 +226,7 @@ async def test_public_mode_blocks_when_readiness_cannot_answer(monkeypatch) -> N
 
     assert result.success is False
     assert result.sources == []
-    assert getattr(result, "refusal_reason") == "readiness_not_answerable"
+    assert result.refusal_reason == "readiness_not_answerable"
     assert bm25.calls == []
 
 
@@ -270,9 +270,9 @@ async def test_public_results_are_deduplicated_by_document_id(monkeypatch, publi
 
     result = await _make_public_orchestrator().process_query("Riksdagen?", mode="evidence")
 
-    document_ids = [getattr(source, "document_id") for source in result.sources]
+    document_ids = [source.document_id for source in result.sources]
     assert document_ids == ["H123456", "H654321"]
-    assert getattr(result, "retrieval_metadata")["deduplicated_documents"] == 2
+    assert result.retrieval_metadata["deduplicated_documents"] == 2
 
 
 @pytest.mark.asyncio
@@ -286,7 +286,7 @@ async def test_public_context_is_capped_at_8_chunks(monkeypatch, public_ready) -
     result = await _make_public_orchestrator().process_query("Riksdagen?", mode="evidence")
 
     assert len(result.sources) == 8
-    assert getattr(result, "retrieval_metadata")["chunks_used"] == 8
+    assert result.retrieval_metadata["chunks_used"] == 8
 
 
 @pytest.mark.asyncio
@@ -395,7 +395,7 @@ async def test_public_answer_includes_source_ids_and_citation_metadata(
     assert result.citations
     assert result.citations[0].source_id == "H000001"
     assert result.citations[0].source_collection == PUBLIC_SOURCE_SCOPE
-    assert getattr(result, "data_source_attribution") == SOURCE_ATTRIBUTION_TEXT
+    assert result.data_source_attribution == SOURCE_ATTRIBUTION_TEXT
 
 
 @pytest.mark.asyncio
@@ -435,8 +435,8 @@ async def test_public_no_bm25_hits_refuses_with_no_context(monkeypatch, public_r
 
     assert result.success is False
     assert result.sources == []
-    assert getattr(result, "refusal_reason") == "no_context"
-    assert getattr(result, "data_source_attribution") == SOURCE_ATTRIBUTION_TEXT
+    assert result.refusal_reason == "no_context"
+    assert result.data_source_attribution == SOURCE_ATTRIBUTION_TEXT
 
 
 @pytest.mark.asyncio
@@ -453,7 +453,7 @@ async def test_public_weak_context_refuses_with_weak_context(monkeypatch, public
 
     assert result.success is False
     assert result.sources == []
-    assert getattr(result, "refusal_reason") == "weak_context"
+    assert result.refusal_reason == "weak_context"
 
 
 @pytest.mark.asyncio
@@ -472,7 +472,7 @@ async def test_public_legal_advice_question_refuses_without_search(
     )
 
     assert result.success is False
-    assert getattr(result, "refusal_reason") == "legal_advice"
+    assert result.refusal_reason == "legal_advice"
     assert bm25.calls == []
 
 
@@ -493,7 +493,7 @@ async def test_public_source_boundary_question_refuses_without_search(
     )
 
     assert result.success is False
-    assert getattr(result, "refusal_reason") == "source_boundary"
+    assert result.refusal_reason == "source_boundary"
     assert bm25.calls == []
 
 

@@ -165,9 +165,9 @@ class TestResearchSynthesis:
     def test_all_16_research_patterns(self, classifier: IntentClassifier, query: str):
         """Every RESEARCH pattern must individually trigger RESEARCH_SYNTHESIS."""
         result = classifier.classify(query)
-        assert result.intent == QueryIntent.RESEARCH_SYNTHESIS, (
-            f"Expected RESEARCH_SYNTHESIS for '{query}', got {result.intent.value}"
-        )
+        assert (
+            result.intent == QueryIntent.RESEARCH_SYNTHESIS
+        ), f"Expected RESEARCH_SYNTHESIS for '{query}', got {result.intent.value}"
 
 
 class TestPracticalProcess:
@@ -235,9 +235,9 @@ class TestConfidenceBounds:
     @pytest.mark.parametrize("query", DIVERSE_QUERIES)
     def test_confidence_within_0_1(self, classifier: IntentClassifier, query: str):
         result = classifier.classify(query)
-        assert 0.0 <= result.confidence <= 1.0, (
-            f"Confidence {result.confidence} out of bounds for '{query}'"
-        )
+        assert (
+            0.0 <= result.confidence <= 1.0
+        ), f"Confidence {result.confidence} out of bounds for '{query}'"
 
 
 # ═══════════════════════════════════════════════════════════════════

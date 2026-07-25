@@ -55,7 +55,16 @@ def test_public_branding_uses_svensk_ragg_only() -> None:
 def test_svensk_ragg_api_aliases_are_registered() -> None:
     from app.main import app
 
-    paths = {getattr(route, "path", "") for route in app.routes}
+    def _extract_paths(route):
+        paths = []
+        if getattr(route, "path", None):
+            paths.append(route.path)
+        if hasattr(route, "original_router") and hasattr(route.original_router, "routes"):
+            for sub in route.original_router.routes:
+                paths.extend(_extract_paths(sub))
+        return paths
+
+    paths = {p for r in app.routes for p in _extract_paths(r)}
 
     assert "/api/svensk-ragg/health" in paths
     assert "/api/svensk-ragg/ready" in paths

@@ -119,7 +119,9 @@ def main() -> int:
     model, current_ctx = _load_config(repo, python)
 
     if args.dry_run:
-        print(json.dumps({"model": model, "contexts": contexts, "current_ctx": current_ctx}, indent=2))
+        print(
+            json.dumps({"model": model, "contexts": contexts, "current_ctx": current_ctx}, indent=2)
+        )
         return 0
 
     all_rows: list[dict[str, str]] = []

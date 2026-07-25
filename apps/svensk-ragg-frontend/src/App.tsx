@@ -34,7 +34,7 @@ function App() {
 
         {/* Main Work Area */}
         <div className="flex-1 flex flex-col min-w-0 h-full relative z-10 bg-transparent">
-          
+
           {/* Header Bar */}
           <header className="h-14 border-b border-white/[0.05] bg-slate-950/20 backdrop-blur-md px-6 flex items-center justify-between shrink-0 z-30">
             <div className="flex items-center gap-4">
@@ -47,7 +47,7 @@ function App() {
                   <PanelLeft className="w-4 h-4" />
                 </button>
               )}
-              
+
               <div className="flex items-center gap-2">
                 <Shield className="w-4 h-4 text-accent-primary" />
                 <span className="text-xs font-semibold tracking-widest uppercase text-slate-200">

@@ -79,7 +79,7 @@ class FIScraper:
                     if response.status == 200:
                         return await response.text()
                     logger.warning(f"HTTP {response.status} for {url}")
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning(f"Timeout on {url} (attempt {attempt + 1}/{retries})")
             except Exception as e:
                 logger.error(f"Error fetching {url}: {e}")

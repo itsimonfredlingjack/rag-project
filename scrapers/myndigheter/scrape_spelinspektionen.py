@@ -39,9 +39,7 @@ class SpelinspeketionenScraper:
     def __init__(self, chromadb_path: str = "chromadb_data"):
         self.session = requests.Session()
         self.session.headers.update(
-            {
-                "User-Agent": "Mozilla/5.0 (compatible; SwedishGovScraper/1.0; Svensk Ragg Research)"
-            }
+            {"User-Agent": "Mozilla/5.0 (compatible; SwedishGovScraper/1.0; Svensk Ragg Research)"}
         )
 
         # ChromaDB setup

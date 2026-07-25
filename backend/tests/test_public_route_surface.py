@@ -28,7 +28,16 @@ def _routes_for_profile(profile: str, **extra_env: str) -> set[str]:
     code = """
 import json
 from app.main import app
-print("ROUTES_JSON=" + json.dumps(sorted(getattr(route, "path", "") for route in app.routes)))
+def _extract_paths(route):
+    paths = []
+    if getattr(route, "path", None):
+        paths.append(route.path)
+    if hasattr(route, "original_router") and hasattr(route.original_router, "routes"):
+        for sub in route.original_router.routes:
+            paths.extend(_extract_paths(sub))
+    return paths
+
+print("ROUTES_JSON=" + json.dumps(sorted({p for r in app.routes for p in _extract_paths(r)})))
 """
     completed = subprocess.run(
         [sys.executable, "-c", code],

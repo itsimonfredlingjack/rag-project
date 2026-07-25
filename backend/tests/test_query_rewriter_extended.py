@@ -228,9 +228,9 @@ class TestNeedsRewrite:
     def test_needs_rewrite_detection(self, rewriter, query, expected):
         """Test detection of queries needing decontextualization."""
         result = rewriter.needs_rewrite(query)
-        assert result == expected, (
-            f"Query '{query}' should {'need' if expected else 'not need'} rewrite"
-        )
+        assert (
+            result == expected
+        ), f"Query '{query}' should {'need' if expected else 'not need'} rewrite"
 
     def test_swedish_pronouns_trigger_rewrite(self, rewriter):
         """All Swedish pronouns should trigger need for rewrite."""

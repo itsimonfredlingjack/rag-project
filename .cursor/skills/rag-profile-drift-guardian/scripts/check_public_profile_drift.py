@@ -111,12 +111,18 @@ def check_drift(repo: Path, ready_url: str) -> list[Finding]:
     ctx = cfg["ollama_num_ctx"]
 
     if cfg["profile"] != PUBLIC_PROFILE:
-        findings.append(Finding("DRIFT", "profile", f"expected {PUBLIC_PROFILE}", {"actual": cfg["profile"]}))
+        findings.append(
+            Finding("DRIFT", "profile", f"expected {PUBLIC_PROFILE}", {"actual": cfg["profile"]})
+        )
     else:
         findings.append(Finding("OK", "profile", PUBLIC_PROFILE))
 
     if cfg["corpus_scope"] != PUBLIC_SCOPE:
-        findings.append(Finding("DRIFT", "corpus_scope", f"expected {PUBLIC_SCOPE}", {"actual": cfg["corpus_scope"]}))
+        findings.append(
+            Finding(
+                "DRIFT", "corpus_scope", f"expected {PUBLIC_SCOPE}", {"actual": cfg["corpus_scope"]}
+            )
+        )
     else:
         findings.append(Finding("OK", "corpus_scope", PUBLIC_SCOPE))
 
@@ -149,12 +155,16 @@ def check_drift(repo: Path, ready_url: str) -> list[Finding]:
     warmup_ctx = _extract_warmup_num_ctx(start)
 
     if start_model != model:
-        findings.append(Finding("DRIFT", "start_system.sh model", f"expected {model}", {"actual": start_model}))
+        findings.append(
+            Finding("DRIFT", "start_system.sh model", f"expected {model}", {"actual": start_model})
+        )
     else:
         findings.append(Finding("OK", "start_system.sh model", model))
 
     if status_model != model:
-        findings.append(Finding("DRIFT", "status.sh model", f"expected {model}", {"actual": status_model}))
+        findings.append(
+            Finding("DRIFT", "status.sh model", f"expected {model}", {"actual": status_model})
+        )
     else:
         findings.append(Finding("OK", "status.sh model", model))
 
@@ -188,7 +198,9 @@ def check_drift(repo: Path, ready_url: str) -> list[Finding]:
         llm = ready.get("checks", {}).get("llm_service", {}).get("details", {})
         ready_model = llm.get("model")
         if ready_model and ready_model != model:
-            findings.append(Finding("DRIFT", "ready llm model", f"expected {model}", {"actual": ready_model}))
+            findings.append(
+                Finding("DRIFT", "ready llm model", f"expected {model}", {"actual": ready_model})
+            )
         elif ready_model:
             findings.append(Finding("OK", "ready llm model", ready_model))
         if ready.get("can_answer") not in (True, "True", "true"):

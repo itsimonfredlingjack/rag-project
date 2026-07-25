@@ -347,7 +347,7 @@ class KommunWorker:
             logger.info(f"[Worker {self.worker_id}] Completed: {msg}")
             return True, msg
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self.consecutive_timeouts += 1
             error_msg = f"Timeout after {TIMEOUT_PER_KOMMUN}s"
             self.state.fail_task(task.kod, error_msg)

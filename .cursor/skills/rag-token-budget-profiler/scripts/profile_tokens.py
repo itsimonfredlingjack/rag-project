@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import json
 import statistics
-import sys
 from pathlib import Path
 
 
@@ -42,7 +41,9 @@ def main() -> int:
     if median_tokens > threshold:
         print("Recommendation: num_predict reduction MAY help — run bouncer after change")
     elif median_latency and median_latency > 5000 and median_tokens < threshold * 0.5:
-        print("Recommendation: latency high with short output — tune ctx/source payload, not num_predict")
+        print(
+            "Recommendation: latency high with short output — tune ctx/source payload, not num_predict"
+        )
     else:
         print("Recommendation: keep num_predict; bottleneck likely elsewhere")
 

@@ -68,7 +68,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=str(DEFAULT_PUBLIC_ROOT),
         help="Required public corpus root for input/output path checks.",
     )
-    parser.add_argument("--batch-size", type=int, default=BATCH_SIZE, help="SQLite insert batch size.")
+    parser.add_argument(
+        "--batch-size", type=int, default=BATCH_SIZE, help="SQLite insert batch size."
+    )
     parser.add_argument(
         "--no-optimize",
         action="store_true",
